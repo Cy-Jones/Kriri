@@ -20,14 +20,12 @@ exports.getTaskComments = async (req, res) => {
 };
 
 exports.addComment = async (req, res) => {
-  const { task_id, content } = req.body;
-  const user_id = req.user.id;
-
-  if (!task_id || !content) {
-    return res.status(400).json({ error: 'task_id and content are required' });
-  }
-
   try {
+    const { commentSchema } = require('../validators');
+    const validatedData = commentSchema.parse(req.body);
+    const { task_id, content } = validatedData;
+    const user_id = req.user.id;
+
     // Verify task belongs to active workspace
     const taskRes = await db.query(`
       SELECT t.id FROM tasks t
@@ -44,12 +42,49 @@ exports.addComment = async (req, res) => {
       [task_id, user_id, content]
     );
     
+    // Notification Logic (Comment added)
+    try {
+      const taskDetailsRes = await db.query(
+        `SELECT t.title, u.clerk_user_id as assignee_clerk_id, t.assignee_id 
+         FROM tasks t 
+         LEFT JOIN users u ON t.assignee_id = u.id 
+         WHERE t.id = $1`, 
+        [task_id]
+      );
+      if (taskDetailsRes.rows.length > 0) {
+        const taskInfo = taskDetailsRes.rows[0];
+        // Notify Assignee if the commenter is not the assignee
+        if (taskInfo.assignee_id && taskInfo.assignee_id !== user_id && taskInfo.assignee_clerk_id) {
+          await db.query(
+            `INSERT INTO notifications 
+             (workspace_id, user_id, actor_id, type, title, message, entity_type, entity_id) 
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+            [
+              req.workspace.id, 
+              taskInfo.assignee_clerk_id, 
+              req.auth?.userId, 
+              'task_comment', 
+              'New Comment', 
+              `${req.user.name} commented on issue "${taskInfo.title}".`, 
+              'task', 
+              task_id
+            ]
+          );
+        }
+      }
+    } catch (notifErr) {
+      console.error('Error creating notification for comment:', notifErr);
+    }
+    
     // Fetch user info to append to response
     const userRes = await db.query('SELECT name as user_name, avatar_url FROM users WHERE id = $1', [user_id]);
     const comment = { ...rows[0], ...userRes.rows[0] };
     
     res.status(201).json(comment);
   } catch (error) {
+    if (error.name === 'ZodError') {
+      return res.status(400).json({ error: error.errors.map(e => e.message).join(', ') });
+    }
     console.error(error);
     res.status(500).json({ error: 'Server error' });
   }

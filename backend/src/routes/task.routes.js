@@ -14,7 +14,7 @@ router.get('/:id', requireMinimumRole('Viewer'), taskController.getTaskById);
 // Members can update task status (per rule 4.4)
 router.put('/:id', requireMinimumRole('Member'), taskController.updateTask);
 
-// Only Project Managers and above can create tasks (per rule 4.2)
-router.post('/', requireMinimumRole('Project Manager'), taskController.createTask);
+// Members and above can create tasks
+router.post('/', requireMinimumRole('Member'), taskController.createTask);
 
 module.exports = router;

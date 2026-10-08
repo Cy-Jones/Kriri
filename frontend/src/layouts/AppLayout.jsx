@@ -1,21 +1,53 @@
 import { useState, useEffect } from 'react';
-import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { LayoutGrid, KanbanSquare, CheckSquare, Users, Settings, Search, Folder, LogOut } from 'lucide-react';
+import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
+import { LayoutGrid, KanbanSquare, CheckSquare, Users, Settings, Search, Folder, LogOut, Inbox as InboxIcon, LineChart } from 'lucide-react';
 import CreateTaskModal from '../components/CreateTaskModal';
-import { useUser, useClerk, OrganizationSwitcher } from '@clerk/clerk-react';
+import CommandPalette from '../components/CommandPalette';
+import { useUser, useClerk, OrganizationSwitcher, useOrganization, useOrganizationList } from '@clerk/clerk-react';
 import { api } from '../lib/api';
+import posthog from '../lib/posthog';
 
 export default function AppLayout() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useUser();
   const { signOut } = useClerk();
+  const { organization } = useOrganization();
+  const { userMemberships, isLoaded: isOrgListLoaded } = useOrganizationList({ userMemberships: true });
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [initialOrg, setInitialOrg] = useState(null);
+
+  useEffect(() => {
+    if (
+      isOrgListLoaded && 
+      userMemberships &&
+      !userMemberships.isLoading &&
+      userMemberships.data !== undefined &&
+      userMemberships.data.length === 0 && 
+      location.pathname !== '/onboarding'
+    ) {
+      navigate('/onboarding', { replace: true });
+    }
+  }, [isOrgListLoaded, userMemberships?.isLoading, userMemberships?.data, location.pathname, navigate]);
 
   useEffect(() => {
     if (user) {
-      api.post('/auth/sync', {}).catch(err => console.error("Sync error:", err));
+      api.post('/auth/sync', {}).then(() => {
+        if (initialOrg === null) {
+          setInitialOrg(organization?.id || "personal");
+        } else if (initialOrg !== (organization?.id || "personal")) {
+          // Organization changed, reload to fetch fresh data for everything
+          window.location.reload();
+        }
+      }).catch(err => console.error("Sync error:", err));
     }
-  }, [user]);
+  }, [user, organization?.id]);
+
+  useEffect(() => {
+    if (user?.id) {
+      posthog.identify(user.id);
+    }
+  }, [user?.id]);
 
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   
@@ -25,24 +57,28 @@ export default function AppLayout() {
 
   const topNavItems = [
     { name: 'Dashboard', path: '/dashboard', icon: LayoutGrid },
+    { name: 'Inbox', path: '/inbox', icon: InboxIcon },
     { name: 'Issues', path: '/tasks', icon: CheckSquare },
     { name: 'Board', path: '/kanban', icon: KanbanSquare },
   ];
 
   const workspaceItems = [
     { name: 'Projects', path: '/projects', icon: Folder },
+    { name: 'Analytics', path: '/analytics', icon: LineChart },
     { name: 'Team', path: '/team', icon: Users },
     { name: 'Settings', path: '/settings', icon: Settings },
   ];
 
   const handleSignOut = () => {
+    posthog.capture('logout');
+    posthog.reset();
     signOut(() => navigate('/'));
   };
 
   return (
     <div className="flex h-screen w-full bg-[#08090A] overflow-hidden text-text-primary text-[13px] font-sans selection:bg-accent/30 selection:text-white">
       {/* Sidebar */}
-      <aside className="w-[230px] flex-shrink-0 bg-transparent flex flex-col transition-all duration-300 relative">
+      <aside className="w-[260px] flex-shrink-0 bg-transparent flex flex-col transition-all duration-300 relative">
         
         {/* Sidebar Header */}
         <div className="h-[48px] flex items-center justify-between px-3 mt-1">
@@ -57,12 +93,15 @@ export default function AppLayout() {
                 {initials}
               </div>
             )}
-            <span className="text-[13px] truncate max-w-[120px]">{userName}</span>
+            <span className="text-[13px] truncate max-w-[160px]">{userName}</span>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[#8a8f98] opacity-70"><path d="m6 9 6 6 6-6"/></svg>
           </div>
           
           <div className="flex items-center gap-0.5 text-[#8a8f98]">
-            <button className="p-1.5 hover:bg-white/[0.04] hover:text-[#e8e8e8] rounded-md transition-colors">
+            <button 
+              onClick={() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true }))}
+              className="p-1.5 hover:bg-white/[0.04] hover:text-[#e8e8e8] rounded-md transition-colors"
+            >
               <Search size={14} />
             </button>
             <button onClick={() => setIsModalOpen(true)} className="p-1.5 hover:bg-white/[0.04] hover:text-[#e8e8e8] rounded-md transition-colors">
@@ -79,14 +118,12 @@ export default function AppLayout() {
               onClick={() => { navigate('/settings'); setIsProfileOpen(false); }}
             >
               <span>Settings</span>
-              <span className="text-[#8a8f98] text-[11px]">G then S</span>
             </div>
-            <div className="px-3 py-1.5 hover:bg-white/[0.06] cursor-pointer text-[#e8e8e8]">
+            <div 
+              className="px-3 py-1.5 hover:bg-white/[0.06] cursor-pointer text-[#e8e8e8]"
+              onClick={() => { navigate('/team'); setIsProfileOpen(false); }}
+            >
               Invite and manage members
-            </div>
-            <div className="h-[1px] bg-white/[0.08] my-1"></div>
-            <div className="px-3 py-1.5 hover:bg-white/[0.06] cursor-pointer text-[#e8e8e8]">
-              Download desktop app
             </div>
             <div className="h-[1px] bg-white/[0.08] my-1"></div>
             <div 
@@ -185,6 +222,8 @@ export default function AppLayout() {
           window.location.reload();
         }}
       />
+      
+      <CommandPalette openCreateTask={() => setIsModalOpen(true)} />
     </div>
   );
 }

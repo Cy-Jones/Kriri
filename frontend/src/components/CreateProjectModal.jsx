@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useUser, useOrganization } from '@clerk/clerk-react';
 import { XSquare, LayoutGrid, Calendar, User, Activity, Bookmark, Star, Info } from 'lucide-react';
 import { api } from '../lib/api';
+import posthog from '../lib/posthog';
 import DatePicker from './DatePicker';
 import LabelPicker from './LabelPicker';
 import LeadPicker from './LeadPicker';
@@ -114,10 +115,12 @@ export default function CreateProjectModal({ isOpen, onClose, onProjectCreated }
         due_date: targetDate,
         labels,
         lead,
-        members
+        members,
+        milestones
       });
       // In a real app we'd save milestones too.
       onProjectCreated(data);
+      posthog.capture('project_created', { project_id: data.id });
       
       // Clear draft on successful save
       localStorage.removeItem('kriri_project_draft');

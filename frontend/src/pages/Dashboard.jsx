@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Folder, CheckSquare, Clock, AlertCircle, Plus, MoreHorizontal, BarChart2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { useUser } from '@clerk/clerk-react';
+import { useUser, useOrganization } from '@clerk/clerk-react';
 import CreateProjectModal from '../components/CreateProjectModal';
+import { api } from '../lib/api';
+import posthog from '../lib/posthog';
 
 // Arc Components
 import { Button } from '../registry/components/button/button';
@@ -14,29 +16,65 @@ import { AnimatedCounter } from '../registry/components/animated-counter/animate
 export default function Dashboard() {
   const { user } = useUser();
   const userName = user?.fullName || 'User';
-  // Check if admin by comparing primary email for demo toggles
-  const isAdmin = user?.primaryEmailAddress?.emailAddress === 'smartjones07@gmail.com';
   
-  const [hasData, setHasData] = useState(isAdmin);
+  const [summary, setSummary] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const navigate = useNavigate();
+  const { organization } = useOrganization();
+  const [currentUserRole, setCurrentUserRole] = useState(null);
+  const canManageProjects = ['Owner', 'Admin', 'Project Manager', 'Member', 'Team Lead'].includes(currentUserRole) || !organization;
+
+  useEffect(() => {
+    const fetchRole = async () => {
+      if (!organization) {
+        setCurrentUserRole('Owner');
+        return;
+      }
+      try {
+        const response = await api.get(`/workspaces/${organization.id}/members`);
+        const members = Array.isArray(response) ? response : response.data?.members || [];
+        const currentMember = members.find(m => m.email === user?.primaryEmailAddress?.emailAddress);
+        if (currentMember) setCurrentUserRole(currentMember.role);
+      } catch (err) {
+        console.error("Failed to fetch role", err);
+      }
+    };
+    if (user) {
+      fetchRole();
+    }
+  }, [organization, user]);
+
+  useEffect(() => {
+    if (!user) return; // Wait until user is loaded
+
+    const fetchSummary = async () => {
+      try {
+        setLoading(true);
+        const res = await api.get('/workspaces/current/summary');
+        setSummary(res);
+      } catch (err) {
+        console.error('Error fetching dashboard summary:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchSummary();
+  }, [organization?.id, user?.id]);
+
+  useEffect(() => {
+    posthog.capture('dashboard_viewed');
+  }, []);
+
+  if (loading) {
+    return <div className="p-8 text-text-muted">Loading dashboard...</div>;
+  }
+
+  const hasData = summary && summary.activeProjectCount > 0;
 
   if (!hasData) {
     return (
       <div className="flex flex-col h-full relative">
-        {/* State Toggle for demo */}
-        {isAdmin && (
-          <div className="fixed bottom-4 right-4 z-50">
-            <Button 
-              variant="ghost"
-              onClick={() => setHasData(true)}
-              className="text-[11px] h-7 px-2"
-            >
-              Show Populated State
-            </Button>
-          </div>
-        )}
-
         <div className="flex flex-col items-center justify-center flex-1 max-w-sm mx-auto text-center gap-6 mt-10 animate-in fade-in zoom-in-95 duration-500">
           <div className="w-16 h-16 bg-white/[0.03] border border-white/[0.05] rounded-2xl flex items-center justify-center text-text-muted shadow-sm relative overflow-hidden">
              {/* Subtle internal glow */}
@@ -47,24 +85,20 @@ export default function Dashboard() {
           <div className="flex flex-col gap-2">
             <h2 className="text-lg font-semibold text-white tracking-tight">Create your first project</h2>
             <p className="text-[14px] text-text-muted leading-relaxed">
-              Projects group your tasks, milestones, and team members together. Get started by creating a new workspace.
+              Projects group your tasks, milestones, and team members together. Get started by creating a new project.
             </p>
           </div>
           
           <div className="flex items-center gap-3">
-            <Button 
-              onClick={() => setIsCreateModalOpen(true)}
-              className="h-8 text-[13px] flex items-center gap-2"
-            >
-              <Plus size={14} />
-              New Project
-            </Button>
-            <Button 
-              variant="secondary"
-              className="h-8 text-[13px]"
-            >
-              Invite Team
-            </Button>
+            {canManageProjects && (
+              <button 
+                onClick={() => setIsCreateModalOpen(true)}
+                className="h-8 px-4 bg-white text-black rounded-md font-medium text-[13px] hover:bg-gray-100 transition-colors shadow-sm flex items-center gap-2"
+              >
+                <Plus size={14} />
+                New Project
+              </button>
+            )}
           </div>
         </div>
         <CreateProjectModal 
@@ -83,100 +117,96 @@ export default function Dashboard() {
     day: 'numeric'
   });
 
+  const hour = today.getHours();
+  let greeting = 'Good evening';
+  if (hour < 12) {
+    greeting = 'Good morning';
+  } else if (hour < 18) {
+    greeting = 'Good afternoon';
+  }
+
   return (
     <div className="flex flex-col h-full relative">
-      {/* State Toggle for demo */}
-      {isAdmin && (
-        <div className="fixed bottom-4 right-4 z-50">
-          <Button 
-            variant="ghost"
-            onClick={() => setHasData(false)}
-            className="text-[11px] h-7 px-2"
-          >
-            Show Empty State
-          </Button>
-        </div>
-      )}
-
       <div className="flex flex-col gap-10 max-w-5xl mx-auto w-full pb-20 animate-in fade-in duration-500">
         
         {/* Header Section */}
         <div className="flex items-center justify-between mt-6">
           <div className="flex flex-col gap-1">
-            <span className="text-[15px] font-medium text-white">{dateString}</span>
-            <h1 className="text-3xl font-semibold text-white tracking-tight">Good morning, {userName || 'User'}</h1>
+            <span className="text-[15px] font-medium text-text-muted">{dateString}</span>
+            <h1 className="text-3xl font-semibold text-white tracking-tight">{greeting}, {userName || 'User'}</h1>
           </div>
           
           <div className="flex items-center gap-3">
-            <Button 
-              onClick={() => setIsCreateModalOpen(true)}
-              className="h-8 text-[13px] flex items-center gap-2"
-            >
-              <Plus size={14} />
-              New Project
-            </Button>
-            <Button 
-              variant="secondary"
-              className="h-8 text-[13px]"
-            >
-              Invite Team
-            </Button>
+            {canManageProjects && (
+              <button 
+                onClick={() => setIsCreateModalOpen(true)}
+                className="flex items-center gap-1.5 bg-white text-black hover:bg-gray-100 transition-colors text-xs font-medium px-3 py-1.5 rounded-md shadow-sm"
+              >
+                <Plus size={14} /> New Project
+              </button>
+            )}
           </div>
         </div>
 
         {/* Stats Overview */}
         <div className="grid grid-cols-4 gap-4">
           {[
-            { label: 'Tasks Due Today', value: '5', change: '+2 from yesterday', data: [2, 3, 5, 4, 6, 4, 5], tone: 'accent' },
-            { label: 'Overdue', value: '2', change: 'Needs attention', data: [1, 1, 2, 3, 2, 2, 2], tone: 'danger' },
-            { label: 'In Progress', value: '12', change: 'Steady', data: [10, 11, 15, 14, 12, 11, 12], tone: 'warning' },
-            { label: 'Completed (7d)', value: '34', change: '+12% this week', data: [15, 20, 25, 28, 30, 32, 34], tone: 'success' },
+            { label: 'Tasks Due Today', value: summary.stats.dueToday, change: 'Today', tone: 'text-white/60' },
+            { label: 'Overdue', value: summary.stats.overdue, change: 'Needs attention', tone: 'text-red-400' },
+            { label: 'In Progress', value: summary.stats.inProgress, change: 'Active', tone: 'text-amber-400' },
+            { label: 'Completed (7d)', value: summary.stats.completedLast7Days, change: 'This week', tone: 'text-emerald-400' },
           ].map((stat, i) => (
-            <div key={i} className="p-4 rounded-xl border border-white/[0.06] bg-white/[0.01] hover:bg-white/[0.02] transition-colors group">
-              <Sparkline
-                data={stat.data}
-                label={stat.label}
-                value={stat.value}
-                change={stat.change}
-                tone={stat.tone}
-                area={true}
-                interactive={true}
-              />
+            <div key={i} className="p-4 rounded-xl border border-white/[0.06] bg-white/[0.01] hover:bg-white/[0.02] transition-colors group flex flex-col gap-2">
+              <span className="text-[13px] font-medium text-text-muted">{stat.label}</span>
+              <div className="flex items-end justify-between mt-1">
+                <div className="text-3xl font-semibold text-white">
+                  <AnimatedCounter value={stat.value} />
+                </div>
+                <span className={`text-[12px] font-medium ${stat.tone}`}>{stat.change}</span>
+              </div>
             </div>
           ))}
         </div>
 
         {/* Active Projects */}
         <div className="flex flex-col gap-4">
-          <h3 className="text-[13px] font-medium text-text-muted flex items-center gap-2 uppercase tracking-wider">
-            Active Projects
-          </h3>
-          <div className="grid grid-cols-3 gap-4">
-            {[
-              { name: 'Website Redesign', key: 'WEB', progress: 68, tone: 'accent' },
-              { name: 'Mobile App V2', key: 'MOB', progress: 32, tone: 'warning' },
-              { name: 'Marketing Assets', key: 'MKT', progress: 85, tone: 'success' },
-            ].map((proj, i) => (
-              <div key={i} className="p-4 rounded-xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.04] transition-colors cursor-pointer group flex flex-col gap-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <span className="font-medium text-[14px] text-white group-hover:text-white transition-colors">{proj.name}</span>
-                  </div>
-                  <span className="text-[11px] font-mono text-text-muted">{proj.key}</span>
-                </div>
-                
-                <div className="flex flex-col gap-3">
-                  <div className="flex justify-between items-center text-[12px] font-medium">
-                    <span className="text-text-muted">Progress</span>
-                    <span className="text-white">
-                      <AnimatedCounter value={proj.progress} />%
-                    </span>
-                  </div>
-                  <Progress value={proj.progress} tone={proj.tone} className="h-1.5" />
-                </div>
-              </div>
-            ))}
+          <div className="flex items-center justify-between">
+            <h3 className="text-[13px] font-medium text-text-muted flex items-center gap-2 uppercase tracking-wider">
+              Recent Projects
+            </h3>
+            <Button variant="ghost" className="text-[12px] h-7 px-3" onClick={() => navigate('/projects')}>
+              View all projects &rarr;
+            </Button>
           </div>
+          {summary.recentProjects && summary.recentProjects.length > 0 ? (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {summary.recentProjects.map((project) => (
+                <div 
+                  key={project.id}
+                  onClick={() => navigate(`/projects/${project.id}`)}
+                  className="p-5 rounded-xl border border-white/[0.06] bg-white/[0.01] hover:bg-white/[0.03] transition-colors cursor-pointer group flex flex-col justify-between min-h-[120px]"
+                >
+                  <div className="flex items-start justify-between">
+                    <span className="font-semibold text-white group-hover:text-accent transition-colors line-clamp-2">{project.name}</span>
+                  </div>
+                  <div className="flex items-center justify-between mt-4">
+                    <span className="text-xs text-text-muted font-mono">{project.slug}</span>
+                    <Badge variant="outline" tone={project.status === 'In Progress' ? 'warning' : 'neutral'} className="text-[10px] px-1.5 py-0">
+                      {project.status || 'Planned'}
+                    </Badge>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="p-6 rounded-xl border border-white/[0.06] bg-white/[0.02] flex items-center justify-between">
+               <div className="flex flex-col gap-1">
+                 <span className="text-white font-medium">You have {summary.activeProjectCount} active project{summary.activeProjectCount !== 1 && 's'}</span>
+                 <span className="text-text-muted text-sm">Navigate to the projects page to view their progress and milestones.</span>
+               </div>
+               <Button variant="outline" onClick={() => navigate('/projects')}>Go to Projects</Button>
+            </div>
+          )}
         </div>
 
         {/* My Priorities (Tasks) */}
@@ -185,41 +215,39 @@ export default function Dashboard() {
              <h3 className="text-[13px] font-medium text-text-muted flex items-center gap-2 uppercase tracking-wider">
                My Priorities
              </h3>
-             <Button variant="ghost" className="text-[12px] h-7 px-3">
+             <Button variant="ghost" className="text-[12px] h-7 px-3" onClick={() => navigate('/tasks')}>
                View all issues &rarr;
              </Button>
           </div>
           
           <div className="flex flex-col border border-white/[0.06] rounded-xl bg-white/[0.01] overflow-hidden">
-            {[
-              { id: 'WEB-142', title: 'Update hero section copy', status: 'In Progress', priority: 'High', tone: 'warning' },
-              { id: 'WEB-145', title: 'Fix navigation z-index bug on mobile', status: 'Todo', priority: 'Urgent', tone: 'danger' },
-              { id: 'MOB-89', title: 'Implement biometric auth', status: 'Todo', priority: 'Medium', tone: 'accent' },
-              { id: 'MKT-12', title: 'Draft Q3 launch blog post', status: 'Todo', priority: 'Low', tone: 'neutral' },
-            ].map((task, i) => (
+            {summary.myIssues.length > 0 ? summary.myIssues.map((task, i) => (
               <div 
                 key={i} 
+                onClick={() => navigate('/tasks')}
                 className="flex items-center justify-between p-3 px-4 border-b border-white/[0.04] last:border-0 hover:bg-white/[0.03] transition-colors group cursor-pointer"
               >
                 <div className="flex items-center gap-4">
-                  <Badge variant="outline" tone={task.status === 'In Progress' ? 'warning' : 'neutral'} className="w-24 justify-center">
+                  <Badge variant="outline" tone={task.status === 'In Progress' ? 'warning' : 'neutral'} className="w-24 justify-center truncate">
                     {task.status}
                   </Badge>
                   
-                  <span className="text-[12px] font-mono text-text-muted w-16">{task.id}</span>
-                  <span className="text-[13.5px] text-white font-medium group-hover:text-white transition-colors">{task.title}</span>
+                  <span className="text-[12px] font-mono text-text-muted w-16 truncate">{task.project_slug}-{task.id}</span>
+                  <span className="text-[13.5px] text-white font-medium group-hover:text-white transition-colors line-clamp-1">{task.title}</span>
                 </div>
                 
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button className="text-text-muted hover:text-white transition-colors p-1"><MoreHorizontal size={14}/></button>
-                  </div>
-                  <Badge tone={task.tone} variant="soft">
+                <div className="flex items-center gap-4 min-w-[120px] justify-end">
+                  <Badge tone={
+                    task.priority === 'High' ? 'danger' :
+                    task.priority === 'Medium' ? 'warning' : 'neutral'
+                  } variant="soft">
                     {task.priority}
                   </Badge>
                 </div>
               </div>
-            ))}
+            )) : (
+              <div className="p-6 text-center text-text-muted text-sm">No active tasks assigned to you right now.</div>
+            )}
           </div>
         </div>
 

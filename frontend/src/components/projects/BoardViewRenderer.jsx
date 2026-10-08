@@ -113,7 +113,7 @@ function SortableProjectItem({ project, onClick, config, onDeleteProject, isSele
     >
       <div className="flex items-start justify-between">
         <div className="font-mono text-[11px] text-[#8a8f98] font-medium tracking-wider pt-0.5">
-          {config.properties.id ? (project.id || `PRJ-0${project.id || "1"}`) : ""}
+          {config.properties.id ? project.id : ""}
         </div>
         
         <div className="flex items-center gap-1.5 -mr-1">

@@ -12,6 +12,9 @@ import Onboarding from './pages/Onboarding';
 import Team from './pages/Team';
 import Settings from './pages/Settings';
 import ProjectDetails from './pages/ProjectDetails';
+import Analytics from './pages/Analytics';
+import Inbox from './pages/Inbox';
+import { SocketProvider } from './contexts/SocketContext';
 
 function App() {
   return (
@@ -32,21 +35,38 @@ function App() {
         <Route path="/sso-callback" element={<AuthenticateWithRedirectCallback signUpForceRedirectUrl="/dashboard" />} />
         
         {/* Landing Page */}
-        <Route path="/" element={<Landing />} />
+        <Route path="/" element={
+          <>
+            <SignedIn><Navigate to="/dashboard" replace /></SignedIn>
+            <SignedOut><Landing /></SignedOut>
+          </>
+        } />
         
+        <Route path="/onboarding" element={
+          <>
+            <SignedIn><Onboarding /></SignedIn>
+            <SignedOut><Navigate to="/login" replace /></SignedOut>
+          </>
+        } />
+
         {/* Main Application Layout - Protected */}
         <Route element={
           <>
-            <SignedIn><AppLayout /></SignedIn>
+            <SignedIn>
+              <SocketProvider>
+                <AppLayout />
+              </SocketProvider>
+            </SignedIn>
             <SignedOut><Navigate to="/login" replace /></SignedOut>
           </>
         }>
-          <Route path="onboarding" element={<Onboarding />} />
           <Route path="dashboard" element={<Dashboard />} />
+          <Route path="inbox" element={<Inbox />} />
           <Route path="tasks" element={<Tasks />} />
           <Route path="kanban" element={<Kanban />} />
           <Route path="projects" element={<Projects />} />
           <Route path="projects/:id" element={<ProjectDetails />} />
+          <Route path="analytics" element={<Analytics />} />
           <Route path="team" element={<Team />} />
           <Route path="settings" element={<Settings />} />
         </Route>

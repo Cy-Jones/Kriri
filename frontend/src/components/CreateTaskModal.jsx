@@ -1,19 +1,40 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { api } from '../lib/api';
+import posthog from '../lib/posthog';
 
-export default function CreateTaskModal({ isOpen, onClose, onTaskCreated }) {
+export default function CreateTaskModal({ isOpen, onClose, onTaskCreated, initialProjectId, initialStatus }) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [status, setStatus] = useState('Todo');
+  const [status, setStatus] = useState(initialStatus || 'Todo');
   const [priority, setPriority] = useState('Medium');
   const [createMore, setCreateMore] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [projects, setProjects] = useState([]);
+  const [projectId, setProjectId] = useState(initialProjectId || '');
+
+  useEffect(() => {
+    if (isOpen) {
+      setTitle('');
+      setDescription('');
+      setStatus(initialStatus || 'Todo');
+      setPriority('Medium');
+      
+      api.get('/projects')
+        .then(data => {
+          setProjects(data);
+          if (data.length > 0 && !projectId) {
+            setProjectId(initialProjectId || data[0].id);
+          }
+        })
+        .catch(err => console.error('Failed to fetch projects', err));
+    }
+  }, [isOpen, initialProjectId, initialStatus]);
 
   if (!isOpen) return null;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!title.trim()) return;
+    if (!title.trim() || !projectId) return;
 
     setLoading(true);
     try {
@@ -22,9 +43,10 @@ export default function CreateTaskModal({ isOpen, onClose, onTaskCreated }) {
         description,
         status,
         priority,
-        project_id: 1 // Default to first project for now
+        project_id: projectId
       });
       if (onTaskCreated) onTaskCreated(newTask);
+      posthog.capture('task_created', { project_id: projectId });
       
       if (createMore) {
         setTitle('');
@@ -58,10 +80,15 @@ export default function CreateTaskModal({ isOpen, onClose, onTaskCreated }) {
           {/* Top Bar */}
           <div className="px-4 py-3 flex items-center justify-between">
             <div className="flex items-center gap-1.5 text-[13px] text-text-secondary">
-              <div className="flex items-center gap-1.5 bg-white/5 hover:bg-white/10 px-2 py-1 rounded cursor-pointer transition-colors">
-                <div className="w-[14px] h-[14px] bg-[#f54868] rounded-[3px] flex items-center justify-center border border-white/10 text-white text-[7px] font-bold">C</div>
-                <span>CYJ</span>
-              </div>
+              <select 
+                value={projectId} 
+                onChange={(e) => setProjectId(Number(e.target.value))}
+                className="bg-white/5 hover:bg-white/10 px-2 py-1 rounded cursor-pointer transition-colors text-text-secondary focus:outline-none"
+              >
+                {projects.map(p => (
+                  <option key={p.id} value={p.id} className="bg-[#212226] text-white">{p.name}</option>
+                ))}
+              </select>
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
               <span className="text-text-primary">New issue</span>
             </div>

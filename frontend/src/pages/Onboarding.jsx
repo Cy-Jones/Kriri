@@ -1,10 +1,9 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { api } from '../lib/api';
 import { Input } from '../registry/components/input/input';
 import { Button } from '../registry/components/button/button';
-import { useUser } from '@clerk/clerk-react';
+import { useUser, useOrganizationList, useClerk } from '@clerk/clerk-react';
 import { Progress } from '../registry/components/progress/progress';
 import { AnimatedCounter } from '../registry/components/animated-counter/animated-counter';
 import { motionTokens } from '../lib/motion-tokens';
@@ -21,21 +20,37 @@ export default function Onboarding() {
   const [emails, setEmails] = useState(['', '', '']);
   
   const { user } = useUser();
+  const { createOrganization } = useOrganizationList();
+  const { setActive } = useClerk();
   const userName = user?.fullName || 'there';
+  const [error, setError] = useState(null);
 
   const handleComplete = async () => {
     setLoading(true);
+    setError(null);
     try {
-      await api.post('/workspaces', {
-        name: `${userName}'s Workspace`
-      });
-      // Allow time to simulate setup feel
-      await new Promise(resolve => setTimeout(resolve, 500));
-      navigate('/dashboard');
-    } catch (error) {
-      console.error('Failed to create workspace:', error);
-      // Fallback redirect just in case
-      navigate('/dashboard');
+      const orgName = customProject.trim() || projectType || (intent ? `${intent} Workspace` : `${userName}'s Workspace`);
+      
+      const org = await createOrganization({ name: orgName });
+      
+      await setActive({ organization: org.id });
+
+      const validEmails = emails.filter(e => e.trim());
+      for (const email of validEmails) {
+        try {
+          await org.inviteMember({ emailAddress: email.trim(), role: 'org:member' });
+        } catch (inviteErr) {
+          console.error("Failed to invite", email, inviteErr);
+        }
+      }
+
+      await new Promise(resolve => setTimeout(resolve, 800)); // Give Clerk a bit more time to settle
+      window.location.href = '/dashboard';
+    } catch (err) {
+      console.error('Failed to create workspace:', err);
+      setError(err.message || 'Failed to create workspace');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -241,7 +256,11 @@ export default function Onboarding() {
               {/* Skip Button */}
               <Button 
                 variant="ghost"
-                onClick={nextStep}
+                onClick={() => {
+                  setProjectType('');
+                  setCustomProject('');
+                  nextStep();
+                }}
                 className="text-text-muted hover:text-white"
               >
                 Skip for now
@@ -289,6 +308,8 @@ export default function Onboarding() {
                 Add another
               </Button>
             </div>
+            
+            {error && <div className="text-danger text-[13px]">{error}</div>}
             
             <div className="flex flex-col gap-5 mt-4">
               <Button 

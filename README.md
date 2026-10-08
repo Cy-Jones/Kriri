@@ -1,74 +1,94 @@
 # Kriri
 
-Kriri is a high-performance, full-stack project tracking and management platform designed to provide engineering and product teams with uncompromised visibility into their workflows. Built with a focus on strict architectural separation, responsive data mutations, and a premium visual aesthetic.
+<div align="center">
+  <h3>A premium, intelligent workspace for managing projects, tasks, and teams.</h3>
+  <p>Engineered for speed, precision, and collaboration.</p>
+</div>
 
-## System Architecture & App Logic
+---
 
-Kriri operates on a decoupled client-server architecture utilizing PostgreSQL for relational data integrity and Clerk for identity management.
+## ⚡ Overview
 
-### Frontend Client
-The frontend is a single-page application built with React and Vite.
-- **Routing & State:** Utilizes React Router for client-side navigation. State is managed locally with React Hooks and Context, optimized for rapid optimistic UI updates.
-- **Visual Layer:** Styled with Tailwind CSS, leveraging custom headless components, glassmorphism, and minimal hardware-accelerated animations for a tactile, low-latency feel.
-- **Views:**
-  - **Kanban Board:** Implements drag-and-drop state transitions for task progression.
-  - **List View:** A dense, configurable data grid supporting customized property visibility.
-  - **Timeline:** A Gantt-style visualization rendering project lifecycles and critical dates.
+Kriri is a high-performance project management platform built to streamline team workflows. Combining a powerful relational database with real-time updates and an intuitive frontend, Kriri brings clarity to complex operations. From Kanban boards to dynamic list views, your data is always exactly where you need it.
 
-### Backend Services
-The backend is a lightweight Node.js/Express REST API serving as the definitive source of truth.
-- **Database Engine:** PostgreSQL handles strict referential integrity between Users, Projects, Tasks, and Teams.
-- **Identity Sync:** User identities are managed by Clerk. The backend listens to Clerk webhooks to synchronize user profiles into the local PostgreSQL database, ensuring all domain entities reference valid internal user records.
-- **Authorization (RBAC):** While authentication is offloaded to Clerk, authorization is handled internally. Access control policies enforce that only Project Managers or designated Admins can perform destructive actions or modify project metadata.
+## 🛠️ Technology Stack
 
-## Technology Stack
+Kriri is built using modern, reliable technologies carefully chosen to deliver a seamless user experience.
 
-- **Client:** React 18, Vite, Tailwind CSS, Lucide React
-- **Server:** Node.js, Express, pg (node-postgres)
-- **Database:** PostgreSQL
-- **Identity:** Clerk
+- **Frontend:** React.js, Tailwind CSS, HTML5, CSS3
+- **Backend:** Node.js, Express.js
+- **Database:** PostgreSQL (Relational schema with strong foreign keys)
+- **Authentication:** Clerk (with Webhook-based JIT Provisioning)
+- **State Management:** React hooks and context
+- **Routing:** React Router DOM
 
-## Local Environment Setup
+## 📐 Architecture & Logic
 
-### 1. Repository Initialization
-Clone the repository and prepare the workspace:
-```bash
-git clone https://github.com/Cy-Jones/Kriri.git
-cd Kriri
-```
+Kriri's architecture is designed around **Workspaces**, **Projects**, and **Tasks**. 
 
-### 2. Backend Configuration
-Navigate to the backend directory and install dependencies:
-```bash
-cd backend
-npm install
-```
-Establish the environment configuration. Create a `.env` file in the `backend` directory:
-```env
-DATABASE_URL=postgresql://<username>:<password>@localhost:5432/kriri
-CLERK_SECRET_KEY=your_clerk_secret_key
-PORT=3000
-```
-Execute the database schema script (`schema.sql`) against your local Postgres instance, then start the server:
-```bash
-npm run dev
-```
+1. **Authentication & Identity**: User authentication is handled securely via Clerk. Clerk webhooks seamlessly sync user data and organization memberships into the local PostgreSQL database using Just-In-Time (JIT) provisioning.
+2. **Workspaces (Organizations)**: Every project and task belongs to a Workspace. Workspaces mirror Clerk Organizations. Users have specific roles (Owner, Admin, Member, etc.) that enforce strict Access Control Logic across the application.
+3. **Projects**: Projects are scoped to a Workspace and contain specific Tasks. Project metadata (status, priority, target dates) is updated in real-time.
+4. **Tasks (Issues)**: The core operational unit. Tasks are strongly linked to both a Project and a Workspace, ensuring data integrity.
+5. **Real-time Synchronization**: (Planned) The platform will leverage WebSockets to guarantee instantaneous state synchronization across all connected clients.
 
-### 3. Frontend Configuration
-Navigate to the frontend directory and install dependencies:
-```bash
-cd ../frontend
-npm install
-```
-Establish the client environment. Create a `.env` file in the `frontend` directory:
-```env
-VITE_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
-VITE_API_URL=http://localhost:3000/api
-```
-Start the development server:
-```bash
-npm run dev
-```
+## 🚀 Features
 
-## License
-MIT License
+- **Multi-tenant Workspaces:** Create organizations, invite team members, and assign roles effortlessly.
+- **Multiple Views:** Visualize your projects via Kanban boards, dynamic Lists, or Timelines.
+- **Rich Task Management:** Assign priorities, due dates, statuses, and assignees.
+- **Dark Mode First:** Designed with a sleek, premium dark-mode aesthetic.
+- **Drag-and-Drop:** Intuitive interfaces for re-ordering and updating task/project statuses.
+
+## ⚙️ Local Development
+
+### Prerequisites
+- Node.js (v18+)
+- PostgreSQL (v14+)
+- Clerk Account
+
+### Setup Instructions
+
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/Cy-Jones/Kriri.git
+   cd Kriri
+   ```
+
+2. **Database Setup:**
+   Ensure PostgreSQL is running, then execute the schema and migrations in your database:
+   ```bash
+   psql -U your_user -d kriri -f backend/schema.sql
+   psql -U your_user -d kriri -f backend/migrations/001_align_projects_and_tasks.sql
+   ```
+
+3. **Backend Configuration:**
+   Navigate to the `backend` directory, install dependencies, and configure environment variables.
+   ```bash
+   cd backend
+   npm install
+   cp .env.example .env
+   # Update .env with your PostgreSQL credentials and Clerk keys
+   npm run dev
+   ```
+
+4. **Frontend Configuration:**
+   Navigate to the `frontend` directory, install dependencies, and configure environment variables.
+   ```bash
+   cd frontend
+   npm install
+   cp .env.example .env
+   # Update .env with your Clerk Publishable Key and backend URL
+   npm run dev
+   ```
+
+5. **Clerk Webhooks:**
+   To enable JIT provisioning, configure Clerk Webhooks to point to `http://<your-domain>/api/webhooks/clerk` and subscribe to:
+   - `user.created`, `user.updated`, `user.deleted`
+   - `organizationMembership.updated`
+
+---
+
+<div align="center">
+  <p>Built with ❤️ by Cy-Jones</p>
+</div>

@@ -59,6 +59,7 @@ import { Progress } from "@/registry/components/progress/progress";
 import { Badge } from "@/registry/components/badge/badge";
 import { AvatarGroup } from "@/registry/components/avatar-group/avatar-group";
 import PriorityPicker, { getPriorityIcon } from "../components/PriorityPicker";
+import ConfirmModal from '../components/ConfirmModal';
 import LeadPicker from "../components/LeadPicker";
 import DatePicker from "../components/DatePicker";
 import ActionTooltip from "../components/ActionTooltip";
@@ -69,6 +70,7 @@ import LabelPicker from "../components/LabelPicker";
 import MemberPicker from "../components/MemberPicker";
 import PickerWrapper from "../components/PickerWrapper";
 import SegmentedControl from "@/registry/components/segmented-control/segmented-control";
+import { useSocket } from "../contexts/SocketContext";
 
 
 import ListViewRenderer from "../components/projects/ListViewRenderer";
@@ -92,183 +94,6 @@ import {
 } from "@dnd-kit/sortable";
 import { useDroppable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
-
-// --- INITIAL MOCK DATA ---
-const INITIAL_DEMO_PROJECTS = [
-  {
-    id: "PRJ-1",
-    name: "KRIRI Web Platform",
-    slug: "kriri-web-platform",
-    description:
-      "A collaborative workspace for managing projects, tasks, and team workflows with real-time views.",
-    status: "In Progress",
-    priority: "High",
-    health: "On Track",
-    lead: { id: "usr-1", name: "Cy", avatar: "C", email: "cy@acme.com" },
-    members: [
-      { id: "usr-1", name: "Cy", avatar: "C" },
-      { id: "usr-2", name: "Sarah", avatar: "S" },
-      { id: "usr-3", name: "James", avatar: "J" },
-    ],
-    start_date: "2026-09-01",
-    due_date: "2026-12-20",
-    progress: 72,
-    labels: ["Frontend", "Core Platform"],
-    milestones: [
-      {
-        id: "m1",
-        name: "Alpha Release",
-        due_date: "2026-10-15",
-        status: "Completed",
-      },
-      {
-        id: "m2",
-        name: "Beta Launch",
-        due_date: "2026-11-20",
-        status: "Pending",
-      },
-      {
-        id: "m3",
-        name: "V1.0 General Availability",
-        due_date: "2026-12-20",
-        status: "Pending",
-      },
-    ],
-    dependencies: [],
-    position: 1,
-  },
-  {
-    id: "PRJ-2",
-    name: "Mobile Application V2",
-    slug: "mobile-application-v2",
-    description:
-      "iOS and Android cross-platform mobile client built for field performance and offline access.",
-    status: "Planned",
-    priority: "Medium",
-    health: "On Track",
-    lead: { id: "usr-2", name: "Sarah", avatar: "S", email: "sarah@acme.com" },
-    members: [
-      { id: "usr-2", name: "Sarah", avatar: "S" },
-      { id: "usr-4", name: "Alex", avatar: "A" },
-    ],
-    start_date: "2026-10-01",
-    due_date: "2027-01-12",
-    progress: 25,
-    labels: ["Mobile", "iOS"],
-    milestones: [
-      {
-        id: "m4",
-        name: "Architecture Review",
-        due_date: "2026-10-25",
-        status: "Pending",
-      },
-      {
-        id: "m5",
-        name: "App Store Submission",
-        due_date: "2027-01-10",
-        status: "Pending",
-      },
-    ],
-    dependencies: ["PRJ-1"],
-    position: 2,
-  },
-  {
-    id: "PRJ-3",
-    name: "Q4 Marketing Campaign",
-    slug: "q4-marketing-campaign",
-    description:
-      "Growth and brand marketing launch targeting enterprise productivity workflows.",
-    status: "Backlog",
-    priority: "Low",
-    health: "No updates",
-    lead: { id: "usr-3", name: "James", avatar: "J", email: "james@acme.com" },
-    members: [{ id: "usr-3", name: "James", avatar: "J" }],
-    start_date: "2026-11-01",
-    due_date: "2027-02-03",
-    progress: 10,
-    labels: ["Marketing", "Growth"],
-    milestones: [
-      {
-        id: "m6",
-        name: "Asset Hand-off",
-        due_date: "2026-11-15",
-        status: "Pending",
-      },
-    ],
-    dependencies: [],
-    position: 3,
-  },
-  {
-    id: "PRJ-4",
-    name: "Design System Unification",
-    slug: "design-system-unification",
-    description:
-      "Harmonize tokenized UI component library across React web app and design assets.",
-    status: "In Progress",
-    priority: "Urgent",
-    health: "At Risk",
-    lead: { id: "usr-1", name: "Cy", avatar: "C", email: "cy@acme.com" },
-    members: [
-      { id: "usr-1", name: "Cy", avatar: "C" },
-      { id: "usr-2", name: "Sarah", avatar: "S" },
-    ],
-    start_date: "2026-08-15",
-    due_date: "2026-11-30",
-    progress: 60,
-    labels: ["Design", "UI/UX"],
-    milestones: [
-      {
-        id: "m7",
-        name: "Component Spec",
-        due_date: "2026-09-30",
-        status: "Completed",
-      },
-      {
-        id: "m8",
-        name: "Figma Library",
-        due_date: "2026-11-15",
-        status: "Pending",
-      },
-    ],
-    dependencies: [],
-    position: 4,
-  },
-  {
-    id: "PRJ-5",
-    name: "Infrastructure & Security Audit",
-    slug: "infrastructure-security-audit",
-    description:
-      "SOC2 compliance audit, zero-trust network verification, and database replication setup.",
-    status: "Completed",
-    priority: "High",
-    health: "On Track",
-    lead: { id: "usr-4", name: "Alex", avatar: "A", email: "alex@acme.com" },
-    members: [
-      { id: "usr-4", name: "Alex", avatar: "A" },
-      { id: "usr-3", name: "James", avatar: "J" },
-    ],
-    start_date: "2026-07-01",
-    due_date: "2026-09-15",
-    progress: 100,
-    labels: ["Security", "DevOps"],
-    milestones: [
-      {
-        id: "m9",
-        name: "Penetration Test",
-        due_date: "2026-08-20",
-        status: "Completed",
-      },
-      {
-        id: "m10",
-        name: "Final Certification",
-        due_date: "2026-09-15",
-        status: "Completed",
-      },
-    ],
-    dependencies: [],
-    position: 5,
-  },
-];
 
 // --- DEFAULT VIEW CONFIGURATION ---
 const DEFAULT_VIEW_CONFIG = {
@@ -384,7 +209,7 @@ export default function Projects() {
 
   // --- STATE ---
   const [currentUserRole, setCurrentUserRole] = useState(null);
-  const canManageProjects = ['Owner', 'Admin', 'Project Manager'].includes(currentUserRole) || !organization;
+  const canManageProjects = ['Owner', 'Admin', 'Project Manager', 'Member', 'Team Lead'].includes(currentUserRole) || !organization;
 
   useEffect(() => {
     const fetchRole = async () => {
@@ -409,6 +234,7 @@ export default function Projects() {
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [confirmModal, setConfirmModal] = useState({ isOpen: false, projectId: null });
   const [selectedProjects, setSelectedProjects] = useState([]);
   const [isBulkActionMenuOpen, setIsBulkActionMenuOpen] = useState(false);
   const [commandPaletteState, setCommandPaletteState] = useState(null);
@@ -571,6 +397,40 @@ export default function Projects() {
     }
   }, [viewConfig]);
 
+  const socket = useSocket();
+
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleProjectCreated = (newProject) => {
+      setProjects((prev) => {
+        // Prevent duplicate addition
+        if (prev.some(p => p.id === newProject.id)) return prev;
+        return [newProject, ...prev];
+      });
+    };
+
+    const handleProjectUpdated = (updatedProject) => {
+      setProjects((prev) =>
+        prev.map((p) => (p.id === updatedProject.id ? { ...p, ...updatedProject } : p))
+      );
+    };
+
+    const handleProjectDeleted = ({ id }) => {
+      setProjects((prev) => prev.filter((p) => p.id !== id));
+    };
+
+    socket.on('PROJECT_CREATED', handleProjectCreated);
+    socket.on('PROJECT_UPDATED', handleProjectUpdated);
+    socket.on('PROJECT_DELETED', handleProjectDeleted);
+
+    return () => {
+      socket.off('PROJECT_CREATED', handleProjectCreated);
+      socket.off('PROJECT_UPDATED', handleProjectUpdated);
+      socket.off('PROJECT_DELETED', handleProjectDeleted);
+    };
+  }, [socket]);
+
   // --- FETCH PROJECTS FROM API ---
   useEffect(() => {
     setLoading(true);
@@ -652,8 +512,13 @@ export default function Projects() {
   const handleDeleteProject = async (projectId, e) => {
     if (!canManageProjects) return;
     if (e) e.stopPropagation();
-    if (!window.confirm("Are you sure you want to delete this project?"))
-      return;
+    setConfirmModal({ isOpen: true, projectId });
+  };
+
+  const confirmDeleteProject = async () => {
+    const projectId = confirmModal.projectId;
+    setConfirmModal({ isOpen: false, projectId: null });
+    if (!projectId) return;
 
     setProjects((prev) => prev.filter((p) => p.id !== projectId));
     try {
@@ -665,7 +530,7 @@ export default function Projects() {
 
   const handleCreateProject = (newProject) => {
     const enriched = {
-      id: newProject.id || `PRJ-${Date.now()}`,
+      ...newProject,
       name: newProject.name,
       description: newProject.description || "",
       status: newProject.status || "Planned",
@@ -694,11 +559,15 @@ export default function Projects() {
       labels: newProject.labels || [],
       milestones: newProject.milestones || [],
       dependencies: [],
-      position: projects.length + 1,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+      position: newProject.position || projects.length + 1,
+      created_at: newProject.created_at || new Date().toISOString(),
+      updated_at: newProject.updated_at || new Date().toISOString(),
     };
-    setProjects((prev) => [enriched, ...prev]);
+    setProjects((prev) => {
+      // Prevent duplicate addition in case socket got here first
+      if (prev.some(p => p.id === enriched.id)) return prev;
+      return [enriched, ...prev];
+    });
   };
 
   // --- FILTERED AND SORTED DATASET ---
@@ -967,15 +836,14 @@ export default function Projects() {
           <h1 className="text-[13.5px] font-medium tracking-tight text-[#e8e8e8]">
             Projects
           </h1>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => setIsCreateModalOpen(true)}
-            className="text-[12.5px] font-medium text-[#8a8f98] hover:text-[#e8e8e8] h-6 px-1.5"
-          >
-            <Plus size={13} />
-            <span>New project</span>
-          </Button>
+          {canManageProjects && (
+            <button
+              onClick={() => setIsCreateModalOpen(true)}
+              className="flex items-center gap-1.5 bg-white text-black hover:bg-gray-100 transition-colors text-xs font-medium px-3 py-1.5 rounded-md shadow-sm"
+            >
+              <Plus size={14} /> New Project
+            </button>
+          )}
         </div>
 
         <div className="h-px bg-white/[0.06] w-full" />
@@ -1853,14 +1721,15 @@ export default function Projects() {
                 existing projects.
               </p>
             </div>
-            <Button
-              variant="primary"
-              size="md"
+          {canManageProjects && (
+            <button 
               onClick={() => setIsCreateModalOpen(true)}
-              className="h-8 shadow-sm font-medium text-[13px]"
+              className="h-8 px-4 bg-white text-black rounded-md font-medium text-[13px] hover:bg-gray-100 transition-colors shadow-sm flex items-center gap-2"
             >
-              <Plus size={14} /> New Project
-            </Button>
+              <Plus size={14} />
+              New Project
+            </button>
+          )}
           </div>
         ) : (
           <>
@@ -2368,6 +2237,17 @@ export default function Projects() {
           </div>
         </div>
       )}
+      
+      {/* Confirm Modal */}
+      <ConfirmModal 
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal({ isOpen: false, projectId: null })}
+        onConfirm={confirmDeleteProject}
+        title="Delete Project"
+        message="Are you sure you want to delete this project? This action cannot be undone and will delete all associated tasks."
+        confirmText="Delete"
+        isDanger={true}
+      />
     </div>
   );
 }

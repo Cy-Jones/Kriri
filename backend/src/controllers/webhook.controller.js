@@ -110,6 +110,57 @@ exports.handleClerkWebhook = async (req, res) => {
         );
       }
     }
+    else if (eventType === 'organizationMembership.updated') {
+      const { organization, public_user_data, role } = evt.data;
+      const clerkOrgId = organization.id;
+      const clerkUserId = public_user_data.user_id;
+
+      const wsRes = await db.query('SELECT id FROM workspaces WHERE clerk_org_id = $1', [clerkOrgId]);
+      const userRes = await db.query('SELECT id FROM users WHERE clerk_user_id = $1', [clerkUserId]);
+      
+      if (wsRes.rows.length > 0 && userRes.rows.length > 0) {
+        const workspaceId = wsRes.rows[0].id;
+        const userId = userRes.rows[0].id;
+        
+        let formattedRole = 'Member';
+        if (role === 'org:admin') formattedRole = 'Admin';
+        
+        await db.query(
+          'UPDATE workspace_members SET role = $1 WHERE workspace_id = $2 AND user_id = $3',
+          [formattedRole, workspaceId, userId]
+        );
+      }
+    }
+    else if (eventType === 'user.created' || eventType === 'user.updated') {
+      const { id: clerkUserId, first_name, last_name, image_url, email_addresses, primary_email_address_id } = evt.data;
+      const name = [first_name, last_name].filter(Boolean).join(' ') || 'Unknown User';
+      const primaryEmailObj = email_addresses?.find(e => e.id === primary_email_address_id) || email_addresses?.[0];
+      const email = primaryEmailObj ? primaryEmailObj.email_address : '';
+      
+      if (eventType === 'user.created') {
+        const emailRes = await db.query('SELECT * FROM users WHERE email = $1', [email]);
+        if (emailRes.rows.length > 0) {
+          await db.query(
+            'UPDATE users SET clerk_user_id = $1, name = COALESCE($2, name), avatar_url = COALESCE($3, avatar_url) WHERE email = $4',
+            [clerkUserId, name, image_url, email]
+          );
+        } else {
+          await db.query(
+            'INSERT INTO users (clerk_user_id, name, email, avatar_url) VALUES ($1, $2, $3, $4) ON CONFLICT (clerk_user_id) DO UPDATE SET name = $2, email = $3, avatar_url = $4',
+            [clerkUserId, name, email, image_url]
+          );
+        }
+      } else {
+        await db.query(
+          'UPDATE users SET name = $1, avatar_url = $2 WHERE clerk_user_id = $3',
+          [name, image_url, clerkUserId]
+        );
+      }
+    }
+    else if (eventType === 'user.deleted') {
+      const { id: clerkUserId } = evt.data;
+      await db.query('DELETE FROM users WHERE clerk_user_id = $1', [clerkUserId]);
+    }
 
     res.status(200).json({ success: true });
   } catch (err) {

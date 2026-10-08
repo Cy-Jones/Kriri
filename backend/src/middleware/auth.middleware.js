@@ -7,9 +7,6 @@ exports.verifyToken = [
     try {
       const { userId: clerkUserId, orgId } = getAuth(req);
       
-      const fs = require('fs');
-      fs.appendFileSync('/tmp/kriri-auth.log', JSON.stringify({ path: req.path, clerkUserId, orgId }) + '\n');
-      
       let userRes = await db.query('SELECT * FROM users WHERE clerk_user_id = $1', [clerkUserId]);
       
       if (userRes.rows.length === 0) {
@@ -40,7 +37,6 @@ exports.verifyToken = [
       const clerkOrgId = orgId;
       
       if (!clerkOrgId) {
-        fs.appendFileSync('/tmp/kriri-auth.log', 'clerkOrgId is missing\n');
         // Some routes might not need an active org (e.g. user profile fetch), 
         // but for workspace routes, they will fail later if req.workspace is not set.
         req.workspace = null;
@@ -55,11 +51,15 @@ exports.verifyToken = [
         // JIT Provisioning (Fallback for missed webhooks in local dev)
         // Note: For a production app we'd fetch org details from Clerk API here.
         // For now, we'll create a placeholder to prevent the app from breaking.
-        const fallbackSlug = `org-${clerkOrgId.toLowerCase()}`;
         try {
+          const { clerkClient } = require('@clerk/express');
+          const clerkOrg = await clerkClient.organizations.getOrganization({ organizationId: clerkOrgId });
+          const orgName = clerkOrg.name || 'Synced Workspace';
+          const fallbackSlug = clerkOrg.slug || `org-${clerkOrgId.toLowerCase()}`;
+          
           const newWs = await db.query(
             'INSERT INTO workspaces (clerk_org_id, name, slug, owner_id) VALUES ($1, $2, $3, $4) RETURNING *',
-            [clerkOrgId, 'Synced Workspace', fallbackSlug, req.user.id]
+            [clerkOrgId, orgName, fallbackSlug, req.user.id]
           );
           workspace = newWs.rows[0];
           

@@ -6,6 +6,7 @@ import { motionTokens } from '../lib/motion-tokens';
 import { AuthShowcase } from '../components/AuthShowcase';
 import { Input } from '../registry/components/input/input';
 import { PasswordField } from '../registry/components/password-field/password-field';
+import posthog from '../lib/posthog';
 
 export default function Register() {
   const navigate = useNavigate();
@@ -74,6 +75,7 @@ export default function Register() {
         code,
       });
       if (completeSignUp.status === 'complete') {
+        posthog.capture('account registration', { method: 'email' });
         await setActive({ session: completeSignUp.createdSessionId });
         navigate('/onboarding');
       } else {
@@ -88,6 +90,7 @@ export default function Register() {
 
   const handleOAuth = (strategy) => {
     if (!isLoaded) return;
+    posthog.capture('account registration', { method: strategy });
     signUp.authenticateWithRedirect({
       strategy,
       redirectUrl: '/sso-callback',

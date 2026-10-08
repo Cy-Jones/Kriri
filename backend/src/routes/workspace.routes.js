@@ -11,6 +11,13 @@ router.post('/', workspaceController.createWorkspace);
 
 // Viewers and above can view workspaces
 router.get('/', requireMinimumRole('Viewer'), workspaceController.getUserWorkspaces);
+router.get('/current/summary', requireMinimumRole('Viewer'), workspaceController.getCurrentWorkspaceSummary);
+router.get('/current/analytics', requireMinimumRole('Viewer'), workspaceController.getCurrentWorkspaceAnalytics);
+router.get('/current/notifications', requireMinimumRole('Viewer'), workspaceController.getCurrentWorkspaceNotifications);
+router.patch('/current/notifications/:id/read', requireMinimumRole('Viewer'), workspaceController.markNotificationAsRead);
+router.post('/current/notifications/mark-all-read', requireMinimumRole('Viewer'), workspaceController.markAllNotificationsAsRead);
+router.get('/current', requireMinimumRole('Viewer'), workspaceController.getCurrentWorkspace);
+router.patch('/current', requireMinimumRole('Admin'), workspaceController.updateCurrentWorkspace);
 router.get('/:id', requireMinimumRole('Viewer'), workspaceController.getWorkspaceDetails);
 
 // Members can view workspace members

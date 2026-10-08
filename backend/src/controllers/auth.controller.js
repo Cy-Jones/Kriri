@@ -9,12 +9,6 @@ exports.sync = async (req, res) => {
   }
 
   try {
-    // Check if user already exists by clerk_user_id
-    const checkRes = await db.query('SELECT * FROM users WHERE clerk_user_id = $1', [clerkUserId]);
-    if (checkRes.rows.length > 0) {
-      return res.json({ message: 'User already synced', user: checkRes.rows[0] });
-    }
-
     // Fetch user from Clerk
     const clerkUser = await clerkClient.users.getUser(clerkUserId);
     
@@ -26,13 +20,24 @@ exports.sync = async (req, res) => {
     const name = [clerkUser.firstName, clerkUser.lastName].filter(Boolean).join(' ') || 'Unknown User';
     const avatarUrl = clerkUser.imageUrl || null;
 
+    // Check if user already exists by clerk_user_id
+    const checkRes = await db.query('SELECT * FROM users WHERE clerk_user_id = $1', [clerkUserId]);
+    if (checkRes.rows.length > 0) {
+      // Upsert name and avatar
+      const { rows } = await db.query(
+        'UPDATE users SET name = COALESCE($1, name), avatar_url = COALESCE($2, avatar_url) WHERE clerk_user_id = $3 RETURNING id, name, email, role, avatar_url',
+        [name, avatarUrl, clerkUserId]
+      );
+      return res.json({ message: 'User synced successfully', user: rows[0] });
+    }
+
     // Check if user exists by email (for seeded users or previous local accounts)
     const emailRes = await db.query('SELECT * FROM users WHERE email = $1', [email]);
     if (emailRes.rows.length > 0) {
        // Link the account by updating clerk_user_id
        const { rows } = await db.query(
-         'UPDATE users SET clerk_user_id = $1, avatar_url = COALESCE($2, avatar_url) WHERE email = $3 RETURNING id, name, email, role, avatar_url',
-         [clerkUserId, avatarUrl, email]
+         'UPDATE users SET clerk_user_id = $1, name = COALESCE($2, name), avatar_url = COALESCE($3, avatar_url) WHERE email = $4 RETURNING id, name, email, role, avatar_url',
+         [clerkUserId, name, avatarUrl, email]
        );
        return res.status(200).json({ message: 'User linked successfully', user: rows[0] });
     }
@@ -45,7 +50,7 @@ exports.sync = async (req, res) => {
     res.status(201).json({ message: 'User synced successfully', user: rows[0] });
   } catch (error) {
     console.error('Error syncing user:', error);
-    res.status(500).json({ error: 'Server error while syncing user', details: error.message, stack: error.stack });
+    res.status(500).json({ error: 'Server error while syncing user' });
   }
 };
 

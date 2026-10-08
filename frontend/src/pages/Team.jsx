@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Search, Plus, MoreHorizontal, X } from 'lucide-react';
 import { useUser, useOrganization, OrganizationProfile } from '@clerk/clerk-react';
 import { api } from '../lib/api';
+import ConfirmModal from '../components/ConfirmModal';
 
 export default function Team() {
   const { user } = useUser();
@@ -9,8 +10,12 @@ export default function Team() {
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [actionError, setActionError] = useState(null);
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [activeActionMenu, setActiveActionMenu] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  
+  const [confirmModal, setConfirmModal] = useState({ isOpen: false, memberId: null });
 
   const currentUserEmail = user?.primaryEmailAddress?.emailAddress;
   const currentUserRole = members.find(m => m.email === currentUserEmail)?.role;
@@ -48,22 +53,30 @@ export default function Team() {
   }, [fetchMembers]);
 
   const updateRole = async (userId, newRole) => {
+    setActionError(null);
     try {
       await api.put(`/workspaces/${organization.id}/members/${userId}/role`, { role: newRole });
       fetchMembers();
     } catch (err) {
-      alert("Failed to update role: " + err.message);
+      setActionError("Failed to update role: " + err.message);
     }
   };
 
   const removeMember = async (userId) => {
-    if (!window.confirm("Are you sure you want to remove this member?")) return;
+    setActionError(null);
+    setConfirmModal({ isOpen: true, memberId: userId });
+  };
+
+  const confirmRemoveMember = async () => {
+    const userId = confirmModal.memberId;
+    setConfirmModal({ isOpen: false, memberId: null });
+    if (!userId) return;
     try {
       await api.delete(`/workspaces/${organization.id}/members/${userId}`);
       setActiveActionMenu(null);
       fetchMembers();
     } catch (err) {
-      alert("Failed to remove member: " + err.message);
+      setActionError("Failed to remove member: " + err.message);
     }
   };
 
@@ -96,6 +109,11 @@ export default function Team() {
 
   const ASSIGNABLE_ROLES = ['Admin', 'Project Manager', 'Team Lead', 'Member', 'Viewer', 'Guest'];
 
+  const filteredMembers = members.filter(m => 
+    (m.name || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
+    (m.email || '').toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
     <div className="w-full flex flex-col h-full animate-in fade-in duration-300 relative">
       <div className="flex items-center justify-between mb-8">
@@ -122,6 +140,26 @@ export default function Team() {
         )}
       </div>
 
+      <div className="flex items-center gap-3 mb-6">
+        <div className="relative flex-1 max-w-[320px]">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
+          <input
+            type="text"
+            placeholder="Filter by name or email..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full bg-surface-elevated border border-border rounded-md pl-9 pr-3 py-1.5 text-[13px] text-white placeholder:text-text-muted focus:outline-none focus:border-white/20 transition-colors"
+          />
+        </div>
+      </div>
+
+      {actionError && (
+        <div className="mb-6 p-3 rounded-md bg-danger/10 border border-danger/20 text-danger text-[13px] flex items-center gap-2">
+          <span>{actionError}</span>
+          <button onClick={() => setActionError(null)} className="ml-auto hover:text-white"><X size={14} /></button>
+        </div>
+      )}
+
       <div className="flex flex-col border border-white/[0.06] rounded-xl bg-transparent overflow-hidden">
         {loading ? (
           <div className="p-8 text-center text-text-muted text-[13px]">Loading members...</div>
@@ -140,7 +178,7 @@ export default function Team() {
               </tr>
             </thead>
             <tbody>
-              {members.map((member) => (
+              {filteredMembers.map((member) => (
                 <tr 
                   key={member.id} 
                   className="border-b border-white/[0.04] last:border-0 hover:bg-white/[0.02] transition-colors group"
@@ -246,6 +284,16 @@ export default function Team() {
           </div>
         </div>
       )}
+      {/* Confirm Modal */}
+      <ConfirmModal 
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal({ isOpen: false, memberId: null })}
+        onConfirm={confirmRemoveMember}
+        title="Remove Member"
+        message="Are you sure you want to remove this member? They will lose access to all projects and tasks in this workspace."
+        confirmText="Remove"
+        isDanger={true}
+      />
     </div>
   );
 }

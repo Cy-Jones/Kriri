@@ -5,21 +5,47 @@ import TaskDetailsModal from '../components/TaskDetailsModal';
 import CreateTaskModal from '../components/CreateTaskModal';
 import { IssuesEmptyIcon } from '../components/EmptyStateIcons';
 import { useUser } from '@clerk/clerk-react';
+import { useSocket } from '../contexts/SocketContext';
 
 export default function Tasks() {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedTaskId, setSelectedTaskId] = useState(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const { user } = useUser();
-  const isAdmin = user?.primaryEmailAddress?.emailAddress === 'smartjones07@gmail.com';
-  const [showDemo, setShowDemo] = useState(isAdmin);
+  const socket = useSocket();
 
-  const displayTasks = showDemo ? [
-    { id: 'TSK-001', title: 'Implement dark mode', status: 'In Progress', priority: 'High', assignee_name: 'Alex', due_date: new Date().toISOString() },
-    { id: 'TSK-002', title: 'Fix navigation bug', status: 'Todo', priority: 'Medium', assignee_name: 'Sarah', due_date: new Date(Date.now() + 86400000).toISOString() },
-    { id: 'TSK-003', title: 'Update dependencies', status: 'Done', priority: 'Low', assignee_name: 'Mike', due_date: new Date(Date.now() - 86400000).toISOString() },
-  ] : tasks;
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleTaskCreated = (newTask) => {
+      setTasks((prev) => {
+        if (prev.some(t => t.id === newTask.id)) return prev;
+        return [newTask, ...prev];
+      });
+    };
+
+    const handleTaskUpdated = (updatedTask) => {
+      setTasks((prev) =>
+        prev.map((t) => (t.id === updatedTask.id ? { ...t, ...updatedTask } : t))
+      );
+    };
+
+    const handleTaskDeleted = ({ id }) => {
+      setTasks((prev) => prev.filter((t) => t.id !== id));
+    };
+
+    socket.on('TASK_CREATED', handleTaskCreated);
+    socket.on('TASK_UPDATED', handleTaskUpdated);
+    socket.on('TASK_DELETED', handleTaskDeleted);
+
+    return () => {
+      socket.off('TASK_CREATED', handleTaskCreated);
+      socket.off('TASK_UPDATED', handleTaskUpdated);
+      socket.off('TASK_DELETED', handleTaskDeleted);
+    };
+  }, [socket]);
 
   useEffect(() => {
     api.get('/tasks')
@@ -43,17 +69,16 @@ export default function Tasks() {
           </div>
         </div>
         <div className="flex items-center gap-3">
-           {isAdmin && (
-             <button 
-               onClick={() => setShowDemo(!showDemo)}
-               className="text-[11px] px-2 py-1 border border-white/10 rounded-md text-text-muted hover:text-white transition-colors"
-             >
-               {showDemo ? "Show Empty State" : "Show Populated State"}
-             </button>
-           )}
-           <button className="flex items-center gap-1.5 text-text-secondary hover:text-white transition-colors text-xs font-medium px-2 py-1">
-             <Search size={14} /> Filter
-           </button>
+           <div className="relative">
+             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
+             <input
+               type="text"
+               placeholder="Filter tasks..."
+               value={searchQuery}
+               onChange={(e) => setSearchQuery(e.target.value)}
+               className="w-[200px] bg-surface-elevated border border-border rounded-md pl-9 pr-3 py-1.5 text-xs text-white placeholder:text-text-muted focus:outline-none focus:border-white/20 transition-colors"
+             />
+           </div>
            <button 
              onClick={() => setIsCreateModalOpen(true)}
              className="flex items-center gap-1.5 bg-white text-black hover:bg-gray-100 transition-colors text-xs font-medium px-3 py-1.5 rounded-md shadow-sm"
@@ -63,7 +88,7 @@ export default function Tasks() {
         </div>
       </div>
 
-      {displayTasks.length === 0 ? (
+      {tasks.length === 0 ? (
         <div className="flex flex-col items-center justify-center flex-1 max-w-sm mx-auto text-center gap-6 mt-10 animate-in fade-in zoom-in-95 duration-500">
           <div className="w-16 h-16 bg-white/[0.03] border border-white/[0.05] rounded-2xl flex items-center justify-center text-[#8a8f98] shadow-sm relative overflow-hidden">
              {/* Subtle internal glow */}
@@ -102,13 +127,17 @@ export default function Tasks() {
 
           {/* Table Body */}
           <div className="flex-1 overflow-y-auto divide-y divide-white/[0.05]">
-            {displayTasks.map((task) => (
+            {tasks.filter(t => 
+              (t.title || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
+              (t.assignee_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+              (t.status || '').toLowerCase().includes(searchQuery.toLowerCase())
+            ).map((task) => (
               <div 
                 key={task.id} 
                 onClick={() => setSelectedTaskId(task.id)}
                 className="grid grid-cols-[80px_minmax(300px,1fr)_120px_100px_100px_80px] gap-4 px-5 py-3.5 hover:bg-white/[0.04] transition-colors items-center text-[13px] group cursor-pointer"
               >
-              <div className="font-mono text-[11px] text-text-muted">{task.id}</div>
+              <div className="font-mono text-[11px] text-text-muted">{task.project_slug ? `${task.project_slug}-${task.id}` : task.id}</div>
               <div className="text-text-primary font-medium truncate group-hover:text-accent transition-colors">
                 {task.title}
               </div>

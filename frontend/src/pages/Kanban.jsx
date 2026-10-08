@@ -20,11 +20,13 @@ import { CSS } from '@dnd-kit/utilities';
 import { Plus, MoreHorizontal, CheckSquare, Compass, FileText } from 'lucide-react';
 import { api } from '../lib/api';
 import TaskDetailsModal from '../components/TaskDetailsModal';
+import CreateTaskModal from '../components/CreateTaskModal';
 import { BoardEmptyIcon } from '../components/EmptyStateIcons';
 import { Button } from '../registry/components/button/button';
 import { Badge } from '../registry/components/badge/badge';
 import { AvatarGroup } from '../registry/components/avatar-group/avatar-group';
 import { useUser } from '@clerk/clerk-react';
+import { useSocket } from '../contexts/SocketContext';
 
 const COLUMNS = ['Todo', 'In Progress', 'In Review', 'Done'];
 
@@ -59,7 +61,7 @@ function SortableTaskItem({ task, onClick }) {
       }`}
     >
       <div className="flex items-start justify-between">
-         <div className="font-mono text-[11px] text-[#8a8f98] font-medium tracking-wider">{task.id}</div>
+         <div className="font-mono text-[11px] text-[#8a8f98] font-medium tracking-wider">{task.project_slug ? `${task.project_slug}-${task.id}` : task.id}</div>
          <button className="text-text-muted hover:text-text-primary opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center h-6 w-6 rounded-md hover:bg-white/[0.04]">
            <MoreHorizontal size={14} />
          </button>
@@ -103,33 +105,48 @@ function DroppableColumn({ id, items, children }) {
 
 export default function Kanban() {
   const [tasks, setTasks] = useState([]);
-  const [originalTasks, setOriginalTasks] = useState([]);
-  const { user } = useUser();
-  const isAdmin = user?.primaryEmailAddress?.emailAddress === 'smartjones07@gmail.com';
-  const [showDemo, setShowDemo] = useState(isAdmin);
   const [loading, setLoading] = useState(true);
   const [activeTask, setActiveTask] = useState(null);
   const [selectedTaskId, setSelectedTaskId] = useState(null);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [createModalStatus, setCreateModalStatus] = useState('Todo');
+  const socket = useSocket();
 
-  const handleToggleDemo = () => {
-    if (showDemo) {
-      setShowDemo(false);
-      setTasks(originalTasks);
-    } else {
-      setShowDemo(true);
-      setTasks([
-        { id: 'TSK-001', title: 'Implement dark mode', status: 'In Progress', priority: 'High', assignee_name: 'Alex' },
-        { id: 'TSK-002', title: 'Fix navigation bug', status: 'Todo', priority: 'Medium', assignee_name: 'Sarah' },
-        { id: 'TSK-003', title: 'Update dependencies', status: 'Done', priority: 'Low', assignee_name: 'Mike' },
-      ]);
-    }
-  };
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleTaskCreated = (newTask) => {
+      setTasks((prev) => {
+        if (prev.some(t => t.id === newTask.id)) return prev;
+        return [newTask, ...prev];
+      });
+    };
+
+    const handleTaskUpdated = (updatedTask) => {
+      setTasks((prev) =>
+        prev.map((t) => (t.id === updatedTask.id ? { ...t, ...updatedTask } : t))
+      );
+    };
+
+    const handleTaskDeleted = ({ id }) => {
+      setTasks((prev) => prev.filter((t) => t.id !== id));
+    };
+
+    socket.on('TASK_CREATED', handleTaskCreated);
+    socket.on('TASK_UPDATED', handleTaskUpdated);
+    socket.on('TASK_DELETED', handleTaskDeleted);
+
+    return () => {
+      socket.off('TASK_CREATED', handleTaskCreated);
+      socket.off('TASK_UPDATED', handleTaskUpdated);
+      socket.off('TASK_DELETED', handleTaskDeleted);
+    };
+  }, [socket]);
 
   useEffect(() => {
     api.get('/tasks')
       .then(data => {
         setTasks(data);
-        setOriginalTasks(data);
         setLoading(false);
       })
       .catch(console.error);
@@ -213,9 +230,15 @@ export default function Kanban() {
             <h3 className="text-[13px] font-medium text-[#e8e8e8]">{status}</h3>
             <span className="text-[#8a8f98] text-xs ml-1 font-medium">{columnTasks.length}</span>
           </div>
-          <Button variant="ghost" className="h-7 w-7 p-0 text-[#8a8f98] hover:text-[#e8e8e8]">
+          <button 
+            className="h-7 w-7 flex items-center justify-center rounded-md text-[#8a8f98] hover:text-[#e8e8e8] hover:bg-white/[0.04] transition-colors"
+            onClick={() => {
+              setCreateModalStatus(status);
+              setIsCreateModalOpen(true);
+            }}
+          >
             <Plus size={14} />
-          </Button>
+          </button>
         </div>
 
         <DroppableColumn id={status} items={columnTasks.map(t => t.id)}>
@@ -238,16 +261,15 @@ export default function Kanban() {
           <h1 className="text-xl font-semibold tracking-tight text-white">Board</h1>
         </div>
         <div className="flex items-center gap-3">
-           {isAdmin && (
-             <Button 
-               variant="ghost"
-               size="sm"
-               onClick={handleToggleDemo}
-               className="text-[11px] text-text-muted"
-             >
-               {showDemo ? "Show Empty State" : "Show Populated State"}
-             </Button>
-           )}
+          <button 
+            onClick={() => {
+              setCreateModalStatus('Todo');
+              setIsCreateModalOpen(true);
+            }}
+            className="flex items-center gap-1.5 bg-white text-black hover:bg-gray-100 transition-colors text-xs font-medium px-3 py-1.5 rounded-md shadow-sm"
+          >
+            <Plus size={14} /> New Issue
+          </button>
         </div>
       </div>
 
@@ -267,12 +289,16 @@ export default function Kanban() {
           </div>
           
           <div className="flex items-center gap-3 mt-4">
-            <Button 
-              className="shadow-sm flex items-center gap-2"
+            <button 
+              className="h-8 px-4 bg-white text-black rounded-md font-medium text-[13px] hover:bg-gray-100 transition-colors shadow-sm flex items-center gap-2"
+              onClick={() => {
+                setCreateModalStatus('Todo');
+                setIsCreateModalOpen(true);
+              }}
             >
               <Plus size={14} />
               New Issue
-            </Button>
+            </button>
           </div>
         </div>
       ) : (
@@ -289,7 +315,7 @@ export default function Kanban() {
           <DragOverlay>
             {activeTask ? (
               <div className="bg-[#1e1f24] border-accent shadow-[0_8px_30px_rgba(255,255,255,0.1)] rounded-xl p-3 flex flex-col gap-3 cursor-grabbing rotate-3">
-                 <div className="font-mono text-[11px] text-[#8a8f98]">{activeTask.id}</div>
+                 <div className="font-mono text-[11px] text-[#8a8f98]">{activeTask.project_slug ? `${activeTask.project_slug}-${activeTask.id}` : activeTask.id}</div>
                  <div className="text-[13px] font-medium text-[#e8e8e8] leading-tight">{activeTask.title}</div>
               </div>
             ) : null}
@@ -303,6 +329,18 @@ export default function Kanban() {
         taskId={selectedTaskId}
         onTaskUpdated={(updatedTask) => {
           setTasks(tasks.map(t => t.id === updatedTask.id ? { ...t, ...updatedTask } : t));
+        }}
+      />
+      <CreateTaskModal 
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        initialStatus={createModalStatus}
+        onTaskCreated={(newTask) => {
+          // Handled by socket, but we can do it optimistically too:
+          if (!tasks.some(t => t.id === newTask.id)) {
+            setTasks([newTask, ...tasks]);
+          }
+          setIsCreateModalOpen(false);
         }}
       />
     </div>

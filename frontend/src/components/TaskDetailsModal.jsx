@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { XSquare, MessageSquare, Send, Calendar, User, FileText, Star } from 'lucide-react';
 import { api } from '../lib/api';
+import posthog from '../lib/posthog';
 
 export default function TaskDetailsModal({ isOpen, onClose, taskId, onTaskUpdated }) {
   const [task, setTask] = useState(null);
@@ -15,6 +16,7 @@ export default function TaskDetailsModal({ isOpen, onClose, taskId, onTaskUpdate
       setTask(taskData);
       const commentsData = await api.get(`/comments/task/${taskId}`);
       setComments(commentsData);
+      posthog.capture('task_viewed', { task_id: taskId, project_id: taskData.project_id });
     } catch (error) {
       console.error(error);
     } finally {
@@ -39,6 +41,7 @@ export default function TaskDetailsModal({ isOpen, onClose, taskId, onTaskUpdate
       });
       setComments([...comments, addedComment]);
       setNewComment('');
+      posthog.capture('comment_added', { task_id: taskId });
     } catch (error) {
       console.error(error);
     }

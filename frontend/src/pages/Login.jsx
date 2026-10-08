@@ -6,6 +6,7 @@ import { motionTokens } from '../lib/motion-tokens';
 import { AuthShowcase } from '../components/AuthShowcase';
 import { Input } from '../registry/components/input/input';
 import { PasswordField } from '../registry/components/password-field/password-field';
+import posthog from '../lib/posthog';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -29,6 +30,7 @@ export default function Login() {
       });
       
       if (result.status === 'complete') {
+        posthog.capture('login', { method: 'email' });
         await setActive({ session: result.createdSessionId });
         navigate('/dashboard');
       } else {
@@ -44,6 +46,7 @@ export default function Login() {
 
   const handleOAuth = (strategy) => {
     if (!isLoaded) return;
+    posthog.capture('login', { method: strategy });
     signIn.authenticateWithRedirect({
       strategy,
       redirectUrl: '/sso-callback',

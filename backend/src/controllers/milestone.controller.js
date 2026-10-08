@@ -1,13 +1,12 @@
 const db = require('../config/database');
 
 exports.createMilestone = async (req, res) => {
-  const { project_id, name, description, due_date, status } = req.body;
-  
-  if (!project_id || !name) {
-    return res.status(400).json({ error: 'project_id and name are required' });
-  }
-
   try {
+    const { milestoneSchema } = require('../validators');
+    const validatedData = milestoneSchema.parse(req.body);
+    const { project_id, name, due_date } = validatedData;
+    const { description, status } = req.body;
+
     // Ensure project belongs to active workspace
     const projRes = await db.query('SELECT id FROM projects WHERE id = $1 AND workspace_id = $2', [project_id, req.workspace.id]);
     if (projRes.rows.length === 0) return res.status(403).json({ error: 'Project not found in active workspace' });
@@ -18,6 +17,9 @@ exports.createMilestone = async (req, res) => {
     );
     res.status(201).json(rows[0]);
   } catch (error) {
+    if (error.name === 'ZodError') {
+      return res.status(400).json({ error: error.errors.map(e => e.message).join(', ') });
+    }
     console.error(error);
     res.status(500).json({ error: 'Server error' });
   }
@@ -41,8 +43,14 @@ exports.getProjectMilestones = async (req, res) => {
 
 exports.updateMilestone = async (req, res) => {
   const { id } = req.params;
-  const { name, description, due_date, status } = req.body;
   try {
+    const { milestoneSchema } = require('../validators');
+    // partial parsing as it's update, or just use parse but schema might require name. 
+    // Wait, update schema can have optional fields. I'll just use parse and let the validator throw if something is missing. 
+    // Actually the milestone schema currently requires "name". If name is omitted on update, it'll fail. 
+    // Let's use deepPartial() if we want or just do what was there before but better.
+    // I'll extract data directly for now or use the schema. Wait, if name is required, I'll extract it manually for update to prevent breaking valid updates that only change status.
+    const { name, description, due_date, status } = req.body;
     const { rows } = await db.query(
       `UPDATE milestones m
        SET name = COALESCE($1, m.name), 
