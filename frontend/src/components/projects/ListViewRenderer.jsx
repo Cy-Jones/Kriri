@@ -47,6 +47,7 @@ import {
   Layout
 } from "lucide-react";
 import { api } from "../../lib/api";
+import { getAvatarColor, getInitial } from "../../lib/avatarUtils";
 import { ProjectsEmptyIcon } from "../../components/EmptyStateIcons";
 import CreateProjectModal from "../../components/CreateProjectModal";
 import { ErrorBoundary } from "../../components/ErrorBoundary";
@@ -67,6 +68,7 @@ import LabelPicker from "../../components/LabelPicker";
 import MemberPicker from "../../components/MemberPicker";
 import PickerWrapper from "../../components/PickerWrapper";
 import SegmentedControl from "@/registry/components/segmented-control/segmented-control";
+import MembersAvatarStack from "./MembersAvatarStack";
 
 
 // ============================================================================
