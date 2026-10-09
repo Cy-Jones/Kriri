@@ -1,3 +1,9 @@
 .agents/skills
 project-tracker-app-blueprint.md
 skills-lock.json
+.DS_Store
+*.log
+summary.log
+hairline-*.html
+hairline-*.png
+
