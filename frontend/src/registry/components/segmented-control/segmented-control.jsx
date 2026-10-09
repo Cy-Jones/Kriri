@@ -5,18 +5,14 @@ import { LayoutGroup, motion, useReducedMotion } from "motion/react";
 import { motionTokens } from "@/registry/motion-tokens";
 import styles from "./segmented-control.module.css";
 
-
-
-
-
-
-
-
-
-
-
-
-export default function SegmentedControl({ options, value, onValueChange, label, onOptionIntent, className }) {
+export default function SegmentedControl({
+  options,
+  value,
+  onValueChange,
+  label,
+  onOptionIntent,
+  className,
+}) {
   const id = useId();
   const reduced = useReducedMotion();
   const track = useRef(null);
@@ -32,9 +28,13 @@ export default function SegmentedControl({ options, value, onValueChange, label,
     };
     edges();
     node.addEventListener("scroll", edges, { passive: true });
-    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(edges);
+    const observer =
+      typeof ResizeObserver === "undefined" ? null : new ResizeObserver(edges);
     observer?.observe(node);
-    return () => {node.removeEventListener("scroll", edges);observer?.disconnect();};
+    return () => {
+      node.removeEventListener("scroll", edges);
+      observer?.disconnect();
+    };
   }, [options.length]);
 
   // The selected option is always scrolled fully into view, with a little room so it clears the fade.
@@ -42,32 +42,101 @@ export default function SegmentedControl({ options, value, onValueChange, label,
   useEffect(() => {
     const node = track.current;
     const button = node?.querySelector('[aria-pressed="true"]');
-    if (!node || !button || node.scrollWidth <= node.clientWidth) {first.current = false;return;}
-    const room = 20,start = button.offsetLeft - room,end = button.offsetLeft + button.offsetWidth + room - node.clientWidth;
-    const left = node.scrollLeft > start ? start : node.scrollLeft < end ? end : node.scrollLeft;
-    if (left !== node.scrollLeft) node.scrollTo({ left: Math.max(0, left), behavior: first.current || reduced ? "auto" : "smooth" });
+    if (!node || !button || node.scrollWidth <= node.clientWidth) {
+      first.current = false;
+      return;
+    }
+    const room = 20,
+      start = button.offsetLeft - room,
+      end = button.offsetLeft + button.offsetWidth + room - node.clientWidth;
+    const left =
+      node.scrollLeft > start
+        ? start
+        : node.scrollLeft < end
+          ? end
+          : node.scrollLeft;
+    if (left !== node.scrollLeft)
+      node.scrollTo({
+        left: Math.max(0, left),
+        behavior: first.current || reduced ? "auto" : "smooth",
+      });
     first.current = false;
   }, [value, reduced]);
 
   // Arrow keys, Home and End move the selection like a tab list; only the selected option is a tab stop.
-  const selectedIndex = Math.max(0, options.findIndex((option) => option.value === value));
+  const selectedIndex = Math.max(
+    0,
+    options.findIndex((option) => option.value === value),
+  );
   const onKeyDown = (event) => {
     const last = options.length - 1;
-    const target = event.key === "ArrowRight" || event.key === "ArrowDown" ? selectedIndex === last ? 0 : selectedIndex + 1 :
-    event.key === "ArrowLeft" || event.key === "ArrowUp" ? selectedIndex === 0 ? last : selectedIndex - 1 :
-    event.key === "Home" ? 0 : event.key === "End" ? last : -1;
+    const target =
+      event.key === "ArrowRight" || event.key === "ArrowDown"
+        ? selectedIndex === last
+          ? 0
+          : selectedIndex + 1
+        : event.key === "ArrowLeft" || event.key === "ArrowUp"
+          ? selectedIndex === 0
+            ? last
+            : selectedIndex - 1
+          : event.key === "Home"
+            ? 0
+            : event.key === "End"
+              ? last
+              : -1;
     if (target < 0 || !options[target]) return;
     event.preventDefault();
     onValueChange(options[target].value);
-    track.current?.querySelector(`[data-value="${CSS.escape(options[target].value)}"]`)?.focus({ preventScroll: true });
+    track.current
+      ?.querySelector(`[data-value="${CSS.escape(options[target].value)}"]`)
+      ?.focus({ preventScroll: true });
   };
 
-  return <div className={`${styles.root} ${className ?? ""}`} role="group" aria-label={label}>
-    <LayoutGroup id={id}><motion.div ref={track} layoutScroll className={styles.track}>
-      {options.map((option, index) => <button key={option.value} id={`${id}-${option.value}`} className={styles.button} type="button" data-value={option.value} aria-pressed={value === option.value} tabIndex={index === selectedIndex ? 0 : -1} onClick={() => onValueChange(option.value)} onKeyDown={onKeyDown} onPointerEnter={onOptionIntent ? () => onOptionIntent(option.value) : undefined} onFocus={onOptionIntent ? () => onOptionIntent(option.value) : undefined}>
-        {value === option.value && <motion.span className={styles.selection} layoutId="selection" layoutDependency={value} transition={reduced ? { duration: 0 } : motionTokens.spring.morph} aria-hidden="true" />}
-        <span className={styles.label}>{option.label}{option.accessory}</span>
-      </button>)}
-    </motion.div></LayoutGroup>
-  </div>;
+  return (
+    <div
+      className={`${styles.root} ${className ?? ""}`}
+      role="group"
+      aria-label={label}
+    >
+      <LayoutGroup id={id}>
+        <motion.div ref={track} layoutScroll className={styles.track}>
+          {options.map((option, index) => (
+            <button
+              key={option.value}
+              id={`${id}-${option.value}`}
+              className={styles.button}
+              type="button"
+              data-value={option.value}
+              aria-pressed={value === option.value}
+              tabIndex={index === selectedIndex ? 0 : -1}
+              onClick={() => onValueChange(option.value)}
+              onKeyDown={onKeyDown}
+              onPointerEnter={
+                onOptionIntent ? () => onOptionIntent(option.value) : undefined
+              }
+              onFocus={
+                onOptionIntent ? () => onOptionIntent(option.value) : undefined
+              }
+            >
+              {value === option.value && (
+                <motion.span
+                  className={styles.selection}
+                  layoutId="selection"
+                  layoutDependency={value}
+                  transition={
+                    reduced ? { duration: 0 } : motionTokens.spring.morph
+                  }
+                  aria-hidden="true"
+                />
+              )}
+              <span className={styles.label}>
+                {option.label}
+                {option.accessory}
+              </span>
+            </button>
+          ))}
+        </motion.div>
+      </LayoutGroup>
+    </div>
+  );
 }

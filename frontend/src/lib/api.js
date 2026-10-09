@@ -6,7 +6,7 @@ const getToken = async () => {
       console.warn("Failed to get Clerk token", e);
     }
   }
-  return localStorage.getItem('token') || '';
+  return localStorage.getItem("token") || "";
 };
 
 export const api = {
@@ -14,12 +14,12 @@ export const api = {
     const token = await getToken();
     const res = await fetch(`/api${endpoint}`, {
       headers: {
-        'Authorization': `Bearer ${token}`
-      }
+        Authorization: `Bearer ${token}`,
+      },
     });
     if (!res.ok) {
       const errorData = await res.json().catch(() => ({}));
-      const error = new Error(errorData.error || 'API Request Failed');
+      const error = new Error(errorData.error || "API Request Failed");
       error.response = { data: errorData };
       throw error;
     }
@@ -28,16 +28,16 @@ export const api = {
   post: async (endpoint, data) => {
     const token = await getToken();
     const res = await fetch(`/api${endpoint}`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify(data)
+      body: JSON.stringify(data),
     });
     if (!res.ok) {
       const errorData = await res.json().catch(() => ({}));
-      const error = new Error(errorData.error || 'API Request Failed');
+      const error = new Error(errorData.error || "API Request Failed");
       error.response = { data: errorData };
       throw error;
     }
@@ -46,16 +46,16 @@ export const api = {
   put: async (endpoint, data) => {
     const token = await getToken();
     const res = await fetch(`/api${endpoint}`, {
-      method: 'PUT',
+      method: "PUT",
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify(data)
+      body: JSON.stringify(data),
     });
     if (!res.ok) {
       const errorData = await res.json().catch(() => ({}));
-      const error = new Error(errorData.error || 'API Request Failed');
+      const error = new Error(errorData.error || "API Request Failed");
       error.response = { data: errorData };
       throw error;
     }
@@ -64,17 +64,17 @@ export const api = {
   delete: async (endpoint) => {
     const token = await getToken();
     const res = await fetch(`/api${endpoint}`, {
-      method: 'DELETE',
+      method: "DELETE",
       headers: {
-        'Authorization': `Bearer ${token}`
-      }
+        Authorization: `Bearer ${token}`,
+      },
     });
     if (!res.ok) {
       const errorData = await res.json().catch(() => ({}));
-      const error = new Error(errorData.error || 'API Request Failed');
+      const error = new Error(errorData.error || "API Request Failed");
       error.response = { data: errorData };
       throw error;
     }
     return res.json();
-  }
+  },
 };

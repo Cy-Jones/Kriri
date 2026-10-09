@@ -11,26 +11,11 @@ import styles from "./hero-mesh.module.css";
  * and dark themes each author their own palette in CSS and the canvas follows a theme switch without a remount.
  */
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 /** Same loop as the Gradient mesh editor: integer frequencies, so the drift is seamless. */
-const PERIOD = 20,TRAVEL = .075,BREATH = .08,MAX = 8;
+const PERIOD = 20,
+  TRAVEL = 0.075,
+  BREATH = 0.08,
+  MAX = 8;
 /** The drift is slow, so thirty frames a second is indistinguishable from sixty and halves the cost. */
 const FRAME = 1000 / 30;
 
@@ -61,7 +46,10 @@ void main() {
 
 function hashOf(text) {
   let h = 2166136261;
-  for (let i = 0; i < text.length; i++) {h ^= text.charCodeAt(i);h = Math.imul(h, 16777619);}
+  for (let i = 0; i < text.length; i++) {
+    h ^= text.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
   return h >>> 0;
 }
 
@@ -77,9 +65,18 @@ function toRgb(color, scratch) {
 
 /** The static CSS render of the same mesh: shown on the server, before the canvas paints, and when WebGL is missing. */
 function cssMesh(points) {
-  const stops = [0, .2, .4, .6, .8, 1].map((t) => [t, Math.round((1 - t * t * (3 - 2 * t)) * 100)]);
-  const layers = points.map((p, i) => `radial-gradient(ellipse ${p.spread * 100}% ${p.spread * 100}% at ${p.x * 100}% ${p.y * 100}%, ${stops.map(([t, a]) => `color-mix(in srgb, var(--mesh-${i + 1}) ${a}%, transparent) ${t * 100}%`).join(", ")})`);
-  return { backgroundColor: "var(--mesh-base)", backgroundImage: layers.reverse().join(", ") };
+  const stops = [0, 0.2, 0.4, 0.6, 0.8, 1].map((t) => [
+    t,
+    Math.round((1 - t * t * (3 - 2 * t)) * 100),
+  ]);
+  const layers = points.map(
+    (p, i) =>
+      `radial-gradient(ellipse ${p.spread * 100}% ${p.spread * 100}% at ${p.x * 100}% ${p.y * 100}%, ${stops.map(([t, a]) => `color-mix(in srgb, var(--mesh-${i + 1}) ${a}%, transparent) ${t * 100}%`).join(", ")})`,
+  );
+  return {
+    backgroundColor: "var(--mesh-base)",
+    backgroundImage: layers.reverse().join(", "),
+  };
 }
 
 /**
@@ -87,19 +84,39 @@ function cssMesh(points) {
  * editor's smoothstep falloff and grain, drifting on the editor's seamless loop. It draws at thirty frames a second only while
  * it is on screen and the tab is visible, and draws one still frame under reduced motion.
  */
-export function HeroMesh({ points, grain = .35, speed = 1, className, style }) {
+export function HeroMesh({
+  points,
+  grain = 0.35,
+  speed = 1,
+  className,
+  style,
+}) {
   const root = useRef(null);
   const canvas = useRef(null);
   const reduced = !!useReducedMotion();
   const key = JSON.stringify(points);
 
   useEffect(() => {
-    const host = root.current,node = canvas.current;
+    const host = root.current,
+      node = canvas.current;
     if (!host || !node) return;
-    const gl = node.getContext("webgl", { alpha: false, antialias: false, depth: false, stencil: false, powerPreference: "low-power" });
-    const scratch = document.createElement("canvas").getContext("2d", { willReadFrequently: true });
+    const gl = node.getContext("webgl", {
+      alpha: false,
+      antialias: false,
+      depth: false,
+      stencil: false,
+      powerPreference: "low-power",
+    });
+    const scratch = document
+      .createElement("canvas")
+      .getContext("2d", { willReadFrequently: true });
     if (!gl || !scratch) return;
-    const compile = (type, src) => {const s = gl.createShader(type);gl.shaderSource(s, src);gl.compileShader(s);return s;};
+    const compile = (type, src) => {
+      const s = gl.createShader(type);
+      gl.shaderSource(s, src);
+      gl.compileShader(s);
+      return s;
+    };
     const prog = gl.createProgram();
     gl.attachShader(prog, compile(gl.VERTEX_SHADER, VS));
     gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, FS));
@@ -107,39 +124,68 @@ export function HeroMesh({ points, grain = .35, speed = 1, className, style }) {
     if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) return;
     gl.useProgram(prog);
     gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+    gl.bufferData(
+      gl.ARRAY_BUFFER,
+      new Float32Array([-1, -1, 3, -1, -1, 3]),
+      gl.STATIC_DRAW,
+    );
     const loc = gl.getAttribLocation(prog, "a");
     gl.enableVertexAttribArray(loc);
     gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
-    const u = Object.fromEntries(["uRes", "uBase", "uP", "uC", "uN", "uGrain"].map((name) => [name, gl.getUniformLocation(prog, name)]));
+    const u = Object.fromEntries(
+      ["uRes", "uBase", "uP", "uC", "uN", "uGrain"].map((name) => [
+        name,
+        gl.getUniformLocation(prog, name),
+      ]),
+    );
 
     const pts = JSON.parse(key).slice(0, MAX);
-    const drift = pts.map((_, i) => {const h = hashOf(`mesh-${i}`);return { ph1: h % 628 / 100, ph2: (h >>> 10) % 628 / 100, k1: 1 + (h >>> 20) % 2, k2: 1 + (h >>> 22) % 2 };});
-    const P = new Float32Array(MAX * 4),C = new Float32Array(MAX * 3);
+    const drift = pts.map((_, i) => {
+      const h = hashOf(`mesh-${i}`);
+      return {
+        ph1: (h % 628) / 100,
+        ph2: ((h >>> 10) % 628) / 100,
+        k1: 1 + ((h >>> 20) % 2),
+        k2: 1 + ((h >>> 22) % 2),
+      };
+    });
+    const P = new Float32Array(MAX * 4),
+      C = new Float32Array(MAX * 3);
     let base = [1, 1, 1];
 
     const readColors = () => {
       const css = getComputedStyle(host);
-      base = toRgb(css.getPropertyValue("--mesh-base").trim() || "#fff", scratch);
-      pts.forEach((_, i) => {const c = toRgb(css.getPropertyValue(`--mesh-${i + 1}`).trim() || "#fff", scratch);C.set(c, i * 3);});
+      base = toRgb(
+        css.getPropertyValue("--mesh-base").trim() || "#fff",
+        scratch,
+      );
+      pts.forEach((_, i) => {
+        const c = toRgb(
+          css.getPropertyValue(`--mesh-${i + 1}`).trim() || "#fff",
+          scratch,
+        );
+        C.set(c, i * 3);
+      });
     };
 
-    let width = 0,height = 0;
+    let width = 0,
+      height = 0;
     const size = () => {
       // The mesh has no detail finer than its grain, so one canvas pixel per CSS pixel is enough on any screen.
       width = Math.max(1, Math.round(host.clientWidth));
       height = Math.max(1, Math.round(host.clientHeight));
-      node.width = width;node.height = height;
+      node.width = width;
+      node.height = height;
     };
 
     let t = hashOf(key) % PERIOD;
     const draw = () => {
-      const a = 2 * Math.PI * t / PERIOD;
+      const a = (2 * Math.PI * t) / PERIOD;
       pts.forEach((p, i) => {
         const d = drift[i];
         P[i * 4] = p.x + TRAVEL * Math.sin(a * d.k1 + d.ph1);
         P[i * 4 + 1] = p.y + TRAVEL * Math.cos(a * d.k2 + d.ph2);
-        P[i * 4 + 2] = p.spread * (1 + BREATH * Math.sin(a + d.ph1 * .7));
+        P[i * 4 + 2] = p.spread * (1 + BREATH * Math.sin(a + d.ph1 * 0.7));
       });
       gl.viewport(0, 0, width, height);
       gl.uniform2f(u.uRes, width, height);
@@ -157,42 +203,71 @@ export function HeroMesh({ points, grain = .35, speed = 1, className, style }) {
     draw();
 
     const moving = !reduced && speed > 0;
-    let visible = false,frame = 0,last = 0;
+    let visible = false,
+      frame = 0,
+      last = 0;
     const tick = (now) => {
       frame = requestAnimationFrame(tick);
       if (now - last < FRAME) return;
-      const dt = last ? Math.min(.1, (now - last) / 1000) : 0;
+      const dt = last ? Math.min(0.1, (now - last) / 1000) : 0;
       last = now;
       t = (t + dt * speed) % PERIOD;
       draw();
     };
     const sync = () => {
       const run = moving && visible && document.visibilityState === "visible";
-      if (run && !frame) {last = 0;frame = requestAnimationFrame(tick);}
-      if (!run && frame) {cancelAnimationFrame(frame);frame = 0;}
+      if (run && !frame) {
+        last = 0;
+        frame = requestAnimationFrame(tick);
+      }
+      if (!run && frame) {
+        cancelAnimationFrame(frame);
+        frame = 0;
+      }
     };
-    const io = new IntersectionObserver(([entry]) => {visible = entry.isIntersecting;sync();});
+    const io = new IntersectionObserver(([entry]) => {
+      visible = entry.isIntersecting;
+      sync();
+    });
     io.observe(host);
-    const ro = new ResizeObserver(() => {size();draw();});
+    const ro = new ResizeObserver(() => {
+      size();
+      draw();
+    });
     ro.observe(host);
-    const theme = () => {readColors();draw();};
+    const theme = () => {
+      readColors();
+      draw();
+    };
     const mo = new MutationObserver(theme);
-    mo.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme", "data-accent", "class"] });
+    mo.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["data-theme", "data-accent", "class"],
+    });
     const scheme = matchMedia("(prefers-color-scheme: dark)");
     scheme.addEventListener("change", theme);
     document.addEventListener("visibilitychange", sync);
     return () => {
       cancelAnimationFrame(frame);
-      io.disconnect();ro.disconnect();mo.disconnect();
+      io.disconnect();
+      ro.disconnect();
+      mo.disconnect();
       scheme.removeEventListener("change", theme);
       document.removeEventListener("visibilitychange", sync);
       delete host.dataset.painted;
     };
   }, [key, grain, speed, reduced]);
 
-  return <div ref={root} className={[styles.mesh, className].filter(Boolean).join(" ")} style={{ ...cssMesh(points), ...style }} aria-hidden="true">
-    <canvas ref={canvas} className={styles.canvas} />
-  </div>;
+  return (
+    <div
+      ref={root}
+      className={[styles.mesh, className].filter(Boolean).join(" ")}
+      style={{ ...cssMesh(points), ...style }}
+      aria-hidden="true"
+    >
+      <canvas ref={canvas} className={styles.canvas} />
+    </div>
+  );
 }
 
 export default HeroMesh;

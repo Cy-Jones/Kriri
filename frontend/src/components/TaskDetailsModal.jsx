@@ -1,12 +1,25 @@
-import { useState, useEffect, useRef } from 'react';
-import { XSquare, MessageSquare, Send, Calendar, User, FileText, Star } from 'lucide-react';
-import { api } from '../lib/api';
-import posthog from '../lib/posthog';
+import { useState, useEffect, useRef } from "react";
+import {
+  XSquare,
+  MessageSquare,
+  Send,
+  Calendar,
+  User,
+  FileText,
+  Star,
+} from "lucide-react";
+import { api } from "../lib/api";
+import posthog from "../lib/posthog";
 
-export default function TaskDetailsModal({ isOpen, onClose, taskId, onTaskUpdated }) {
+export default function TaskDetailsModal({
+  isOpen,
+  onClose,
+  taskId,
+  onTaskUpdated,
+}) {
   const [task, setTask] = useState(null);
   const [comments, setComments] = useState([]);
-  const [newComment, setNewComment] = useState('');
+  const [newComment, setNewComment] = useState("");
   const [loading, setLoading] = useState(true);
 
   const statusSelectRef = useRef(null);
@@ -17,9 +30,11 @@ export default function TaskDetailsModal({ isOpen, onClose, taskId, onTaskUpdate
     if (!isOpen) return;
 
     const handleKeyDown = (e) => {
-      const isInput = ['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName);
+      const isInput = ["INPUT", "TEXTAREA", "SELECT"].includes(
+        e.target.tagName,
+      );
 
-      if (e.key === 'Escape') {
+      if (e.key === "Escape") {
         if (isInput) {
           e.target.blur();
         } else {
@@ -28,9 +43,15 @@ export default function TaskDetailsModal({ isOpen, onClose, taskId, onTaskUpdate
         return;
       }
 
-      if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-        if (commentInputRef.current && document.activeElement === commentInputRef.current) {
-          const formEvent = new Event('submit', { cancelable: true, bubbles: true });
+      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+        if (
+          commentInputRef.current &&
+          document.activeElement === commentInputRef.current
+        ) {
+          const formEvent = new Event("submit", {
+            cancelable: true,
+            bubbles: true,
+          });
           handlePostComment(formEvent);
         }
         return;
@@ -39,24 +60,24 @@ export default function TaskDetailsModal({ isOpen, onClose, taskId, onTaskUpdate
       if (isInput) return;
 
       switch (e.key.toLowerCase()) {
-        case 's':
+        case "s":
           e.preventDefault();
           statusSelectRef.current?.focus();
           break;
-        case 'p':
+        case "p":
           e.preventDefault();
           prioritySelectRef.current?.focus();
           break;
-        case 'e':
-        case 'c':
+        case "e":
+        case "c":
           e.preventDefault();
           commentInputRef.current?.focus();
           break;
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, onClose]);
 
   const fetchTaskDetails = async () => {
@@ -66,7 +87,10 @@ export default function TaskDetailsModal({ isOpen, onClose, taskId, onTaskUpdate
       setTask(taskData);
       const commentsData = await api.get(`/comments/task/${taskId}`);
       setComments(commentsData);
-      posthog.capture('task_viewed', { task_id: taskId, project_id: taskData.project_id });
+      posthog.capture("task_viewed", {
+        task_id: taskId,
+        project_id: taskData.project_id,
+      });
     } catch (error) {
       console.error(error);
     } finally {
@@ -85,13 +109,13 @@ export default function TaskDetailsModal({ isOpen, onClose, taskId, onTaskUpdate
     if (!newComment.trim()) return;
 
     try {
-      const addedComment = await api.post('/comments', {
+      const addedComment = await api.post("/comments", {
         task_id: taskId,
-        content: newComment
+        content: newComment,
       });
       setComments([...comments, addedComment]);
-      setNewComment('');
-      posthog.capture('comment_added', { task_id: taskId });
+      setNewComment("");
+      posthog.capture("comment_added", { task_id: taskId });
     } catch (error) {
       console.error(error);
     }
@@ -100,7 +124,10 @@ export default function TaskDetailsModal({ isOpen, onClose, taskId, onTaskUpdate
   const handleUpdateStatus = async (e) => {
     const newStatus = e.target.value;
     try {
-      const updatedTask = await api.put(`/tasks/${taskId}`, { ...task, status: newStatus });
+      const updatedTask = await api.put(`/tasks/${taskId}`, {
+        ...task,
+        status: newStatus,
+      });
       setTask(updatedTask);
       if (onTaskUpdated) onTaskUpdated(updatedTask);
     } catch (error) {
@@ -111,7 +138,10 @@ export default function TaskDetailsModal({ isOpen, onClose, taskId, onTaskUpdate
   const handleUpdatePriority = async (e) => {
     const newPriority = e.target.value;
     try {
-      const updatedTask = await api.put(`/tasks/${taskId}`, { ...task, priority: newPriority });
+      const updatedTask = await api.put(`/tasks/${taskId}`, {
+        ...task,
+        priority: newPriority,
+      });
       setTask(updatedTask);
       if (onTaskUpdated) onTaskUpdated(updatedTask);
     } catch (error) {
@@ -127,17 +157,19 @@ export default function TaskDetailsModal({ isOpen, onClose, taskId, onTaskUpdate
         {/* Header */}
         <div className="px-6 py-4 flex items-center justify-between border-b border-border bg-surface-elevated">
           <div className="flex items-center gap-3">
-             <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center text-accent">
-               <FileText size={20} />
-             </div>
-             <div>
-                <h2 className="text-lg font-semibold text-text-primary">
-                  {loading ? 'Loading...' : `Task #${task?.id}`}
-                </h2>
-                <div className="text-sm text-text-secondary">Project ID: {task?.project_id}</div>
-             </div>
+            <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center text-accent">
+              <FileText size={20} />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-text-primary">
+                {loading ? "Loading..." : `Task #${task?.id}`}
+              </h2>
+              <div className="text-sm text-text-secondary">
+                Project ID: {task?.project_id}
+              </div>
+            </div>
           </div>
-          <button 
+          <button
             onClick={onClose}
             className="p-2 hover:bg-white/5 rounded-lg text-text-secondary hover:text-text-primary transition-colors"
           >
@@ -147,14 +179,18 @@ export default function TaskDetailsModal({ isOpen, onClose, taskId, onTaskUpdate
 
         {/* Body */}
         {loading ? (
-          <div className="p-8 text-center text-text-secondary">Loading details...</div>
+          <div className="p-8 text-center text-text-secondary">
+            Loading details...
+          </div>
         ) : (
           <div className="flex flex-1 overflow-hidden">
             {/* Left side: Main Content */}
             <div className="flex-1 border-r border-border flex flex-col overflow-y-auto">
               <div className="p-6">
-                <h1 className="text-xl font-semibold text-text-primary mb-4">{task?.title}</h1>
-                
+                <h1 className="text-xl font-semibold text-text-primary mb-4">
+                  {task?.title}
+                </h1>
+
                 <div className="mb-6">
                   <h3 className="text-sm font-medium text-text-primary mb-2 flex items-center gap-2">
                     Description
@@ -168,29 +204,34 @@ export default function TaskDetailsModal({ isOpen, onClose, taskId, onTaskUpdate
                   <h3 className="text-sm font-medium text-text-primary mb-4 flex items-center gap-2">
                     <MessageSquare size={16} /> Activity & Comments
                   </h3>
-                  
+
                   <div className="space-y-4 mb-6">
                     {comments.map((comment) => (
                       <div key={comment.id} className="flex gap-3">
-                         <div className="w-8 h-8 rounded-full bg-accent/20 flex flex-shrink-0 items-center justify-center text-accent text-xs font-bold">
-                           {comment.user_name?.charAt(0)}
-                         </div>
-                         <div className="flex-1 bg-surface-elevated p-3 rounded-lg rounded-tl-none">
-                            <div className="flex justify-between items-center mb-1">
-                              <span className="text-[12px] font-medium text-text-primary">{comment.user_name}</span>
-                              <span className="text-[10px] text-text-muted">{new Date(comment.created_at).toLocaleString()}</span>
-                            </div>
-                            <div className="text-[13px] text-text-secondary">
-                              {comment.content}
-                            </div>
-                         </div>
+                        <div className="w-8 h-8 rounded-full bg-accent/20 flex flex-shrink-0 items-center justify-center text-accent text-xs font-bold">
+                          {comment.user_name?.charAt(0)}
+                        </div>
+                        <div className="flex-1 bg-surface-elevated p-3 rounded-lg rounded-tl-none">
+                          <div className="flex justify-between items-center mb-1">
+                            <span className="text-[12px] font-medium text-text-primary">
+                              {comment.user_name}
+                            </span>
+                            <span className="text-[10px] text-text-muted">
+                              {new Date(comment.created_at).toLocaleString()}
+                            </span>
+                          </div>
+                          <div className="text-[13px] text-text-secondary">
+                            {comment.content}
+                          </div>
+                        </div>
                       </div>
                     ))}
                     {comments.length === 0 && (
-                      <div className="text-[13px] text-text-muted text-center py-4">No comments yet. Be the first to start the discussion!</div>
+                      <div className="text-[13px] text-text-muted text-center py-4">
+                        No comments yet. Be the first to start the discussion!
+                      </div>
                     )}
                   </div>
-
                 </div>
               </div>
             </div>
@@ -198,56 +239,68 @@ export default function TaskDetailsModal({ isOpen, onClose, taskId, onTaskUpdate
             {/* Right side: Properties */}
             <div className="w-[280px] bg-surface-elevated flex-shrink-0 flex flex-col">
               <div className="p-6 space-y-6 flex-1 overflow-y-auto">
-                 <div>
-                    <label className="text-xs text-text-muted uppercase tracking-wider font-semibold mb-2 block">Status</label>
-                    <select 
-                      ref={statusSelectRef}
-                      value={task?.status}
-                      onChange={handleUpdateStatus}
-                      className="w-full bg-surface border border-border rounded-lg px-3 py-2 text-[13px] text-text-primary focus:outline-none focus:border-accent"
-                    >
-                      <option value="Todo">Todo</option>
-                      <option value="In Progress">In Progress</option>
-                      <option value="Done">Done</option>
-                    </select>
-                 </div>
+                <div>
+                  <label className="text-xs text-text-muted uppercase tracking-wider font-semibold mb-2 block">
+                    Status
+                  </label>
+                  <select
+                    ref={statusSelectRef}
+                    value={task?.status}
+                    onChange={handleUpdateStatus}
+                    className="w-full bg-surface border border-border rounded-lg px-3 py-2 text-[13px] text-text-primary focus:outline-none focus:border-accent"
+                  >
+                    <option value="Todo">Todo</option>
+                    <option value="In Progress">In Progress</option>
+                    <option value="Done">Done</option>
+                  </select>
+                </div>
 
-                 <div>
-                    <label className="text-xs text-text-muted uppercase tracking-wider font-semibold mb-2 block">Priority</label>
-                    <select 
-                      ref={prioritySelectRef}
-                      value={task?.priority}
-                      onChange={handleUpdatePriority}
-                      className="w-full bg-surface border border-border rounded-lg px-3 py-2 text-[13px] text-text-primary focus:outline-none focus:border-accent"
-                    >
-                      <option value="Low">Low</option>
-                      <option value="Medium">Medium</option>
-                      <option value="High">High</option>
-                    </select>
-                 </div>
+                <div>
+                  <label className="text-xs text-text-muted uppercase tracking-wider font-semibold mb-2 block">
+                    Priority
+                  </label>
+                  <select
+                    ref={prioritySelectRef}
+                    value={task?.priority}
+                    onChange={handleUpdatePriority}
+                    className="w-full bg-surface border border-border rounded-lg px-3 py-2 text-[13px] text-text-primary focus:outline-none focus:border-accent"
+                  >
+                    <option value="Low">Low</option>
+                    <option value="Medium">Medium</option>
+                    <option value="High">High</option>
+                  </select>
+                </div>
 
-                 <div>
-                    <label className="text-xs text-text-muted uppercase tracking-wider font-semibold mb-2 block">Assignee</label>
-                    <div className="flex items-center gap-2 p-2 rounded bg-surface border border-border">
-                      <div className="w-6 h-6 rounded-full bg-accent/20 flex items-center justify-center text-accent text-xs font-bold">
-                        {task?.assignee_name ? task.assignee_name.charAt(0) : '?'}
-                      </div>
-                      <span className="text-[13px] text-text-primary">{task?.assignee_name || 'Unassigned'}</span>
+                <div>
+                  <label className="text-xs text-text-muted uppercase tracking-wider font-semibold mb-2 block">
+                    Assignee
+                  </label>
+                  <div className="flex items-center gap-2 p-2 rounded bg-surface border border-border">
+                    <div className="w-6 h-6 rounded-full bg-accent/20 flex items-center justify-center text-accent text-xs font-bold">
+                      {task?.assignee_name ? task.assignee_name.charAt(0) : "?"}
                     </div>
-                 </div>
+                    <span className="text-[13px] text-text-primary">
+                      {task?.assignee_name || "Unassigned"}
+                    </span>
+                  </div>
+                </div>
 
-                 <div>
-                    <label className="text-xs text-text-muted uppercase tracking-wider font-semibold mb-2 block">Due Date</label>
-                    <div className="flex items-center gap-2 p-2 rounded bg-surface border border-border text-text-primary text-[13px]">
-                      <Calendar size="small" />
-                      {task?.due_date ? new Date(task.due_date).toLocaleDateString() : 'No due date'}
-                    </div>
-                 </div>
+                <div>
+                  <label className="text-xs text-text-muted uppercase tracking-wider font-semibold mb-2 block">
+                    Due Date
+                  </label>
+                  <div className="flex items-center gap-2 p-2 rounded bg-surface border border-border text-text-primary text-[13px]">
+                    <Calendar size="small" />
+                    {task?.due_date
+                      ? new Date(task.due_date).toLocaleDateString()
+                      : "No due date"}
+                  </div>
+                </div>
               </div>
 
               {/* Comment Input Sticky at Bottom of Right Sidebar or Main Area - putting it in main area bottom is better, but this layout has split. We'll stick it to the bottom of the left pane. */}
             </div>
-            
+
             {/* Fix Comment Input to left pane */}
             <div className="absolute bottom-0 left-0 w-[calc(100%-280px)] border-t border-border bg-surface p-4">
               <form onSubmit={handlePostComment} className="flex gap-2">

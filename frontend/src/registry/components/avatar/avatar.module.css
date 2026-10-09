@@ -16,7 +16,9 @@
   pointer-events: none;
   border-radius: inherit;
   object-fit: cover;
-  transition: opacity var(--duration-standard) var(--ease-enter), filter var(--duration-standard) var(--ease-enter);
+  transition:
+    opacity var(--duration-standard) var(--ease-enter),
+    filter var(--duration-standard) var(--ease-enter);
 }
 
 /* Set only while a photo is still downloading after mount, so cached photos never fade. */
@@ -26,12 +28,29 @@
   transition: none;
 }
 
-.fallback { animation: avatar-fallback-in var(--duration-standard) var(--ease-enter) both; }
+.fallback {
+  animation: avatar-fallback-in var(--duration-standard) var(--ease-enter) both;
+}
 
-.sm { width: 28px; height: 28px; font-size: 10px; }
-.md { width: 36px; height: 36px; }
-.lg { width: 48px; height: 48px; font-size: var(--text-sm); }
-.xl { width: 88px; height: 88px; font-size: 23px; }
+.sm {
+  width: 28px;
+  height: 28px;
+  font-size: 10px;
+}
+.md {
+  width: 36px;
+  height: 36px;
+}
+.lg {
+  width: 48px;
+  height: 48px;
+  font-size: var(--text-sm);
+}
+.xl {
+  width: 88px;
+  height: 88px;
+  font-size: 23px;
+}
 
 .status {
   position: absolute;
@@ -45,16 +64,45 @@
   box-shadow: 0 0 0 1px color-mix(in oklch, var(--border) 70%, transparent);
 }
 
-.sm .status { width: 8px; height: 8px; border-width: 1.5px; }
-.lg .status { width: 12px; height: 12px; }
-.xl .status { width: 14px; height: 14px; right: 4px; bottom: 4px; }
-.online { background: var(--success); }
-.offline { background: var(--text-muted); }
+.sm .status {
+  width: 8px;
+  height: 8px;
+  border-width: 1.5px;
+}
+.lg .status {
+  width: 12px;
+  height: 12px;
+}
+.xl .status {
+  width: 14px;
+  height: 14px;
+  right: 4px;
+  bottom: 4px;
+}
+.online {
+  background: var(--success);
+}
+.offline {
+  background: var(--text-muted);
+}
 
-@keyframes avatar-fallback-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes avatar-fallback-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
 
 @media (prefers-reduced-motion: reduce) {
-  .avatar img { transition: none; }
-  .avatar img[data-loading] { filter: none; }
-  .fallback { animation: none; }
+  .avatar img {
+    transition: none;
+  }
+  .avatar img[data-loading] {
+    filter: none;
+  }
+  .fallback {
+    animation: none;
+  }
 }

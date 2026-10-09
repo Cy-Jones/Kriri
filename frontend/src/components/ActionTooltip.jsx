@@ -1,13 +1,17 @@
-import React from 'react';
-import * as Tooltip from '@radix-ui/react-tooltip';
+import React from "react";
+import * as Tooltip from "@radix-ui/react-tooltip";
 
-export default function ActionTooltip({ children, label, shortcut, side = "bottom", align = "center" }) {
+export default function ActionTooltip({
+  children,
+  label,
+  shortcut,
+  side = "bottom",
+  align = "center",
+}) {
   return (
     <Tooltip.Provider delayDuration={200}>
       <Tooltip.Root>
-        <Tooltip.Trigger asChild>
-          {children}
-        </Tooltip.Trigger>
+        <Tooltip.Trigger asChild>{children}</Tooltip.Trigger>
         <Tooltip.Portal>
           <Tooltip.Content
             side={side}

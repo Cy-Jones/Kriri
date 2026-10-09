@@ -1,53 +1,59 @@
-const db = require('../config/database');
+const db = require("../config/database");
+const { handleError } = require("../utils/errorHandler");
 
 exports.createMilestone = async (req, res) => {
   try {
-    const { milestoneSchema } = require('../validators');
+    const { milestoneSchema } = require("../validators");
     const validatedData = milestoneSchema.parse(req.body);
     const { project_id, name, due_date } = validatedData;
     const { description, status } = req.body;
 
     // Ensure project belongs to active workspace
-    const projRes = await db.query('SELECT id FROM projects WHERE id = $1 AND workspace_id = $2', [project_id, req.workspace.id]);
-    if (projRes.rows.length === 0) return res.status(403).json({ error: 'Project not found in active workspace' });
+    const projRes = await db.query(
+      "SELECT id FROM projects WHERE id = $1 AND workspace_id = $2",
+      [project_id, req.workspace.id],
+    );
+    if (projRes.rows.length === 0)
+      return res
+        .status(403)
+        .json({ error: "Project not found in active workspace" });
 
     const { rows } = await db.query(
-      'INSERT INTO milestones (project_id, name, description, due_date, status) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-      [project_id, name, description, due_date, status || 'Pending']
+      "INSERT INTO milestones (project_id, name, description, due_date, status) VALUES ($1, $2, $3, $4, $5) RETURNING *",
+      [project_id, name, description, due_date, status || "Pending"],
     );
     res.status(201).json(rows[0]);
   } catch (error) {
-    if (error.name === 'ZodError') {
-      return res.status(400).json({ error: error.errors.map(e => e.message).join(', ') });
-    }
-    console.error(error);
-    res.status(500).json({ error: 'Server error' });
+    return handleError(res, error);
   }
 };
 
 exports.getProjectMilestones = async (req, res) => {
   const { projectId } = req.params;
   try {
-    const { rows } = await db.query(`
+    const { rows } = await db.query(
+      `
       SELECT m.* FROM milestones m
       JOIN projects p ON m.project_id = p.id
       WHERE m.project_id = $1 AND p.workspace_id = $2 
       ORDER BY m.due_date ASC
-    `, [projectId, req.workspace.id]);
+    `,
+      [projectId, req.workspace.id],
+    );
     res.json(rows);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: "Server error" });
   }
 };
 
 exports.updateMilestone = async (req, res) => {
   const { id } = req.params;
   try {
-    const { milestoneSchema } = require('../validators');
-    // partial parsing as it's update, or just use parse but schema might require name. 
-    // Wait, update schema can have optional fields. I'll just use parse and let the validator throw if something is missing. 
-    // Actually the milestone schema currently requires "name". If name is omitted on update, it'll fail. 
+    const { milestoneSchema } = require("../validators");
+    // partial parsing as it's update, or just use parse but schema might require name.
+    // Wait, update schema can have optional fields. I'll just use parse and let the validator throw if something is missing.
+    // Actually the milestone schema currently requires "name". If name is omitted on update, it'll fail.
     // Let's use deepPartial() if we want or just do what was there before but better.
     // I'll extract data directly for now or use the schema. Wait, if name is required, I'll extract it manually for update to prevent breaking valid updates that only change status.
     const { name, description, due_date, status } = req.body;
@@ -60,29 +66,34 @@ exports.updateMilestone = async (req, res) => {
        FROM projects p
        WHERE m.id = $5 AND m.project_id = p.id AND p.workspace_id = $6
        RETURNING m.*`,
-      [name, description, due_date, status, id, req.workspace.id]
+      [name, description, due_date, status, id, req.workspace.id],
     );
-    if (rows.length === 0) return res.status(404).json({ error: 'Milestone not found' });
+    if (rows.length === 0)
+      return res.status(404).json({ error: "Milestone not found" });
     res.json(rows[0]);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: "Server error" });
   }
 };
 
 exports.deleteMilestone = async (req, res) => {
   const { id } = req.params;
   try {
-    const { rows } = await db.query(`
+    const { rows } = await db.query(
+      `
       DELETE FROM milestones m
       USING projects p
       WHERE m.id = $1 AND m.project_id = p.id AND p.workspace_id = $2
       RETURNING m.*
-    `, [id, req.workspace.id]);
-    if (rows.length === 0) return res.status(404).json({ error: 'Milestone not found' });
-    res.json({ message: 'Milestone deleted successfully' });
+    `,
+      [id, req.workspace.id],
+    );
+    if (rows.length === 0)
+      return res.status(404).json({ error: "Milestone not found" });
+    res.json({ message: "Milestone deleted successfully" });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: "Server error" });
   }
 };

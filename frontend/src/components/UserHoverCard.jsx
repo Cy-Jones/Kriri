@@ -1,5 +1,5 @@
-import React from 'react';
-import * as HoverCard from '@radix-ui/react-hover-card';
+import React from "react";
+import * as HoverCard from "@radix-ui/react-hover-card";
 import { Avatar } from "@/registry/components/avatar/avatar";
 import { Clock, Box } from "lucide-react";
 
@@ -8,9 +8,7 @@ export default function UserHoverCard({ children, user }) {
 
   return (
     <HoverCard.Root openDelay={300} closeDelay={100}>
-      <HoverCard.Trigger asChild>
-        {children}
-      </HoverCard.Trigger>
+      <HoverCard.Trigger asChild>{children}</HoverCard.Trigger>
       <HoverCard.Portal>
         <HoverCard.Content
           side="bottom"
@@ -23,14 +21,20 @@ export default function UserHoverCard({ children, user }) {
               <Avatar name={user.name} size="md" />
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="text-[14px] font-medium text-[#e8e8e8]">{user.name}</span>
-                  <span className="text-[10px] text-[#8a8f98] bg-[#2a2b2d] border border-[#3c3f44] px-1.5 py-0.5 rounded">Lead</span>
+                  <span className="text-[14px] font-medium text-[#e8e8e8]">
+                    {user.name}
+                  </span>
+                  <span className="text-[10px] text-[#8a8f98] bg-[#2a2b2d] border border-[#3c3f44] px-1.5 py-0.5 rounded">
+                    Lead
+                  </span>
                 </div>
-                <div className="text-[13px] text-[#8a8f98]">@{user.name.toLowerCase().replace(/\s+/g, '')}</div>
+                <div className="text-[13px] text-[#8a8f98]">
+                  @{user.name.toLowerCase().replace(/\s+/g, "")}
+                </div>
               </div>
             </div>
           </div>
-          
+
           <div className="mt-4 space-y-2">
             <div className="flex items-center gap-2 text-[12px] text-[#8a8f98]">
               <div className="w-1.5 h-1.5 rounded-full bg-[#3fb950] ml-1"></div>
@@ -38,7 +42,9 @@ export default function UserHoverCard({ children, user }) {
             </div>
             <div className="flex items-center gap-2 text-[12px] text-[#8a8f98]">
               <Clock size={14} className="ml-0.5" />
-              <span className="ml-0.5">1:34 AM <span className="opacity-60">local time</span></span>
+              <span className="ml-0.5">
+                1:34 AM <span className="opacity-60">local time</span>
+              </span>
             </div>
             <div className="flex items-center gap-2 text-[12px] text-[#8a8f98]">
               <Box size={14} className="ml-0.5" />

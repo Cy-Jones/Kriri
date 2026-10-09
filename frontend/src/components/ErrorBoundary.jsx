@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 
 export class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -17,10 +17,22 @@ export class ErrorBoundary extends React.Component {
   render() {
     if (this.state.hasError) {
       return (
-        <div style={{ padding: 20, color: 'red', backgroundColor: 'black', height: '100vh', zIndex: 9999 }}>
+        <div
+          style={{
+            padding: 20,
+            color: "red",
+            backgroundColor: "black",
+            height: "100vh",
+            zIndex: 9999,
+          }}
+        >
           <h2>Something went wrong.</h2>
-          <pre style={{ whiteSpace: 'pre-wrap' }}>{this.state.error?.toString()}</pre>
-          <pre style={{ whiteSpace: 'pre-wrap' }}>{this.state.error?.stack}</pre>
+          <pre style={{ whiteSpace: "pre-wrap" }}>
+            {this.state.error?.toString()}
+          </pre>
+          <pre style={{ whiteSpace: "pre-wrap" }}>
+            {this.state.error?.stack}
+          </pre>
         </div>
       );
     }

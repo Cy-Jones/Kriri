@@ -1,72 +1,85 @@
-import { useEffect } from 'react';
-import * as Dialog from '@radix-ui/react-dialog';
-import { X } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { useEffect } from "react";
+import * as Dialog from "@radix-ui/react-dialog";
+import { X } from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
 
 const SHORTCUTS = [
   {
-    category: 'Global',
+    category: "Global",
     items: [
-      { keys: ['Cmd', 'K'], description: 'Open command palette' },
-      { keys: ['/'], description: 'Global search' },
-      { keys: ['?'], description: 'Show keyboard shortcuts' },
-      { keys: ['C'], description: 'Create task' },
-      { keys: ['Cmd', 'Shift', 'P'], description: 'Create project' },
-    ]
+      { keys: ["Cmd", "K"], description: "Open command palette" },
+      { keys: ["/"], description: "Global search" },
+      { keys: ["?"], description: "Show keyboard shortcuts" },
+      { keys: ["C"], description: "Create task" },
+      { keys: ["Cmd", "Shift", "P"], description: "Create project" },
+    ],
   },
   {
-    category: 'Navigation',
+    category: "Navigation",
     items: [
-      { keys: ['G', 'Then', 'D'], description: 'Go to Dashboard' },
-      { keys: ['G', 'Then', 'P'], description: 'Go to Projects' },
-      { keys: ['G', 'Then', 'T'], description: 'Go to Issues' },
-      { keys: ['G', 'Then', 'I'], description: 'Go to Inbox' },
-      { keys: ['G', 'Then', 'M'], description: 'Go to Team' },
-      { keys: ['G', 'Then', 'A'], description: 'Go to Analytics' },
-    ]
+      { keys: ["G", "Then", "D"], description: "Go to Dashboard" },
+      { keys: ["G", "Then", "P"], description: "Go to Projects" },
+      { keys: ["G", "Then", "T"], description: "Go to Issues" },
+      { keys: ["G", "Then", "I"], description: "Go to Inbox" },
+      { keys: ["G", "Then", "M"], description: "Go to Team" },
+      { keys: ["G", "Then", "A"], description: "Go to Analytics" },
+    ],
   },
   {
-    category: 'Tasks & Issues',
+    category: "Tasks & Issues",
     items: [
-      { keys: ['E'], description: 'Edit task' },
-      { keys: ['A'], description: 'Assign task' },
-      { keys: ['S'], description: 'Change status' },
-      { keys: ['P'], description: 'Set priority' },
-      { keys: ['D'], description: 'Set due date' },
-      { keys: ['Cmd', 'Enter'], description: 'Save changes' },
-      { keys: ['Esc'], description: 'Cancel / Close' },
-    ]
+      { keys: ["E"], description: "Edit task" },
+      { keys: ["A"], description: "Assign task" },
+      { keys: ["S"], description: "Change status" },
+      { keys: ["P"], description: "Set priority" },
+      { keys: ["D"], description: "Set due date" },
+      { keys: ["Cmd", "Enter"], description: "Save changes" },
+      { keys: ["Esc"], description: "Cancel / Close" },
+    ],
   },
   {
-    category: 'Project View',
+    category: "Project View",
     items: [
-      { keys: ['Cmd', '1'], description: 'List view' },
-      { keys: ['Cmd', '2'], description: 'Board view' },
-      { keys: ['Cmd', '3'], description: 'Calendar/Timeline view' },
-      { keys: ['F'], description: 'Focus search/filter' },
-      { keys: ['O'], description: 'Toggle display options' },
-    ]
-  }
+      { keys: ["Cmd", "1"], description: "List view" },
+      { keys: ["Cmd", "2"], description: "Board view" },
+      { keys: ["Cmd", "3"], description: "Calendar/Timeline view" },
+      { keys: ["F"], description: "Focus search/filter" },
+      { keys: ["O"], description: "Toggle display options" },
+    ],
+  },
 ];
 
 export default function KeyboardShortcutsHelp({ isOpen, onOpenChange }) {
   // Use "meta" key symbol on Mac, "Ctrl" on Windows/Linux
-  const isMac = typeof window !== 'undefined' ? navigator.platform.toUpperCase().indexOf('MAC') >= 0 : true;
+  const isMac =
+    typeof window !== "undefined"
+      ? navigator.platform.toUpperCase().indexOf("MAC") >= 0
+      : true;
 
   const renderKey = (key) => {
     let displayKey = key;
-    if (key === 'Cmd') {
-      displayKey = isMac ? '⌘' : 'Ctrl';
-    } else if (key === 'Shift') {
-      displayKey = isMac ? '⇧' : 'Shift';
+    if (key === "Cmd") {
+      displayKey = isMac ? "⌘" : "Ctrl";
+    } else if (key === "Shift") {
+      displayKey = isMac ? "⇧" : "Shift";
     }
-    
-    if (key === 'Then') {
-      return <span key="then" className="text-[#8a8f98] mx-1 text-[11px] font-medium">then</span>;
+
+    if (key === "Then") {
+      return (
+        <span
+          key="then"
+          className="text-[#8a8f98] mx-1 text-[11px] font-medium"
+        >
+          then
+        </span>
+      );
     }
 
     return (
-      <kbd key={key} className="flex h-5 items-center justify-center rounded border border-[#2d313a] bg-[#1a1d24] px-1.5 text-[11px] font-medium text-[#e8e8e8] shadow-sm">
+      <kbd
+        key={key}
+        className="flex h-5 items-center justify-center rounded border border-[#2d313a] bg-[#1a1d24] px-1.5 text-[11px] font-medium text-[#e8e8e8] shadow-sm"
+      >
         {displayKey}
       </kbd>
     );
@@ -102,7 +115,7 @@ export default function KeyboardShortcutsHelp({ isOpen, onOpenChange }) {
                     <X className="h-4 w-4" />
                   </Dialog.Close>
                 </div>
-                
+
                 <div className="p-6 max-h-[70vh] overflow-y-auto scrollbar-thin scrollbar-thumb-[#2d313a] scrollbar-track-transparent">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8">
                     {SHORTCUTS.map((section) => (
@@ -112,8 +125,13 @@ export default function KeyboardShortcutsHelp({ isOpen, onOpenChange }) {
                         </h3>
                         <div className="flex flex-col gap-2.5">
                           {section.items.map((item, idx) => (
-                            <div key={idx} className="flex items-center justify-between">
-                              <span className="text-[13px] text-[#e8e8e8]">{item.description}</span>
+                            <div
+                              key={idx}
+                              className="flex items-center justify-between"
+                            >
+                              <span className="text-[13px] text-[#e8e8e8]">
+                                {item.description}
+                              </span>
                               <div className="flex items-center gap-1">
                                 {item.keys.map((key, i) => renderKey(key))}
                               </div>
@@ -124,9 +142,15 @@ export default function KeyboardShortcutsHelp({ isOpen, onOpenChange }) {
                     ))}
                   </div>
                 </div>
-                
+
                 <div className="border-t border-[#2d313a] bg-[#0f1115] px-6 py-3 flex justify-between items-center text-[12px] text-[#8a8f98]">
-                  <span>Pro tip: Press <kbd className="px-1.5 py-0.5 rounded border border-[#2d313a] bg-[#1a1d24] mx-1">?</kbd> from anywhere to open this menu</span>
+                  <span>
+                    Pro tip: Press{" "}
+                    <kbd className="px-1.5 py-0.5 rounded border border-[#2d313a] bg-[#1a1d24] mx-1">
+                      ?
+                    </kbd>{" "}
+                    from anywhere to open this menu
+                  </span>
                 </div>
               </motion.div>
             </Dialog.Content>

@@ -1,4 +1,4 @@
-"use client";;
+"use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 /** Shared clipboard state for actions that render their own button or menu. */
@@ -14,24 +14,30 @@ export function useCopyFeedback(duration = 1900) {
     setActiveKey(null);
   }, []);
 
-  useEffect(() => () => {
-    if (timeout.current) clearTimeout(timeout.current);
-  }, []);
+  useEffect(
+    () => () => {
+      if (timeout.current) clearTimeout(timeout.current);
+    },
+    [],
+  );
 
-  const copy = useCallback(async (value, key = "default") => {
-    if (timeout.current) clearTimeout(timeout.current);
-    setActiveKey(key);
-    try {
-      await navigator.clipboard.writeText(value);
-      setState("copied");
-      timeout.current = setTimeout(reset, duration);
-      return true;
-    } catch {
-      setState("error");
-      timeout.current = setTimeout(reset, duration);
-      return false;
-    }
-  }, [duration, reset]);
+  const copy = useCallback(
+    async (value, key = "default") => {
+      if (timeout.current) clearTimeout(timeout.current);
+      setActiveKey(key);
+      try {
+        await navigator.clipboard.writeText(value);
+        setState("copied");
+        timeout.current = setTimeout(reset, duration);
+        return true;
+      } catch {
+        setState("error");
+        timeout.current = setTimeout(reset, duration);
+        return false;
+      }
+    },
+    [duration, reset],
+  );
 
   return { state, activeKey, copy, reset };
 }

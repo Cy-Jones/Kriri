@@ -1,84 +1,100 @@
-import { HL } from '../../lib/hairline/kernel.js';
-import { makeFigure } from './HairlineWrapper';
+import { HL } from "../../lib/hairline/kernel.js";
+import { makeFigure } from "./HairlineWrapper";
+
+const {
+  Cam,
+  proj,
+  tween,
+  tdone,
+  tset,
+  tval,
+  disposer,
+  mk,
+  place,
+  pointer,
+  register,
+  seg,
+} = HL;
 
 function mountChecklist({ stage, svg, read }, intensity) {
-    var S = HL.State();
-    var cam = HL.Cam({ x: 200, y: 160, z: 80 }, { x: -0.6, y: -0.5, z: 0.1 });
-    var g = HL.Group(svg);
+  const bag = disposer();
+  const C = Cam(45, 0.5, 1.8);
+  const P = proj(C);
 
-    // List items
-    var items = [
-        { y: -30, v: 0, p1: HL.path(g), p2: HL.path(g) },
-        { y: 0, v: 1, p1: HL.path(g), p2: HL.path(g) },
-        { y: 30, v: 0, p1: HL.path(g), p2: HL.path(g) }
-    ];
+  const g = mk("g", {}, svg);
 
-    function draw() {
-        for (var i = 0; i < items.length; i++) {
-            var item = items[i];
-            
-            // Checkbox box
-            var boxP1 = cam.proj({ x: -40, y: item.y - 10, z: 0 });
-            var boxP2 = cam.proj({ x: -20, y: item.y + 10, z: 0 });
-            item.p1.setAttribute('d', HL.rrect(boxP1, boxP2, 3));
-            
-            // Checkmark (if checked)
-            if (item.v > 0.5) {
-                var checkPt1 = cam.proj({ x: -35, y: item.y, z: 2 });
-                var checkPt2 = cam.proj({ x: -30, y: item.y + 5, z: 2 });
-                var checkPt3 = cam.proj({ x: -20, y: item.y - 10, z: 2 });
-                item.p2.setAttribute('d', HL.line(checkPt1, checkPt2) + ' ' + HL.line(checkPt2, checkPt3));
-                item.p2.setAttribute('stroke-width', '2');
-            } else {
-                item.p2.setAttribute('d', '');
-            }
-        }
+  const items = [];
+  const N = 3;
+  for (let i = 0; i < N; i++) {
+    const y = (i - 1) * 30;
+    const line = mk("path", { class: "lo" }, g);
+    const check = mk("path", { class: "hi" }, g);
+    const tw = tween(0);
+    items.push({ y, line, check, tw });
+  }
+
+  const B = register(stage, (_dt, now) => {
+    let moving = false;
+    for (let i = 0; i < N; i++) {
+      const item = items[i];
+      const state = tval(item.tw, now);
+      if (!tdone(item.tw, now)) moving = true;
+
+      item.line.setAttribute("d", seg(P(-20, item.y, 0), P(40, item.y, 0)));
+
+      if (state > 0.1) {
+        // simple checkmark
+        item.check.setAttribute(
+          "d",
+          seg(P(-30, item.y, 0), P(-25, item.y + 5, 0)) +
+            " " +
+            seg(
+              P(-25, item.y + 5, 0),
+              P(-15, item.y - 10, Math.max(0, state * 10)),
+            ),
+        );
+      } else {
+        item.check.setAttribute("d", "");
+      }
     }
+    return moving;
+  });
+  bag.add(B.unregister);
 
-    function hit(x, y) {
-        var pt = { x: x, y: y };
-        var minDist = 40;
-        var hitItem = null;
-        for (var i = 0; i < items.length; i++) {
-            var item = items[i];
-            var cp = cam.proj({ x: -30, y: item.y, z: 0 });
-            var d = Math.sqrt((pt.x - cp.x)*(pt.x - cp.x) + (pt.y - cp.y)*(pt.y - cp.y));
-            if (d < minDist) {
-                minDist = d;
-                hitItem = item;
-            }
-        }
-        return hitItem;
+  let active = -1;
+  function setActive(idx) {
+    if (active === idx) return;
+    active = idx;
+    const now = performance.now();
+    let done = 0;
+    for (let i = 0; i < N; i++) {
+      const target = i <= active ? 1 : 0;
+      if (target === 1) done++;
+      tset(items[i].tw, target, now, Math.abs(i - active) * 50);
     }
-    
-    function answer() {
-        var total = 0;
-        for (var i = 0; i < items.length; i++) {
-            if (items[i].v > 0.5) total++;
-        }
-        read.textContent = total + "/" + items.length + " done";
-    }
+    read.textContent = done + " tasks done";
+    B.wake();
+  }
 
-    var ptr = HL.pointer(svg, S, function (p) {
-        if (!p) return;
-        var h = hit(p.x, p.y);
-        if (h) {
-            HL.tween(S, h, { v: h.v < 0.5 ? 1 : 0 }, 150, draw, answer);
-        }
-    });
+  bag.add(
+    pointer(stage, {
+      move: ([sx, sy]) => {
+        // mock hit
+        let idx = -1;
+        if (sy < 140) idx = 0;
+        else if (sy < 180) idx = 1;
+        else idx = 2;
+        setActive(idx);
+      },
+      leave: () => setActive(-1),
+    }),
+  );
 
-    draw();
-    answer();
-    
-    var unreg = HL.register(S, draw);
+  bag.add(() => svg.replaceChildren());
 
-    return {
-        destroy: function() {
-            ptr();
-            unreg();
-            g.remove();
-        }
-    };
+  return {
+    destroy: bag.dispose,
+  };
 }
 
-export const Checklist = makeFigure('checklist', mountChecklist);
+export const Checklist = makeFigure("checklist", mountChecklist);

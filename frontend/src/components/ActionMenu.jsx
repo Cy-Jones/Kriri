@@ -3,9 +3,7 @@ import * as DropdownPrimitive from "@radix-ui/react-dropdown-menu";
 export function ActionMenu({ trigger, children, align = "end" }) {
   return (
     <DropdownPrimitive.Root>
-      <DropdownPrimitive.Trigger asChild>
-        {trigger}
-      </DropdownPrimitive.Trigger>
+      <DropdownPrimitive.Trigger asChild>{trigger}</DropdownPrimitive.Trigger>
       <DropdownPrimitive.Portal>
         <DropdownPrimitive.Content
           align={align}
@@ -24,7 +22,9 @@ export function ActionMenuItem({ children, onClick, destructive }) {
     <DropdownPrimitive.Item
       onSelect={onClick}
       className={`relative flex cursor-pointer select-none items-center rounded-lg px-2.5 py-1.5 text-[13px] font-medium outline-none transition-colors data-[highlighted]:bg-white/[0.04] ${
-        destructive ? "text-red-400 data-[highlighted]:text-red-400 data-[highlighted]:bg-red-400/10" : "text-[#e8e8e8]"
+        destructive
+          ? "text-red-400 data-[highlighted]:text-red-400 data-[highlighted]:bg-red-400/10"
+          : "text-[#e8e8e8]"
       }`}
     >
       {children}
@@ -33,5 +33,7 @@ export function ActionMenuItem({ children, onClick, destructive }) {
 }
 
 export function ActionMenuSeparator() {
-  return <DropdownPrimitive.Separator className="my-1.5 h-px bg-white/[0.05]" />;
+  return (
+    <DropdownPrimitive.Separator className="my-1.5 h-px bg-white/[0.05]" />
+  );
 }

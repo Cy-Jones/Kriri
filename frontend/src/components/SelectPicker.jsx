@@ -1,6 +1,12 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect } from "react";
 
-export default function LinearSelectPicker({ value, onChange, onClose, options, width = 'w-[180px]' }) {
+export default function LinearSelectPicker({
+  value,
+  onChange,
+  onClose,
+  options,
+  width = "w-[180px]",
+}) {
   const popoverRef = useRef(null);
 
   useEffect(() => {
@@ -9,12 +15,15 @@ export default function LinearSelectPicker({ value, onChange, onClose, options, 
         onClose();
       }
     }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [onClose]);
 
   return (
-    <div ref={popoverRef} className={`absolute top-full left-0 mt-2 bg-[#25272a] border border-[#333538] rounded-xl shadow-2xl ${width} z-50 text-white overflow-hidden py-1`}>
+    <div
+      ref={popoverRef}
+      className={`absolute top-full left-0 mt-2 bg-[#25272a] border border-[#333538] rounded-xl shadow-2xl ${width} z-50 text-white overflow-hidden py-1`}
+    >
       {options.map((option) => (
         <div
           key={option.value}
@@ -23,7 +32,7 @@ export default function LinearSelectPicker({ value, onChange, onClose, options, 
             onClose();
           }}
           className={`flex items-center justify-between px-3 py-2 cursor-pointer hover:bg-white/[0.06] transition-colors ${
-            value === option.value ? 'bg-white/[0.04]' : ''
+            value === option.value ? "bg-white/[0.04]" : ""
           }`}
         >
           <div className="flex items-center gap-2.5">
@@ -32,7 +41,17 @@ export default function LinearSelectPicker({ value, onChange, onClose, options, 
           </div>
           <div className="flex items-center gap-2">
             {value === option.value && (
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[#d1d2d5]">
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="text-[#d1d2d5]"
+              >
                 <polyline points="20 6 9 17 4 12" />
               </svg>
             )}

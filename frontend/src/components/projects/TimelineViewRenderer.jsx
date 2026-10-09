@@ -44,7 +44,7 @@ import {
   Network,
   Link2,
   Sidebar,
-  Layout
+  Layout,
 } from "lucide-react";
 import { api } from "../../lib/api";
 import { ProjectsEmptyIcon } from "../../components/EmptyStateIcons";
@@ -57,7 +57,9 @@ import DropdownMenu from "@/registry/components/dropdown-menu/dropdown-menu";
 import { Progress } from "@/registry/components/progress/progress";
 import { Badge } from "@/registry/components/badge/badge";
 import { AvatarGroup } from "@/registry/components/avatar-group/avatar-group";
-import PriorityPicker, { getPriorityIcon } from "../../components/PriorityPicker";
+import PriorityPicker, {
+  getPriorityIcon,
+} from "../../components/PriorityPicker";
 import LeadPicker from "../../components/LeadPicker";
 import DatePicker from "../../components/DatePicker";
 import ActionTooltip from "../../components/ActionTooltip";
@@ -68,7 +70,6 @@ import LabelPicker from "../../components/LabelPicker";
 import MemberPicker from "../../components/MemberPicker";
 import PickerWrapper from "../../components/PickerWrapper";
 import SegmentedControl from "@/registry/components/segmented-control/segmented-control";
-
 
 // ============================================================================
 // TIMELINE VIEW COMPONENT (BUG-FREE ROBUST GANTT RENDERER)
@@ -265,13 +266,14 @@ export default function TimelineViewRenderer({
                                 {project.name}
                               </span>
                             </div>
-                            
+
                             <div className="flex items-center gap-2.5 shrink-0">
                               {config.properties?.priority && (
                                 <Badge
                                   size="sm"
                                   tone={
-                                    project.priority === "Urgent" || project.priority === "High"
+                                    project.priority === "Urgent" ||
+                                    project.priority === "High"
                                       ? "danger"
                                       : project.priority === "Medium"
                                         ? "warning"
@@ -290,7 +292,14 @@ export default function TimelineViewRenderer({
                                 <AvatarGroup
                                   size="sm"
                                   max={1}
-                                  members={[{ name: project.lead.name || project.lead.avatar || "C" }]}
+                                  members={[
+                                    {
+                                      name:
+                                        project.lead.name ||
+                                        project.lead.avatar ||
+                                        "C",
+                                    },
+                                  ]}
                                 />
                               )}
                               {config.properties?.progress && (
@@ -443,9 +452,6 @@ export default function TimelineViewRenderer({
           </div>
         </div>
       )}
-
     </div>
   );
 }
-
-

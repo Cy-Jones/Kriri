@@ -1,92 +1,102 @@
-import { HL } from '../../lib/hairline/kernel.js';
-import { makeFigure } from './HairlineWrapper';
+import { HL } from "../../lib/hairline/kernel.js";
+import { makeFigure } from "./HairlineWrapper";
+
+const {
+  Cam,
+  proj,
+  tween,
+  tdone,
+  tset,
+  tval,
+  disposer,
+  mk,
+  place,
+  pointer,
+  register,
+  seg,
+  circ,
+} = HL;
 
 function mountAbacus({ stage, svg, read }, intensity) {
-    var S = HL.State();
-    var cam = HL.Cam({ x: 200, y: 160, z: 80 }, { x: -0.8, y: -0.4, z: 0.1 });
-    var g = HL.Group(svg);
+  const bag = disposer();
+  const C = Cam(45, 0.5, 1.8);
+  const P = proj(C);
 
-    // Beads structure
-    var r1 = { y: -30, pos: [{x: -40, v: 0}, {x: -20, v: 0}, {x: 0, v: 0}, {x: 20, v: 1}, {x: 40, v: 1}] };
-    var r2 = { y: 0, pos: [{x: -40, v: 0}, {x: -20, v: 1}, {x: 0, v: 1}, {x: 20, v: 1}, {x: 40, v: 1}] };
-    var r3 = { y: 30, pos: [{x: -40, v: 1}, {x: -20, v: 1}, {x: 0, v: 1}, {x: 20, v: 1}, {x: 40, v: 1}] };
-    var rows = [r1, r2, r3];
+  const g = mk("g", {}, svg);
 
-    // Frame
-    var frame = HL.path(g);
+  const N = 3;
+  const BEADS = 5;
+  const beads = [];
 
-    var beads = [];
-    for (var i = 0; i < rows.length; i++) {
-        var row = rows[i];
-        for (var j = 0; j < row.pos.length; j++) {
-            var b = row.pos[j];
-            var bp = HL.path(g);
-            beads.push({ r: row.y, x: b.x, v: b.v, p: bp });
-        }
+  for (let i = 0; i < N; i++) {
+    const row = [];
+    const y = (i - 1) * 30;
+    mk("path", { class: "lo", d: seg(P(-40, y, 0), P(40, y, 0)) }, g);
+    for (let j = 0; j < BEADS; j++) {
+      const dot = mk("circle", { r: 4, class: "dot" }, g);
+      const tw = tween(0);
+      row.push({ dot, tw, y, j });
     }
+    beads.push(row);
+  }
 
-    function draw() {
-        frame.setAttribute('d',
-            HL.rrect(cam.proj({ x: -60, y: -60, z: 0 }), cam.proj({ x: 60, y: 60, z: 0 }), 5) + ' ' +
-            HL.line(cam.proj({ x: -50, y: -30, z: 0 }), cam.proj({ x: 50, y: -30, z: 0 })) + ' ' +
-            HL.line(cam.proj({ x: -50, y: 0, z: 0 }), cam.proj({ x: 50, y: 0, z: 0 })) + ' ' +
-            HL.line(cam.proj({ x: -50, y: 30, z: 0 }), cam.proj({ x: 50, y: 30, z: 0 }))
-        );
+  const B = register(stage, (_dt, now) => {
+    let moving = false;
+    for (let i = 0; i < N; i++) {
+      for (let j = 0; j < BEADS; j++) {
+        const b = beads[i][j];
+        const state = tval(b.tw, now);
+        if (!tdone(b.tw, now)) moving = true;
 
-        for (var i = 0; i < beads.length; i++) {
-            var b = beads[i];
-            var z = b.v * 20 - 10; 
-            var p1 = cam.proj({ x: b.x - 5, y: b.r - 10, z: z });
-            var p2 = cam.proj({ x: b.x + 5, y: b.r + 10, z: z });
-            b.p.setAttribute('d', HL.rrect(p1, p2, 4));
-        }
+        const leftX = -30 + j * 8;
+        const rightX = 30 - (BEADS - 1 - j) * 8;
+        const x = leftX + (rightX - leftX) * state;
+        place(b.dot, P(x, b.y, 0));
+      }
     }
-    
-    function hit(x, y) {
-        var pt = { x: x, y: y };
-        var minDist = 40;
-        var hitBead = null;
-        for (var i = 0; i < beads.length; i++) {
-            var b = beads[i];
-            var z = b.v * 20 - 10;
-            var cp = cam.proj({ x: b.x, y: b.r, z: z });
-            var d = Math.sqrt((pt.x - cp.x)*(pt.x - cp.x) + (pt.y - cp.y)*(pt.y - cp.y));
-            if (d < minDist) {
-                minDist = d;
-                hitBead = b;
-            }
-        }
-        return hitBead;
-    }
-    
-    function answer() {
-        var total = 0;
-        for (var i = 0; i < beads.length; i++) {
-            if (beads[i].v > 0.5) total++;
-        }
-        read.textContent = total + " items counted";
-    }
+    return moving;
+  });
+  bag.add(B.unregister);
 
-    var ptr = HL.pointer(svg, S, function (p) {
-        if (!p) return;
-        var h = hit(p.x, p.y);
-        if (h) {
-            HL.tween(S, h, { v: h.v < 0.5 ? 1 : 0 }, 150, draw, answer);
-        }
-    });
-    
-    draw();
-    answer();
+  let activeRow = -1;
+  let activeCol = -1;
 
-    var unreg = HL.register(S, draw);
-    
-    return {
-        destroy: function() {
-            ptr();
-            unreg();
-            g.remove();
-        }
-    };
+  function setActive(r, c) {
+    if (activeRow === r && activeCol === c) return;
+    activeRow = r;
+    activeCol = c;
+    const now = performance.now();
+    let count = 0;
+    for (let i = 0; i < N; i++) {
+      for (let j = 0; j < BEADS; j++) {
+        const target = i === r && j <= c ? 1 : 0;
+        if (target === 1) count++;
+        tset(beads[i][j].tw, target, now, Math.abs(j - c) * 20);
+      }
+    }
+    read.textContent = count + " items";
+    B.wake();
+  }
+
+  bag.add(
+    pointer(stage, {
+      move: ([sx, sy]) => {
+        let r = -1;
+        if (sy < 140) r = 0;
+        else if (sy < 180) r = 1;
+        else r = 2;
+        let c = Math.floor(Math.max(0, Math.min(BEADS - 1, (sx - 120) / 30)));
+        setActive(r, c);
+      },
+      leave: () => setActive(-1, -1),
+    }),
+  );
+
+  bag.add(() => svg.replaceChildren());
+
+  return {
+    destroy: bag.dispose,
+  };
 }
 
-export const Abacus = makeFigure('abacus', mountAbacus);
+export const Abacus = makeFigure("abacus", mountAbacus);
