@@ -21,7 +21,8 @@ import { Plus, MoreHorizontal, CheckSquare, Compass, FileText } from 'lucide-rea
 import { api } from '../lib/api';
 import TaskDetailsModal from '../components/TaskDetailsModal';
 import CreateTaskModal from '../components/CreateTaskModal';
-import { Abacus } from '../components/figures/Abacus';
+import { Hub } from '@lucasmarkes/hairline/react';
+import { ErrorBoundary } from '../components/ErrorBoundary';
 import { Button } from '../registry/components/button/button';
 import { Badge } from '../registry/components/badge/badge';
 import { AvatarGroup } from '../registry/components/avatar-group/avatar-group';
@@ -276,7 +277,9 @@ export default function Kanban() {
       {tasks.length === 0 ? (
         <div className="flex flex-col items-center justify-center flex-1 max-w-sm mx-auto text-center gap-6 mt-10 animate-in fade-in zoom-in-95 duration-500">
           <div className="w-64 h-64 flex items-center justify-center relative overflow-visible">
-             <Abacus theme="dark" intensity={0.7} className="w-full h-full text-[#8a8f98] opacity-80" />
+             <ErrorBoundary fallback={null}>
+               <Hub theme="dark" intensity={0.7} className="w-full h-full text-[#8a8f98] opacity-80" />
+             </ErrorBoundary>
           </div>
           
           <div className="flex flex-col gap-2">
