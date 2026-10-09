@@ -12,6 +12,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
+import { Chart } from '../components/figures/Chart';
 
 export default function Analytics() {
   const [data, setData] = useState(null);
@@ -40,7 +41,25 @@ export default function Analytics() {
   }
 
   if (!data) {
-    return <div className="p-8 text-text-muted">No data available</div>;
+    return (
+      <div className="flex flex-col h-full w-full min-w-0 min-h-0 animate-in fade-in duration-300">
+        <div className="flex items-center justify-between mb-6 flex-shrink-0 px-8 pt-6">
+          <h1 className="text-xl font-semibold text-white tracking-tight">Analytics</h1>
+        </div>
+        <div className="flex flex-col items-center justify-center flex-1 max-w-sm mx-auto text-center gap-6 mt-10">
+          <div className="w-64 h-64 flex items-center justify-center relative overflow-visible">
+             <Chart theme="dark" intensity={0.7} className="w-full h-full text-[#8a8f98] opacity-80" />
+          </div>
+          
+          <div className="flex flex-col gap-2">
+            <h2 className="text-lg font-semibold text-white tracking-tight">No analytics data yet</h2>
+            <p className="text-[14px] text-text-muted leading-relaxed">
+              Once you start creating issues and moving them across your board, your insights will appear here.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (

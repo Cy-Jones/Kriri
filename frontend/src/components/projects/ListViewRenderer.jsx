@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { getAvatarColor, getInitial } from "../../lib/avatarUtils";
+import MembersAvatarStack from "./MembersAvatarStack";
 import {
   Plus,
   LayoutGrid,

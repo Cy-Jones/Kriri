@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Folder, CheckSquare, Clock, AlertCircle, Plus, MoreHorizontal, BarChart2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useUser, useOrganization } from '@clerk/clerk-react';
+import { Drawer, Basket } from '@lucasmarkes/hairline/react';
 import CreateProjectModal from '../components/CreateProjectModal';
 import { api } from '../lib/api';
 import posthog from '../lib/posthog';
@@ -76,10 +77,8 @@ export default function Dashboard() {
     return (
       <div className="flex flex-col h-full relative">
         <div className="flex flex-col items-center justify-center flex-1 max-w-sm mx-auto text-center gap-6 mt-10 animate-in fade-in zoom-in-95 duration-500">
-          <div className="w-16 h-16 bg-white/[0.03] border border-white/[0.05] rounded-2xl flex items-center justify-center text-text-muted shadow-sm relative overflow-hidden">
-             {/* Subtle internal glow */}
-             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-8 bg-white/20 blur-xl rounded-full" />
-             <Folder size={28} />
+          <div className="w-64 h-64 flex items-center justify-center relative overflow-visible">
+             <Drawer theme="dark" intensity={0.7} className="w-full h-full text-text-muted opacity-80" />
           </div>
           
           <div className="flex flex-col gap-2">
@@ -220,7 +219,7 @@ export default function Dashboard() {
              </Button>
           </div>
           
-          <div className="flex flex-col border border-white/[0.06] rounded-xl bg-white/[0.01] overflow-hidden">
+          <div className="flex flex-col border border-white/[0.06] rounded-xl bg-white/[0.01] overflow-hidden min-h-[160px]">
             {summary.myIssues.length > 0 ? summary.myIssues.map((task, i) => (
               <div 
                 key={i} 
@@ -246,7 +245,12 @@ export default function Dashboard() {
                 </div>
               </div>
             )) : (
-              <div className="p-6 text-center text-text-muted text-sm">No active tasks assigned to you right now.</div>
+              <div className="flex flex-col items-center justify-center p-8 gap-4 flex-1">
+                <div className="w-32 h-32 relative">
+                  <Basket theme="dark" intensity={0.7} className="w-full h-full text-text-muted opacity-70" />
+                </div>
+                <div className="text-center text-text-muted text-sm">No active tasks assigned to you right now.</div>
+              </div>
             )}
           </div>
         </div>

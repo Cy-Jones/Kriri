@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { XSquare, MessageSquare, Send, Calendar, User, FileText, Star } from 'lucide-react';
 import { api } from '../lib/api';
 import posthog from '../lib/posthog';
@@ -8,6 +8,56 @@ export default function TaskDetailsModal({ isOpen, onClose, taskId, onTaskUpdate
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState('');
   const [loading, setLoading] = useState(true);
+
+  const statusSelectRef = useRef(null);
+  const prioritySelectRef = useRef(null);
+  const commentInputRef = useRef(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (e) => {
+      const isInput = ['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName);
+
+      if (e.key === 'Escape') {
+        if (isInput) {
+          e.target.blur();
+        } else {
+          onClose();
+        }
+        return;
+      }
+
+      if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+        if (commentInputRef.current && document.activeElement === commentInputRef.current) {
+          const formEvent = new Event('submit', { cancelable: true, bubbles: true });
+          handlePostComment(formEvent);
+        }
+        return;
+      }
+
+      if (isInput) return;
+
+      switch (e.key.toLowerCase()) {
+        case 's':
+          e.preventDefault();
+          statusSelectRef.current?.focus();
+          break;
+        case 'p':
+          e.preventDefault();
+          prioritySelectRef.current?.focus();
+          break;
+        case 'e':
+        case 'c':
+          e.preventDefault();
+          commentInputRef.current?.focus();
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
   const fetchTaskDetails = async () => {
     try {
@@ -31,7 +81,7 @@ export default function TaskDetailsModal({ isOpen, onClose, taskId, onTaskUpdate
   }, [isOpen, taskId]);
 
   const handlePostComment = async (e) => {
-    e.preventDefault();
+    if (e && e.preventDefault) e.preventDefault();
     if (!newComment.trim()) return;
 
     try {
@@ -151,6 +201,7 @@ export default function TaskDetailsModal({ isOpen, onClose, taskId, onTaskUpdate
                  <div>
                     <label className="text-xs text-text-muted uppercase tracking-wider font-semibold mb-2 block">Status</label>
                     <select 
+                      ref={statusSelectRef}
                       value={task?.status}
                       onChange={handleUpdateStatus}
                       className="w-full bg-surface border border-border rounded-lg px-3 py-2 text-[13px] text-text-primary focus:outline-none focus:border-accent"
@@ -164,6 +215,7 @@ export default function TaskDetailsModal({ isOpen, onClose, taskId, onTaskUpdate
                  <div>
                     <label className="text-xs text-text-muted uppercase tracking-wider font-semibold mb-2 block">Priority</label>
                     <select 
+                      ref={prioritySelectRef}
                       value={task?.priority}
                       onChange={handleUpdatePriority}
                       className="w-full bg-surface border border-border rounded-lg px-3 py-2 text-[13px] text-text-primary focus:outline-none focus:border-accent"
@@ -200,6 +252,7 @@ export default function TaskDetailsModal({ isOpen, onClose, taskId, onTaskUpdate
             <div className="absolute bottom-0 left-0 w-[calc(100%-280px)] border-t border-border bg-surface p-4">
               <form onSubmit={handlePostComment} className="flex gap-2">
                 <input
+                  ref={commentInputRef}
                   type="text"
                   placeholder="Write a comment..."
                   value={newComment}

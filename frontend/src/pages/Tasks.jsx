@@ -3,9 +3,10 @@ import { Plus, Search, MoreHorizontal, AlertCircle, Compass, CheckSquare, FileTe
 import { api } from '../lib/api';
 import TaskDetailsModal from '../components/TaskDetailsModal';
 import CreateTaskModal from '../components/CreateTaskModal';
-import { IssuesEmptyIcon } from '../components/EmptyStateIcons';
+import { Checklist } from '../components/figures/Checklist';
 import { useUser } from '@clerk/clerk-react';
 import { useSocket } from '../contexts/SocketContext';
+import { useListShortcuts } from '../hooks/useListShortcuts';
 
 export default function Tasks() {
   const [tasks, setTasks] = useState([]);
@@ -13,6 +14,7 @@ export default function Tasks() {
   const [selectedTaskId, setSelectedTaskId] = useState(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeIndex, setActiveIndex] = useState(null);
   const { user } = useUser();
   const socket = useSocket();
 
@@ -59,6 +61,20 @@ export default function Tasks() {
       });
   }, []);
 
+  const filteredTasks = tasks.filter(t => 
+    (t.title || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
+    (t.assignee_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (t.status || '').toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  useListShortcuts({
+    items: filteredTasks,
+    activeIndex,
+    setActiveIndex,
+    onOpenItem: (task) => setSelectedTaskId(task.id),
+    onCreateItem: () => setIsCreateModalOpen(true),
+  });
+
   return (
     <div className="w-full flex flex-col h-full animate-in fade-in duration-300">
       <div className="flex items-center justify-between mb-6">
@@ -90,10 +106,8 @@ export default function Tasks() {
 
       {tasks.length === 0 ? (
         <div className="flex flex-col items-center justify-center flex-1 max-w-sm mx-auto text-center gap-6 mt-10 animate-in fade-in zoom-in-95 duration-500">
-          <div className="w-16 h-16 bg-white/[0.03] border border-white/[0.05] rounded-2xl flex items-center justify-center text-[#8a8f98] shadow-sm relative overflow-hidden">
-             {/* Subtle internal glow */}
-             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-8 bg-white/20 blur-xl rounded-full" />
-             <IssuesEmptyIcon className="w-16 h-16" />
+          <div className="w-64 h-64 flex items-center justify-center relative overflow-visible">
+             <Checklist theme="dark" intensity={0.7} className="w-full h-full text-[#8a8f98] opacity-80" />
           </div>
           
           <div className="flex flex-col gap-2">
@@ -127,15 +141,16 @@ export default function Tasks() {
 
           {/* Table Body */}
           <div className="flex-1 overflow-y-auto divide-y divide-white/[0.05]">
-            {tasks.filter(t => 
-              (t.title || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
-              (t.assignee_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-              (t.status || '').toLowerCase().includes(searchQuery.toLowerCase())
-            ).map((task) => (
+            {filteredTasks.map((task, idx) => (
               <div 
                 key={task.id} 
-                onClick={() => setSelectedTaskId(task.id)}
-                className="grid grid-cols-[80px_minmax(300px,1fr)_120px_100px_100px_80px] gap-4 px-5 py-3.5 hover:bg-white/[0.04] transition-colors items-center text-[13px] group cursor-pointer"
+                onClick={() => {
+                  setSelectedTaskId(task.id);
+                  setActiveIndex(idx);
+                }}
+                className={`grid grid-cols-[80px_minmax(300px,1fr)_120px_100px_100px_80px] gap-4 px-5 py-3.5 hover:bg-white/[0.04] transition-colors items-center text-[13px] group cursor-pointer ${
+                  activeIndex === idx ? 'bg-white/[0.08] ring-1 ring-inset ring-white/10' : ''
+                }`}
               >
               <div className="font-mono text-[11px] text-text-muted">{task.project_slug ? `${task.project_slug}-${task.id}` : task.id}</div>
               <div className="text-text-primary font-medium truncate group-hover:text-accent transition-colors">

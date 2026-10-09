@@ -176,9 +176,19 @@ exports.getCurrentWorkspaceNotifications = async (req, res) => {
 
   try {
     const result = await db.query(
-      `SELECT * FROM notifications 
-       WHERE workspace_id = $1 AND user_id = $2 
-       ORDER BY created_at DESC 
+      `SELECT 
+         n.*,
+         u.name as actor_name,
+         u.avatar_url as actor_avatar,
+         p.name as project_name,
+         p.identifier as project_identifier,
+         t.title as task_title
+       FROM notifications n
+       LEFT JOIN users u ON n.actor_id = u.clerk_user_id
+       LEFT JOIN tasks t ON n.entity_type = 'task' AND n.entity_id = t.id
+       LEFT JOIN projects p ON t.project_id = p.id
+       WHERE n.workspace_id = $1 AND n.user_id = $2 
+       ORDER BY n.created_at DESC 
        LIMIT 50`,
       [wsId, userId]
     );

@@ -21,8 +21,14 @@ export default function CommandPalette({ openCreateTask }) {
         setOpen((open) => !open);
       }
     };
+    const handleCustomOpen = () => setOpen(true);
+    
     document.addEventListener('keydown', down);
-    return () => document.removeEventListener('keydown', down);
+    window.addEventListener('open-command-palette', handleCustomOpen);
+    return () => {
+      document.removeEventListener('keydown', down);
+      window.removeEventListener('open-command-palette', handleCustomOpen);
+    };
   }, []);
 
   useEffect(() => {

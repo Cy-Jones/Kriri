@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useUser, useOrganization } from "@clerk/clerk-react";
+import { Loupe } from '@lucasmarkes/hairline/react';
 import {
   Plus,
   LayoutGrid,
@@ -269,47 +270,45 @@ export default function Projects() {
       }
 
       if (selectedProjects.length > 0 && !isBulkActionMenuOpen) {
-        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'd') {
-          e.preventDefault();
-          setIsBulkActionMenuOpen(true);
-          setCommandPaletteState('target_date');
-          return;
-        }
-        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') {
-          e.preventDefault();
-          setIsBulkActionMenuOpen(true);
-          setCommandPaletteState('start_date');
-          return;
-        }
-        if (e.shiftKey && e.key.toLowerCase() === 'r') {
-          e.preventDefault();
-          setIsBulkActionMenuOpen(true);
-          setCommandPaletteState('rename');
-          return;
-        }
-
-        const key = e.key.toLowerCase();
-        if (['p', 's', 'l'].includes(key) && !e.metaKey && !e.ctrlKey && !e.shiftKey) {
-          keyBuffer.current += key;
+        if (!e.metaKey && !e.ctrlKey && !e.altKey) {
+          const key = e.key.toLowerCase();
           
-          if (keyBuffer.current === 'ps') {
+          if (key === 'd' && !e.shiftKey) {
+            e.preventDefault();
+            setIsBulkActionMenuOpen(true);
+            setCommandPaletteState('target_date');
+            return;
+          }
+          if (key === 'd' && e.shiftKey) {
+            e.preventDefault();
+            setIsBulkActionMenuOpen(true);
+            setCommandPaletteState('start_date');
+            return;
+          }
+          if (key === 's' && !e.shiftKey) {
+            e.preventDefault();
             setIsBulkActionMenuOpen(true);
             setCommandPaletteState('status');
-            keyBuffer.current = "";
-          } else if (keyBuffer.current === 'pp') {
+            return;
+          }
+          if (key === 'p' && !e.shiftKey) {
+            e.preventDefault();
             setIsBulkActionMenuOpen(true);
             setCommandPaletteState('priority');
-            keyBuffer.current = "";
-          } else if (keyBuffer.current === 'pl') {
+            return;
+          }
+          if (key === 'l' && !e.shiftKey) {
+            e.preventDefault();
             setIsBulkActionMenuOpen(true);
             setCommandPaletteState('labels');
-            keyBuffer.current = "";
+            return;
           }
-
-          clearTimeout(keyTimeout.current);
-          keyTimeout.current = setTimeout(() => {
-            keyBuffer.current = "";
-          }, 1000);
+          if (key === 'r' && e.shiftKey) {
+            e.preventDefault();
+            setIsBulkActionMenuOpen(true);
+            setCommandPaletteState('rename');
+            return;
+          }
         }
       }
     };
@@ -1709,8 +1708,8 @@ export default function Projects() {
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
         {filteredProjects.length === 0 ? (
           <div className="flex flex-col items-center justify-center flex-1 max-w-sm mx-auto text-center gap-6 mt-10 animate-in fade-in zoom-in-95 duration-500">
-            <div className="w-16 h-16 bg-white/[0.03] border border-white/[0.05] rounded-2xl flex items-center justify-center text-[#8a8f98] shadow-sm relative overflow-hidden">
-              <ProjectsEmptyIcon className="w-16 h-16" />
+            <div className="w-64 h-64 flex items-center justify-center relative overflow-visible">
+              <Loupe theme="dark" intensity={0.7} className="w-full h-full text-[#8a8f98] opacity-80" />
             </div>
             <div className="flex flex-col gap-1.5">
               <h2 className="text-base font-semibold text-white">

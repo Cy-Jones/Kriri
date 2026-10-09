@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
+require('./services/ai-observability.service');
 const { clerkMiddleware } = require('@clerk/express');
 
 const app = express();

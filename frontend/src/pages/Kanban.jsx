@@ -21,7 +21,7 @@ import { Plus, MoreHorizontal, CheckSquare, Compass, FileText } from 'lucide-rea
 import { api } from '../lib/api';
 import TaskDetailsModal from '../components/TaskDetailsModal';
 import CreateTaskModal from '../components/CreateTaskModal';
-import { BoardEmptyIcon } from '../components/EmptyStateIcons';
+import { Abacus } from '../components/figures/Abacus';
 import { Button } from '../registry/components/button/button';
 import { Badge } from '../registry/components/badge/badge';
 import { AvatarGroup } from '../registry/components/avatar-group/avatar-group';
@@ -275,10 +275,8 @@ export default function Kanban() {
 
       {tasks.length === 0 ? (
         <div className="flex flex-col items-center justify-center flex-1 max-w-sm mx-auto text-center gap-6 mt-10 animate-in fade-in zoom-in-95 duration-500">
-          <div className="w-16 h-16 bg-white/[0.03] border border-white/[0.05] rounded-2xl flex items-center justify-center text-[#8a8f98] shadow-sm relative overflow-hidden">
-             {/* Subtle internal glow */}
-             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-8 bg-white/20 blur-xl rounded-full" />
-             <BoardEmptyIcon className="w-16 h-16" />
+          <div className="w-64 h-64 flex items-center justify-center relative overflow-visible">
+             <Abacus theme="dark" intensity={0.7} className="w-full h-full text-[#8a8f98] opacity-80" />
           </div>
           
           <div className="flex flex-col gap-2">

@@ -15,6 +15,7 @@ import { Plus, CheckSquare, Compass, FileText } from 'lucide-react';
 import TaskDetailsModal from '../components/TaskDetailsModal';
 import CreateTaskModal from '../components/CreateTaskModal';
 import { IssuesEmptyIcon } from '../components/EmptyStateIcons';
+import { useListShortcuts } from '../hooks/useListShortcuts';
 
 export default function ProjectDetails() {
   const { id } = useParams();
@@ -29,6 +30,7 @@ export default function ProjectDetails() {
   const [tasks, setTasks] = useState([]);
   const [tasksLoaded, setTasksLoaded] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState(null);
+  const [activeIndex, setActiveIndex] = useState(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   
   const [currentUserRole, setCurrentUserRole] = useState(null);
@@ -142,6 +144,29 @@ export default function ProjectDetails() {
       socket.off('TASK_DELETED', handleTaskDeleted);
     };
   }, [socket, id, navigate]);
+
+  useEffect(() => {
+    const handleProjectShortcuts = (e) => {
+      const el = document.activeElement;
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
+
+      if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey) {
+        if (e.key === '1') { e.preventDefault(); handleTabChange('Overview'); }
+        if (e.key === '2') { e.preventDefault(); handleTabChange('Issues'); }
+        if (e.key === '3') { e.preventDefault(); handleTabChange('Milestones'); }
+      }
+    };
+    window.addEventListener('keydown', handleProjectShortcuts);
+    return () => window.removeEventListener('keydown', handleProjectShortcuts);
+  }, []);
+
+  useListShortcuts({
+    items: activeTab === 'Issues' ? tasks : [],
+    activeIndex,
+    setActiveIndex,
+    onOpenItem: (task) => setSelectedTaskId(task.id),
+    onCreateItem: () => setIsCreateModalOpen(true),
+  });
 
   const updateProjectProperty = async (key, value) => {
     if (!canManageProjects || !project) return;
@@ -363,11 +388,16 @@ export default function ProjectDetails() {
 
                   {/* Table Body */}
                   <div className="flex-1 overflow-y-auto divide-y divide-white/[0.05] custom-scrollbar">
-                    {tasks.map((task) => (
+                    {tasks.map((task, idx) => (
                       <div 
                         key={task.id} 
-                        onClick={() => setSelectedTaskId(task.id)}
-                        className="grid grid-cols-[80px_minmax(200px,1fr)_120px_100px_100px_80px] gap-4 px-5 py-3.5 hover:bg-white/[0.04] transition-colors items-center text-[13px] group cursor-pointer"
+                        onClick={() => {
+                          setSelectedTaskId(task.id);
+                          setActiveIndex(idx);
+                        }}
+                        className={`grid grid-cols-[80px_minmax(200px,1fr)_120px_100px_100px_80px] gap-4 px-5 py-3.5 hover:bg-white/[0.04] transition-colors items-center text-[13px] group cursor-pointer ${
+                          activeIndex === idx ? 'bg-white/[0.08] ring-1 ring-inset ring-white/10' : ''
+                        }`}
                       >
                       <div className="font-mono text-[11px] text-text-muted">{task.id}</div>
                       <div className="text-text-primary font-medium truncate group-hover:text-accent transition-colors">

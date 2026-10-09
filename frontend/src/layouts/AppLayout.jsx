@@ -3,6 +3,8 @@ import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { LayoutGrid, KanbanSquare, CheckSquare, Users, Settings, Search, Folder, LogOut, Inbox as InboxIcon, LineChart } from 'lucide-react';
 import CreateTaskModal from '../components/CreateTaskModal';
 import CommandPalette from '../components/CommandPalette';
+import KeyboardShortcutsHelp from '../components/KeyboardShortcutsHelp';
+import { useGlobalShortcuts } from '../hooks/useGlobalShortcuts';
 import { useUser, useClerk, OrganizationSwitcher, useOrganization, useOrganizationList } from '@clerk/clerk-react';
 import { api } from '../lib/api';
 import posthog from '../lib/posthog';
@@ -15,7 +17,14 @@ export default function AppLayout() {
   const { organization } = useOrganization();
   const { userMemberships, isLoaded: isOrgListLoaded } = useOrganizationList({ userMemberships: true });
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [initialOrg, setInitialOrg] = useState(null);
+
+  useGlobalShortcuts({
+    onOpenCommandPalette: () => window.dispatchEvent(new CustomEvent('open-command-palette')),
+    onOpenHelp: () => setIsHelpOpen(true),
+    onOpenCreateTask: () => setIsModalOpen(true),
+  });
 
   useEffect(() => {
     if (
@@ -200,7 +209,10 @@ export default function AppLayout() {
 
         {/* Sidebar Footer */}
         <div className="p-3 mt-auto">
-           <button className="w-[24px] h-[24px] flex items-center justify-center rounded-full bg-white/[0.04] hover:bg-white/[0.08] text-[#8a8f98] hover:text-[#e8e8e8] transition-colors">
+           <button 
+             onClick={() => setIsHelpOpen(true)}
+             className="w-[24px] h-[24px] flex items-center justify-center rounded-full bg-white/[0.04] hover:bg-white/[0.08] text-[#8a8f98] hover:text-[#e8e8e8] transition-colors"
+           >
              <span className="text-[11px] font-bold">?</span>
            </button>
         </div>
@@ -209,7 +221,7 @@ export default function AppLayout() {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col py-2 pr-2 min-w-0">
         <main className="flex-1 flex flex-col min-w-0 bg-[#131416] rounded-xl relative z-0 border border-white/[0.05] shadow-2xl overflow-hidden">
-          <div className="flex-1 overflow-y-auto overflow-x-hidden bg-transparent px-8 py-6">
+          <div className={`flex-1 overflow-y-auto overflow-x-hidden bg-transparent ${location.pathname.startsWith('/inbox') ? '' : 'px-8 py-6'}`}>
             <Outlet />
           </div>
         </main>
@@ -224,6 +236,8 @@ export default function AppLayout() {
       />
       
       <CommandPalette openCreateTask={() => setIsModalOpen(true)} />
+      
+      <KeyboardShortcutsHelp isOpen={isHelpOpen} onOpenChange={setIsHelpOpen} />
     </div>
   );
 }
