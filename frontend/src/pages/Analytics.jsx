@@ -12,7 +12,8 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
-import { Chart } from '../components/figures/Chart';
+import { Plot } from '@lucasmarkes/hairline/react';
+import { ErrorBoundary } from '../components/ErrorBoundary';
 
 export default function Analytics() {
   const [data, setData] = useState(null);
@@ -48,7 +49,9 @@ export default function Analytics() {
         </div>
         <div className="flex flex-col items-center justify-center flex-1 max-w-sm mx-auto text-center gap-6 mt-10">
           <div className="w-64 h-64 flex items-center justify-center relative overflow-visible">
-             <Chart theme="dark" intensity={0.7} className="w-full h-full text-[#8a8f98] opacity-80" />
+             <ErrorBoundary fallback={null}>
+               <Plot theme="dark" intensity={0.7} className="w-full h-full text-[#8a8f98] opacity-80" />
+             </ErrorBoundary>
           </div>
           
           <div className="flex flex-col gap-2">

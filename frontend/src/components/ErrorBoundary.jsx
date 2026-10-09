@@ -16,6 +16,7 @@ export class ErrorBoundary extends React.Component {
 
   render() {
     if (this.state.hasError) {
+      if (this.props.fallback !== undefined) return this.props.fallback;
       return (
         <div style={{ padding: 20, color: 'red', backgroundColor: 'black', height: '100vh', zIndex: 9999 }}>
           <h2>Something went wrong.</h2>

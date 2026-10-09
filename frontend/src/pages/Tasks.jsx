@@ -3,7 +3,8 @@ import { Plus, Search, MoreHorizontal, AlertCircle, Compass, CheckSquare, FileTe
 import { api } from '../lib/api';
 import TaskDetailsModal from '../components/TaskDetailsModal';
 import CreateTaskModal from '../components/CreateTaskModal';
-import { Checklist } from '../components/figures/Checklist';
+import { Format } from '@lucasmarkes/hairline/react';
+import { ErrorBoundary } from '../components/ErrorBoundary';
 import { useUser } from '@clerk/clerk-react';
 import { useSocket } from '../contexts/SocketContext';
 import { useListShortcuts } from '../hooks/useListShortcuts';
@@ -107,7 +108,9 @@ export default function Tasks() {
       {tasks.length === 0 ? (
         <div className="flex flex-col items-center justify-center flex-1 max-w-sm mx-auto text-center gap-6 mt-10 animate-in fade-in zoom-in-95 duration-500">
           <div className="w-64 h-64 flex items-center justify-center relative overflow-visible">
-             <Checklist theme="dark" intensity={0.7} className="w-full h-full text-[#8a8f98] opacity-80" />
+             <ErrorBoundary fallback={null}>
+               <Format theme="dark" intensity={0.7} className="w-full h-full text-[#8a8f98] opacity-80" />
+             </ErrorBoundary>
           </div>
           
           <div className="flex flex-col gap-2">
