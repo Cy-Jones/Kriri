@@ -93,36 +93,35 @@ exports.verifyToken = async (req, res, next) => {
       }
 
       if (!clerkOrgId) {
-        // Fallback: resolve user's primary/active workspace from database
-        const userWsRes = await db.query(
+        // Resolve user's personal workspace (where clerk_org_id IS NULL)
+        const personalWsRes = await db.query(
           `SELECT w.*, wm.role 
            FROM workspaces w
            JOIN workspace_members wm ON w.id = wm.workspace_id
-           WHERE wm.user_id = $1
-           ORDER BY w.id DESC LIMIT 1`,
+           WHERE wm.user_id = $1 AND w.clerk_org_id IS NULL
+           ORDER BY w.id ASC LIMIT 1`,
           [req.user.id],
         );
-        if (userWsRes.rows.length > 0) {
-          req.workspace = userWsRes.rows[0];
-          req.workspaceRole = userWsRes.rows[0].role;
+        if (personalWsRes.rows.length > 0) {
+          req.workspace = personalWsRes.rows[0];
+          req.workspaceRole = personalWsRes.rows[0].role;
           return next();
         }
-        // If user is not yet a member of any workspace, assign them to the default workspace
-        const fallbackWs = await db.query(
-          "SELECT * FROM workspaces ORDER BY id DESC LIMIT 1",
+
+        // Provision personal workspace if it doesn't exist yet
+        const personalSlug = `personal-${req.user.id}-${Date.now().toString(36)}`;
+        const personalName = `${req.user.name || "Personal"}'s Workspace`;
+        const newWs = await db.query(
+          "INSERT INTO workspaces (name, slug, owner_id, clerk_org_id) VALUES ($1, $2, $3, NULL) RETURNING *",
+          [personalName, personalSlug, req.user.id],
         );
-        if (fallbackWs.rows.length > 0) {
-          const ws = fallbackWs.rows[0];
-          await db.query(
-            "INSERT INTO workspace_members (workspace_id, user_id, role) VALUES ($1, $2, 'Owner') ON CONFLICT DO NOTHING",
-            [ws.id, req.user.id],
-          );
-          req.workspace = ws;
-          req.workspaceRole = "Owner";
-          return next();
-        }
-        req.workspace = null;
-        req.workspaceRole = null;
+        const ws = newWs.rows[0];
+        await db.query(
+          "INSERT INTO workspace_members (workspace_id, user_id, role) VALUES ($1, $2, 'Owner') ON CONFLICT DO NOTHING",
+          [ws.id, req.user.id],
+        );
+        req.workspace = ws;
+        req.workspaceRole = "Owner";
         return next();
       }
 

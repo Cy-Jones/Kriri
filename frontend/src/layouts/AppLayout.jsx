@@ -39,7 +39,7 @@ export default function AppLayout() {
   const { user } = useUser();
   const { signOut } = useClerk();
   const { organization } = useOrganization();
-  const { userMemberships, isLoaded: isOrgListLoaded, setActive } = useOrganizationList({
+  const { userMemberships, isLoaded: isOrgListLoaded } = useOrganizationList({
     userMemberships: true,
   });
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -49,14 +49,7 @@ export default function AppLayout() {
   const [isChangelogOpen, setIsChangelogOpen] = useState(false);
   const [selectedRelease, setSelectedRelease] = useState(null);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
-  const [initialOrg, setInitialOrg] = useState(null);
-
-  // Auto-activate user's primary organization if not currently active
-  useEffect(() => {
-    if (isOrgListLoaded && userMemberships?.data?.length > 0 && !organization && setActive) {
-      setActive({ organization: userMemberships.data[0].organization.id });
-    }
-  }, [isOrgListLoaded, userMemberships?.data, organization, setActive]);
+  const currentOrgRef = useRef(null);
 
   // Auto-collapse sidebar on tablet viewports (768px <= width < 1024px)
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
@@ -153,15 +146,15 @@ export default function AppLayout() {
     if (user) {
       api
         .post("/auth/sync", {})
-        .then(() => {
-          if (initialOrg === null) {
-            setInitialOrg(organization?.id || "personal");
-          } else if (initialOrg !== (organization?.id || "personal")) {
-            // Organization changed, reload to fetch fresh data for everything
-            window.location.reload();
-          }
-        })
         .catch((err) => console.error("Sync error:", err));
+
+      const activeOrgKey = organization?.id || "personal";
+      if (currentOrgRef.current === null) {
+        currentOrgRef.current = activeOrgKey;
+      } else if (currentOrgRef.current !== activeOrgKey) {
+        currentOrgRef.current = activeOrgKey;
+        window.location.reload();
+      }
     }
   }, [user, organization?.id]);
 
@@ -464,6 +457,7 @@ export default function AppLayout() {
                   afterLeaveOrganizationUrl="/dashboard"
                   afterSelectOrganizationUrl="/dashboard"
                   afterCreateOrganizationUrl="/dashboard"
+                  afterSelectPersonalUrl="/dashboard"
                   appearance={{
                     elements: {
                       organizationSwitcherTrigger:
@@ -743,6 +737,7 @@ export default function AppLayout() {
                     afterLeaveOrganizationUrl="/dashboard"
                     afterSelectOrganizationUrl="/dashboard"
                     afterCreateOrganizationUrl="/dashboard"
+                    afterSelectPersonalUrl="/dashboard"
                   />
                 </div>
               </div>
