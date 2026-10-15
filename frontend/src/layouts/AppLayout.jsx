@@ -105,6 +105,10 @@ export default function AppLayout() {
     return "Workspace";
   };
 
+  const currentRouteTitle = getRouteLabel(
+    location.pathname,
+    location.state?.loadingTitle,
+  );
   const prevPathRef = useRef(location.pathname);
 
   const triggerNavLoading = () => {
@@ -602,7 +606,7 @@ export default function AppLayout() {
               </svg>
             </button>
             <span className="font-semibold text-[13px] text-white tracking-tight">
-              {navigatingLabel}
+              {currentRouteTitle}
             </span>
           </div>
 
