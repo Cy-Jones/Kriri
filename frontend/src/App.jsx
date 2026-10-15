@@ -11,36 +11,38 @@ import PageLoading from "./components/PageLoading";
 import { SocketProvider } from "./contexts/SocketContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
 
-const Landing = lazy(() => import("./pages/Landing"));
+import Landing from "./pages/Landing";
+import Login from "./pages/Login";
+import Register from "./pages/Register";
+import Features from "./pages/Features";
+import Integrations from "./pages/Integrations";
+import Pricing from "./pages/Pricing";
+import Changelog from "./pages/Changelog";
+import About from "./pages/About";
+import Blog from "./pages/Blog";
+import Careers from "./pages/Careers";
+import Contact from "./pages/Contact";
+import Privacy from "./pages/Privacy";
+import Terms from "./pages/Terms";
+import NotFound from "./pages/NotFound";
+
+// Keep authenticated heavy application routes code-split
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Tasks = lazy(() => import("./pages/Tasks"));
 const Kanban = lazy(() => import("./pages/Kanban"));
 const Projects = lazy(() => import("./pages/Projects"));
-const Login = lazy(() => import("./pages/Login"));
-const Register = lazy(() => import("./pages/Register"));
 const Onboarding = lazy(() => import("./pages/Onboarding"));
 const Team = lazy(() => import("./pages/Team"));
 const Settings = lazy(() => import("./pages/Settings"));
 const ProjectDetails = lazy(() => import("./pages/ProjectDetails"));
 const Analytics = lazy(() => import("./pages/Analytics"));
 const Inbox = lazy(() => import("./pages/Inbox"));
-const NotFound = lazy(() => import("./pages/NotFound"));
-const Privacy = lazy(() => import("./pages/Privacy"));
-const Terms = lazy(() => import("./pages/Terms"));
-const Features = lazy(() => import("./pages/Features"));
-const Integrations = lazy(() => import("./pages/Integrations"));
-const Pricing = lazy(() => import("./pages/Pricing"));
-const Changelog = lazy(() => import("./pages/Changelog"));
-const About = lazy(() => import("./pages/About"));
-const Blog = lazy(() => import("./pages/Blog"));
-const Careers = lazy(() => import("./pages/Careers"));
-const Contact = lazy(() => import("./pages/Contact"));
 
 function App() {
   return (
     <ThemeProvider>
       <BrowserRouter>
-        <Suspense fallback={<PageLoading />}>
+        <Suspense fallback={<PageLoading fullScreen label="Kriri" />}>
       <Routes>
         <Route
           path="/login"

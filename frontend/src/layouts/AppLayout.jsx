@@ -105,31 +105,18 @@ export default function AppLayout() {
     return "Workspace";
   };
 
-  const [isNavigating, setIsNavigating] = useState(false);
-  const [navigatingLabel, setNavigatingLabel] = useState(() =>
-    getRouteLabel(location.pathname, location.state?.loadingTitle)
-  );
   const prevPathRef = useRef(location.pathname);
 
-  const triggerNavLoading = (label) => {
-    setNavigatingLabel(label);
-    setIsNavigating(true);
+  const triggerNavLoading = () => {
+    // Instant navigation without artificial delay
   };
 
   useEffect(() => {
     if (prevPathRef.current !== location.pathname) {
       prevPathRef.current = location.pathname;
-      const targetLabel = getRouteLabel(location.pathname, location.state?.loadingTitle);
-      setNavigatingLabel(targetLabel);
-      setIsNavigating(true);
       setIsMobileNavOpen(false);
-
-      const timer = setTimeout(() => {
-        setIsNavigating(false);
-      }, 240);
-      return () => clearTimeout(timer);
     }
-  }, [location.pathname, location.state]);
+  }, [location.pathname]);
 
   useGlobalShortcuts({
     onOpenCommandPalette: () =>
@@ -656,15 +643,11 @@ export default function AppLayout() {
         </header>
 
         <main className="flex-1 flex flex-col min-w-0 bg-[#131416] rounded-none md:rounded-xl relative z-0 border-0 md:border md:border-white/[0.05] shadow-2xl overflow-hidden">
-          {isNavigating ? (
-            <PageLoading label={navigatingLabel} />
-          ) : (
-            <div
-              className={`flex-1 overflow-y-auto overflow-x-hidden bg-transparent ${location.pathname.startsWith("/inbox") ? "" : "px-4 py-4 md:px-6 lg:px-8 md:py-6"}`}
-            >
-              <Outlet context={{ triggerNavLoading, isSidebarCollapsed, toggleSidebar }} />
-            </div>
-          )}
+          <div
+            className={`flex-1 overflow-y-auto overflow-x-hidden bg-transparent ${location.pathname.startsWith("/inbox") ? "" : "px-4 py-4 md:px-6 lg:px-8 md:py-6"}`}
+          >
+            <Outlet context={{ triggerNavLoading, isSidebarCollapsed, toggleSidebar }} />
+          </div>
         </main>
       </div>
 
