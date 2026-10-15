@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import {
   SignedIn,
@@ -5,24 +6,41 @@ import {
   AuthenticateWithRedirectCallback,
 } from "@clerk/clerk-react";
 import AppLayout from "./layouts/AppLayout";
-import Landing from "./pages/Landing";
-import Dashboard from "./pages/Dashboard";
-import Tasks from "./pages/Tasks";
-import Kanban from "./pages/Kanban";
-import Projects from "./pages/Projects";
-import Login from "./pages/Login";
-import Register from "./pages/Register";
-import Onboarding from "./pages/Onboarding";
-import Team from "./pages/Team";
-import Settings from "./pages/Settings";
-import ProjectDetails from "./pages/ProjectDetails";
-import Analytics from "./pages/Analytics";
-import Inbox from "./pages/Inbox";
+import MarketingLayout from "./layouts/MarketingLayout";
+import PageLoading from "./components/PageLoading";
 import { SocketProvider } from "./contexts/SocketContext";
+import { ThemeProvider } from "./contexts/ThemeContext";
+
+const Landing = lazy(() => import("./pages/Landing"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Tasks = lazy(() => import("./pages/Tasks"));
+const Kanban = lazy(() => import("./pages/Kanban"));
+const Projects = lazy(() => import("./pages/Projects"));
+const Login = lazy(() => import("./pages/Login"));
+const Register = lazy(() => import("./pages/Register"));
+const Onboarding = lazy(() => import("./pages/Onboarding"));
+const Team = lazy(() => import("./pages/Team"));
+const Settings = lazy(() => import("./pages/Settings"));
+const ProjectDetails = lazy(() => import("./pages/ProjectDetails"));
+const Analytics = lazy(() => import("./pages/Analytics"));
+const Inbox = lazy(() => import("./pages/Inbox"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+const Privacy = lazy(() => import("./pages/Privacy"));
+const Terms = lazy(() => import("./pages/Terms"));
+const Features = lazy(() => import("./pages/Features"));
+const Integrations = lazy(() => import("./pages/Integrations"));
+const Pricing = lazy(() => import("./pages/Pricing"));
+const Changelog = lazy(() => import("./pages/Changelog"));
+const About = lazy(() => import("./pages/About"));
+const Blog = lazy(() => import("./pages/Blog"));
+const Careers = lazy(() => import("./pages/Careers"));
+const Contact = lazy(() => import("./pages/Contact"));
 
 function App() {
   return (
-    <BrowserRouter>
+    <ThemeProvider>
+      <BrowserRouter>
+        <Suspense fallback={<PageLoading />}>
       <Routes>
         <Route
           path="/login"
@@ -112,10 +130,29 @@ function App() {
           <Route path="settings" element={<Settings />} />
         </Route>
 
-        {/* Fallback */}
-        <Route path="*" element={<Navigate to="/" replace />} />
+        {/* Legal Pages */}
+        <Route path="/privacy" element={<Privacy />} />
+        <Route path="/terms" element={<Terms />} />
+
+        {/* Product & Company Pages */}
+        <Route element={<MarketingLayout />}>
+          <Route path="/features" element={<Features />} />
+          <Route path="/integrations" element={<Integrations />} />
+          <Route path="/pricing" element={<Pricing />} />
+          <Route path="/changelog" element={<Changelog />} />
+          <Route path="/about" element={<About />} />
+          <Route path="/blog" element={<Blog />} />
+          <Route path="/careers" element={<Careers />} />
+          <Route path="/contact" element={<Contact />} />
+        </Route>
+
+        {/* 404 Not Found */}
+        <Route path="/404" element={<NotFound />} />
+        <Route path="*" element={<NotFound />} />
       </Routes>
+        </Suspense>
     </BrowserRouter>
+  </ThemeProvider>
   );
 }
 

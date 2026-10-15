@@ -7,6 +7,7 @@ import {
 } from "@clerk/clerk-react";
 import { api } from "../lib/api";
 import ConfirmModal from "../components/ConfirmModal";
+import PageLoading from "../components/PageLoading";
 
 export default function Team() {
   const { user } = useUser();
@@ -143,9 +144,13 @@ export default function Team() {
       (m.email || "").toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
+  if (loading) {
+    return <PageLoading label="Team" />;
+  }
+
   return (
     <div className="w-full flex flex-col h-full animate-in fade-in duration-300 relative">
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 sm:mb-8">
         <div>
           <h1 className="text-xl font-semibold tracking-tight text-white mb-1">
             {organization
@@ -205,7 +210,7 @@ export default function Team() {
         </div>
       )}
 
-      <div className="flex flex-col border border-white/[0.06] rounded-xl bg-transparent overflow-hidden">
+      <div className="flex flex-col border border-white/[0.06] rounded-xl bg-transparent overflow-x-auto">
         {loading ? (
           <div className="p-8 text-center text-text-muted text-[13px]">
             Loading members...
@@ -217,7 +222,7 @@ export default function Team() {
             No members found
           </div>
         ) : (
-          <table className="w-full text-left border-collapse">
+          <table className="w-full min-w-[550px] text-left border-collapse">
             <thead>
               <tr className="border-b border-white/[0.06]">
                 <th className="font-normal text-text-muted text-[13px] px-4 py-3">

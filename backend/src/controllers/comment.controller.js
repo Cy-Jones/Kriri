@@ -75,7 +75,7 @@ exports.addComment = async (req, res) => {
             [
               req.workspace.id,
               taskInfo.assignee_clerk_id,
-              req.auth?.userId,
+              req.auth?.userId || req.user?.clerk_user_id,
               "task_comment",
               "New Comment",
               `${req.user.name} commented on issue "${taskInfo.title}".`,

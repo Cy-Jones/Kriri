@@ -18,6 +18,68 @@ export function ActionLink({ action, kind, className }) {
     const timer = window.setTimeout(() => setDone(false), 2400);
     return () => window.clearTimeout(timer);
   }, [done]);
+
+  if (kind === "primary") {
+    if (action.href) {
+      return (
+        <a
+          href={action.href}
+          onClick={action.onClick}
+          className="group relative inline-flex items-center justify-center gap-2.5 h-[48px] px-6 rounded-full bg-white text-black font-medium text-sm sm:text-base hover:bg-zinc-100 transition-all duration-300 shadow-[0_0_28px_rgba(255,255,255,0.18)] active:scale-[0.98]"
+          {...(action.external
+            ? { target: "_blank", rel: "noopener noreferrer" }
+            : {})}
+        >
+          <span>{action.label}</span>
+          <span className="w-6 h-6 rounded-full bg-black/10 flex items-center justify-center transition-transform duration-300 group-hover:translate-x-0.5">
+            <ArrowRight size={13} strokeWidth={2.5} className="text-black" />
+          </span>
+        </a>
+      );
+    }
+    return (
+      <button
+        type="button"
+        onClick={() => {
+          action.onClick?.();
+          if (action.doneLabel) setDone(true);
+        }}
+        className="group relative inline-flex items-center justify-center gap-2.5 h-[48px] px-6 rounded-full bg-white text-black font-medium text-sm sm:text-base hover:bg-zinc-100 transition-all duration-300 shadow-[0_0_28px_rgba(255,255,255,0.18)] active:scale-[0.98]"
+      >
+        <span>{done ? (action.doneLabel ?? action.label) : action.label}</span>
+        <span className="w-6 h-6 rounded-full bg-black/10 flex items-center justify-center transition-transform duration-300 group-hover:translate-x-0.5">
+          <ArrowRight size={13} strokeWidth={2.5} className="text-black" />
+        </span>
+      </button>
+    );
+  }
+
+  if (kind === "secondary") {
+    if (action.href) {
+      return (
+        <a
+          href={action.href}
+          onClick={action.onClick}
+          className="inline-flex items-center justify-center gap-2 h-[48px] px-6 rounded-full border border-white/[0.1] bg-white/[0.04] hover:bg-white/[0.08] hover:border-white/20 text-zinc-300 hover:text-white transition-all duration-300 text-sm sm:text-base font-medium active:scale-[0.98]"
+          {...(action.external
+            ? { target: "_blank", rel: "noopener noreferrer" }
+            : {})}
+        >
+          <span>{action.label}</span>
+        </a>
+      );
+    }
+    return (
+      <button
+        type="button"
+        onClick={action.onClick}
+        className="inline-flex items-center justify-center gap-2 h-[48px] px-6 rounded-full border border-white/[0.1] bg-white/[0.04] hover:bg-white/[0.08] hover:border-white/20 text-zinc-300 hover:text-white transition-all duration-300 text-sm sm:text-base font-medium active:scale-[0.98]"
+      >
+        <span>{action.label}</span>
+      </button>
+    );
+  }
+
   const cls = [styles.action, styles[kind], className]
     .filter(Boolean)
     .join(" ");

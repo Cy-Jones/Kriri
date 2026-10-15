@@ -12,12 +12,8 @@ router.use(verifyToken);
 // Any authenticated user can potentially create a workspace if Clerk lets them
 router.post("/", workspaceController.createWorkspace);
 
-// Viewers and above can view workspaces
-router.get(
-  "/",
-  requireMinimumRole("Viewer"),
-  workspaceController.getUserWorkspaces,
-);
+// Any authenticated user can list the workspaces they belong to
+router.get("/", workspaceController.getUserWorkspaces);
 router.get(
   "/current/summary",
   requireMinimumRole("Viewer"),

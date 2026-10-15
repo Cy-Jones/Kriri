@@ -28,6 +28,7 @@ import { api } from "../lib/api";
 import TaskDetailsModal from "../components/TaskDetailsModal";
 import CreateTaskModal from "../components/CreateTaskModal";
 import { Cabinet as Abacus } from "@lucasmarkes/hairline/react";
+import PageLoading from "../components/PageLoading";
 import { Button } from "../registry/components/button/button";
 import { Badge } from "../registry/components/badge/badge";
 import { AvatarGroup } from "../registry/components/avatar-group/avatar-group";
@@ -285,6 +286,10 @@ export default function Kanban() {
       </div>
     );
   };
+
+  if (loading) {
+    return <PageLoading label="Board" />;
+  }
 
   return (
     <div className="w-full flex flex-col h-full min-h-0 min-w-0 animate-in fade-in duration-300">

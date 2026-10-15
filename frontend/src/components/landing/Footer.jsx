@@ -1,120 +1,114 @@
-export function Footer() {
-  const navigation = {
-    product: [
-      { name: "Features", href: "#" },
-      { name: "Integrations", href: "#" },
-      { name: "Pricing", href: "#" },
-      { name: "Changelog", href: "#" },
-    ],
-    company: [
-      { name: "About", href: "#" },
-      { name: "Blog", href: "#" },
-      { name: "Careers", href: "#" },
-      { name: "Contact", href: "#" },
-    ],
-    legal: [
-      { name: "Privacy", href: "#" },
-      { name: "Terms", href: "#" },
-    ],
+import { useNavigate } from "react-router-dom";
+import { SiteFooter } from "@/registry/blocks/site-footer/site-footer";
+
+export function Footer({
+  variant = "columns",
+  className,
+  ...props
+}) {
+  const navigate = useNavigate();
+
+  const brand = {
+    name: "Kriri",
+    href: "/",
+    mark: (
+      <svg
+        width="22"
+        height="22"
+        viewBox="0 0 24 24"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        className="text-foreground transition-transform group-hover:scale-105"
+      >
+        <rect
+          x="3"
+          y="3"
+          width="18"
+          height="18"
+          rx="5"
+          stroke="currentColor"
+          strokeWidth="6"
+        />
+      </svg>
+    ),
+    bigMark: (
+      <svg
+        className="w-full h-auto block"
+        viewBox="0 6 100 36"
+        fill="none"
+        strokeWidth="4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        preserveAspectRatio="xMidYMin meet"
+      >
+        <defs>
+          <linearGradient id="kriri-big-mark-gradient" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" style={{ stopColor: "var(--arc-gradient-from)" }} />
+            <stop offset="100%" style={{ stopColor: "var(--arc-gradient-to)" }} />
+          </linearGradient>
+        </defs>
+        <g stroke="url(#kriri-big-mark-gradient)">
+          <rect x="25" y="10" width="50" height="50" rx="14" />
+        </g>
+      </svg>
+    ),
+  };
+
+  const columns = [
+    {
+      title: "Product",
+      links: [
+        { label: "Features", href: "/features" },
+        { label: "Integrations", href: "/integrations" },
+        { label: "Pricing", href: "/pricing" },
+        { label: "Changelog", href: "/changelog" },
+      ],
+    },
+    {
+      title: "Company",
+      links: [
+        { label: "About", href: "/about" },
+        { label: "Blog", href: "/blog" },
+        { label: "Careers", href: "/careers" },
+        { label: "Contact", href: "/contact" },
+      ],
+    },
+  ];
+
+  const legal = [
+    { label: "Privacy", href: "/privacy" },
+    { label: "Terms", href: "/terms" },
+  ];
+
+  const socials = [
+    { label: "GitHub", href: "https://github.com", external: true },
+  ];
+
+  const handleNavigate = (link) => {
+    if (!link?.href) return;
+    if (link.external || link.href.startsWith("http")) {
+      window.open(link.href, "_blank", "noopener,noreferrer");
+    } else {
+      navigate(link.href);
+    }
   };
 
   return (
-    <footer className="bg-background border-t border-white/5">
-      <div className="mx-auto max-w-7xl px-6 pb-8 pt-16 sm:pt-24 lg:px-8 lg:pt-32">
-        <div className="xl:grid xl:grid-cols-3 xl:gap-8">
-          <div className="space-y-8">
-            <div className="flex items-center gap-2">
-              <svg
-                width="24"
-                height="24"
-                viewBox="0 0 24 24"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-                className="text-white"
-              >
-                <rect
-                  x="3"
-                  y="3"
-                  width="18"
-                  height="18"
-                  rx="5"
-                  stroke="currentColor"
-                  strokeWidth="6"
-                />
-              </svg>
-              <span className="text-lg font-semibold text-white">Kriri</span>
-            </div>
-            <p className="text-sm leading-6 text-zinc-400">
-              A collaborative workspace for real-time views.
-              <br />
-              Built for teams who move fast.
-            </p>
-          </div>
-          <div className="mt-16 grid grid-cols-2 gap-8 xl:col-span-2 xl:mt-0">
-            <div className="md:grid md:grid-cols-2 md:gap-8">
-              <div>
-                <h3 className="text-sm font-semibold leading-6 text-white">
-                  Product
-                </h3>
-                <ul role="list" className="mt-6 space-y-4">
-                  {navigation.product.map((item) => (
-                    <li key={item.name}>
-                      <a
-                        href={item.href}
-                        className="text-sm leading-6 text-zinc-400 hover:text-white transition-colors"
-                      >
-                        {item.name}
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <div className="mt-10 md:mt-0">
-                <h3 className="text-sm font-semibold leading-6 text-white">
-                  Company
-                </h3>
-                <ul role="list" className="mt-6 space-y-4">
-                  {navigation.company.map((item) => (
-                    <li key={item.name}>
-                      <a
-                        href={item.href}
-                        className="text-sm leading-6 text-zinc-400 hover:text-white transition-colors"
-                      >
-                        {item.name}
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-            <div className="md:grid md:grid-cols-2 md:gap-8">
-              <div></div>
-              <div className="mt-10 md:mt-0">
-                <h3 className="text-sm font-semibold leading-6 text-white">
-                  Legal
-                </h3>
-                <ul role="list" className="mt-6 space-y-4">
-                  {navigation.legal.map((item) => (
-                    <li key={item.name}>
-                      <a
-                        href={item.href}
-                        className="text-sm leading-6 text-zinc-400 hover:text-white transition-colors"
-                      >
-                        {item.name}
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div className="mt-16 border-t border-white/10 pt-8 sm:mt-20 lg:mt-24">
-          <p className="text-xs leading-5 text-zinc-400">
-            &copy; 2026 Kriri, Inc. All rights reserved.
-          </p>
-        </div>
-      </div>
-    </footer>
+    <SiteFooter
+      variant={variant}
+      brand={brand}
+      tagline="A collaborative workspace for real-time views. Built for teams who move fast."
+      columns={columns}
+      legal={legal}
+      socials={socials}
+      newsletter={null}
+      status={null}
+      year={2026}
+      onNavigate={handleNavigate}
+      className={className}
+      {...props}
+    />
   );
 }
+
+export default Footer;

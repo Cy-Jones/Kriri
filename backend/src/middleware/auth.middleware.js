@@ -1,11 +1,36 @@
-const { requireAuth, getAuth } = require("@clerk/express");
+const { getAuth } = require("@clerk/express");
 const db = require("../config/database");
 
-exports.verifyToken = [
-  requireAuth(),
-  async (req, res, next) => {
-    try {
-      const { userId: clerkUserId, orgId } = getAuth(req);
+const requireAuth = (req, res, next) => {
+  const auth = getAuth(req);
+  if (!auth || !auth.userId) {
+    return res.status(401).json({ error: "Unauthorized: Authentication required" });
+  }
+  if (typeof req.auth === "function") {
+    Object.assign(req.auth, auth);
+  } else {
+    req.auth = auth;
+  }
+  req.clerkAuth = auth;
+  next();
+};
+
+exports.requireAuth = requireAuth;
+
+exports.verifyToken = async (req, res, next) => {
+  try {
+    const auth = getAuth(req);
+    if (!auth || !auth.userId) {
+      return res.status(401).json({ error: "Unauthorized: Authentication required" });
+    }
+    if (typeof req.auth === "function") {
+      Object.assign(req.auth, auth);
+    } else {
+      req.auth = auth;
+    }
+    req.clerkAuth = auth;
+
+    const { userId: clerkUserId, orgId } = auth;
 
       let userRes = await db.query(
         "SELECT * FROM users WHERE clerk_user_id = $1",
@@ -128,9 +153,8 @@ exports.verifyToken = [
       return res
         .status(500)
         .json({ error: "Server error during authentication" });
-    }
-  },
-];
+  }
+};
 
 const WORKSPACE_ROLE_HIERARCHY = {
   Owner: 70,

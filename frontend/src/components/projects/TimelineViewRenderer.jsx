@@ -246,7 +246,16 @@ export default function TimelineViewRenderer({
                         groupItems.map((project) => (
                           <div
                             key={project.id}
-                            onClick={() => navigate(`/projects/${project.id}`)}
+                            onClick={() =>
+                              navigate(`/projects/${project.id}`, {
+                                state: {
+                                  loadingTitle:
+                                    project.name ||
+                                    project.title ||
+                                    "Project Details",
+                                },
+                              })
+                            }
                             className="h-12 px-4 border-b border-white/5 flex items-center justify-between hover:bg-white/[0.04] cursor-pointer text-[13px] group"
                           >
                             <div className="flex items-center gap-2 min-w-0 pr-4 flex-1">
@@ -380,7 +389,16 @@ export default function TimelineViewRenderer({
                       return (
                         <div
                           key={project.id}
-                          onClick={() => navigate(`/projects/${project.id}`)}
+                          onClick={() =>
+                            navigate(`/projects/${project.id}`, {
+                              state: {
+                                loadingTitle:
+                                  project.name ||
+                                  project.title ||
+                                  "Project Details",
+                              },
+                            })
+                          }
                           onMouseEnter={(e) => {
                             setHoveredProject(project);
                             setTooltipPos({ x: e.clientX, y: e.clientY });

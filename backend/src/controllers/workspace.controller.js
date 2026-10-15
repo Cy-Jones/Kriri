@@ -14,20 +14,21 @@ exports.createWorkspace = async (req, res) => {
   const { getAuth } = require("@clerk/express");
   const { orgId: clerkOrgId } = getAuth(req);
 
+  const client = await db.pool.connect();
   try {
-    await db.query("BEGIN");
+    await client.query("BEGIN");
 
     let workspace;
     if (clerkOrgId) {
       // Upsert by clerk_org_id
-      const workspaceRes = await db.query(
+      const workspaceRes = await client.query(
         "INSERT INTO workspaces (clerk_org_id, name, slug, owner_id) VALUES ($1, $2, $3, $4) ON CONFLICT (slug) DO UPDATE SET clerk_org_id = $1, name = $2 RETURNING *",
         [clerkOrgId, name, slug, owner_id],
       );
       workspace = workspaceRes.rows[0];
     } else {
       // Create without clerk_org_id
-      const workspaceRes = await db.query(
+      const workspaceRes = await client.query(
         "INSERT INTO workspaces (name, slug, owner_id) VALUES ($1, $2, $3) RETURNING *",
         [name, slug, owner_id],
       );
@@ -35,20 +36,22 @@ exports.createWorkspace = async (req, res) => {
     }
 
     // Add owner as Owner member
-    await db.query(
+    await client.query(
       "INSERT INTO workspace_members (workspace_id, user_id, role) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING",
       [workspace.id, owner_id, "Owner"],
     );
 
-    await db.query("COMMIT");
+    await client.query("COMMIT");
     res.status(201).json(workspace);
   } catch (error) {
-    await db.query("ROLLBACK");
+    await client.query("ROLLBACK");
     console.error(error);
     if (error.constraint === "workspaces_slug_key") {
       return res.status(400).json({ error: "Workspace name already exists." });
     }
     res.status(500).json({ error: "Server error" });
+  } finally {
+    client.release();
   }
 };
 
@@ -179,7 +182,7 @@ exports.getCurrentWorkspaceNotifications = async (req, res) => {
   if (!req.workspace)
     return res.status(404).json({ error: "No active workspace context" });
   const wsId = req.workspace.id;
-  const userId = req.auth?.userId;
+  const userId = req.auth?.userId || req.user?.clerk_user_id;
   if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
   try {
@@ -189,7 +192,7 @@ exports.getCurrentWorkspaceNotifications = async (req, res) => {
          u.name as actor_name,
          u.avatar_url as actor_avatar,
          p.name as project_name,
-         p.identifier as project_identifier,
+         p.slug as project_identifier,
          t.title as task_title
        FROM notifications n
        LEFT JOIN users u ON n.actor_id = u.clerk_user_id
@@ -211,7 +214,7 @@ exports.markNotificationAsRead = async (req, res) => {
   if (!req.workspace)
     return res.status(404).json({ error: "No active workspace context" });
   const { id } = req.params;
-  const userId = req.auth?.userId;
+  const userId = req.auth?.userId || req.user?.clerk_user_id;
 
   try {
     const result = await db.query(
@@ -235,7 +238,7 @@ exports.markNotificationAsRead = async (req, res) => {
 exports.markAllNotificationsAsRead = async (req, res) => {
   if (!req.workspace)
     return res.status(404).json({ error: "No active workspace context" });
-  const userId = req.auth?.userId;
+  const userId = req.auth?.userId || req.user?.clerk_user_id;
 
   try {
     await db.query(

@@ -187,7 +187,7 @@ export const siteHeaderExampleItems = [
     ],
   },
   { value: "pricing", label: "Pricing" },
-  { value: "customers", label: "Customers" },
+  { value: "changelog", label: "Changelog" },
 ];
 
 function useScrolled(threshold, container) {
@@ -523,12 +523,16 @@ export const SiteHeader = forwardRef(function SiteHeader(
     );
   };
 
+  const brandHref = brand.href ?? "/";
   const brandNode = (
     <Destination
-      link={{ label: brand.name, href: brand.href }}
+      link={{ label: brand.name, href: brandHref }}
       className={styles.brand}
-      onChoose={() => {
-        onNavigate?.({ label: brand.name, href: brand.href });
+      onChoose={(e) => {
+        if (onNavigate) {
+          e?.preventDefault?.();
+          onNavigate({ label: brand.name, href: brandHref });
+        }
         close();
         closeMenu();
       }}
@@ -663,8 +667,7 @@ export const SiteHeader = forwardRef(function SiteHeader(
             </nav>
           </LayoutGroup>
           <div className={styles.actions}>
-            {secondaryAction &&
-              actionNode(secondaryAction, "secondary", styles.wideOnly)}
+            {secondaryAction && actionNode(secondaryAction, "secondary")}
             {primaryAction && actionNode(primaryAction, "primary")}
             <button
               ref={menuButtonRef}
@@ -1043,7 +1046,7 @@ const pageLabels = {
   product: "Product",
   resources: "Resources",
   pricing: "Pricing",
-  customers: "Customers",
+  changelog: "Changelog",
 };
 
 /** Preview: the header inside a small scrolling page, with a switch between its three layouts. */

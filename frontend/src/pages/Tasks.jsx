@@ -12,6 +12,7 @@ import { api } from "../lib/api";
 import TaskDetailsModal from "../components/TaskDetailsModal";
 import CreateTaskModal from "../components/CreateTaskModal";
 import { Format as Checklist } from "@lucasmarkes/hairline/react";
+import PageLoading from "../components/PageLoading";
 import { useUser } from "@clerk/clerk-react";
 import { useSocket } from "../contexts/SocketContext";
 import { useListShortcuts } from "../hooks/useListShortcuts";
@@ -89,9 +90,13 @@ export default function Tasks() {
     onCreateItem: () => setIsCreateModalOpen(true),
   });
 
+  if (loading) {
+    return <PageLoading label="Issues" />;
+  }
+
   return (
     <div className="w-full flex flex-col h-full animate-in fade-in duration-300">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <div className="flex items-center gap-3">
           <h1 className="text-xl font-semibold tracking-tight text-white">
             All Issues
@@ -101,7 +106,7 @@ export default function Tasks() {
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <div className="relative">
+          <div className="relative flex-1 sm:flex-initial">
             <Search
               size={14}
               className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted"
@@ -111,12 +116,12 @@ export default function Tasks() {
               placeholder="Filter tasks..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-[200px] bg-surface-elevated border border-border rounded-md pl-9 pr-3 py-1.5 text-xs text-white placeholder:text-text-muted focus:outline-none focus:border-white/20 transition-colors"
+              className="w-full sm:w-[200px] bg-surface-elevated border border-border rounded-md pl-9 pr-3 py-1.5 text-xs text-white placeholder:text-text-muted focus:outline-none focus:border-white/20 transition-colors"
             />
           </div>
           <button
             onClick={() => setIsCreateModalOpen(true)}
-            className="flex items-center gap-1.5 bg-white text-black hover:bg-gray-100 transition-colors text-xs font-medium px-3 py-1.5 rounded-md shadow-sm"
+            className="flex items-center gap-1.5 bg-white text-black hover:bg-gray-100 transition-colors text-xs font-medium px-3 py-1.5 rounded-md shadow-sm shrink-0"
           >
             <Plus size={14} /> New Issue
           </button>
@@ -154,9 +159,9 @@ export default function Tasks() {
           </div>
         </div>
       ) : (
-        <div className="flex-1 bg-white/[0.01] border border-white/[0.05] rounded-xl overflow-hidden flex flex-col shadow-sm">
+        <div className="flex-1 bg-white/[0.01] border border-white/[0.05] rounded-xl overflow-x-auto flex flex-col shadow-sm">
           {/* Table Header */}
-          <div className="grid grid-cols-[80px_minmax(300px,1fr)_120px_100px_100px_80px] gap-4 px-5 py-3 border-b border-white/[0.05] text-xs font-medium text-[#8a8f98] uppercase tracking-wider">
+          <div className="grid grid-cols-[80px_minmax(240px,1fr)_120px_100px_100px_80px] min-w-[720px] gap-4 px-5 py-3 border-b border-white/[0.05] text-xs font-medium text-[#8a8f98] uppercase tracking-wider">
             <div>ID</div>
             <div>Title</div>
             <div>Status</div>
@@ -166,7 +171,7 @@ export default function Tasks() {
           </div>
 
           {/* Table Body */}
-          <div className="flex-1 overflow-y-auto divide-y divide-white/[0.05]">
+          <div className="flex-1 overflow-y-auto divide-y divide-white/[0.05] min-w-[720px]">
             {filteredTasks.map((task, idx) => (
               <div
                 key={task.id}
@@ -174,7 +179,7 @@ export default function Tasks() {
                   setSelectedTaskId(task.id);
                   setActiveIndex(idx);
                 }}
-                className={`grid grid-cols-[80px_minmax(300px,1fr)_120px_100px_100px_80px] gap-4 px-5 py-3.5 hover:bg-white/[0.04] transition-colors items-center text-[13px] group cursor-pointer ${
+                className={`grid grid-cols-[80px_minmax(240px,1fr)_120px_100px_100px_80px] gap-4 px-5 py-3.5 hover:bg-white/[0.04] transition-colors items-center text-[13px] group cursor-pointer ${
                   activeIndex === idx
                     ? "bg-white/[0.08] ring-1 ring-inset ring-white/10"
                     : ""

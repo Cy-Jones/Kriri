@@ -1,5 +1,7 @@
 import { useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import { matchesShortcut } from "@/registry/components/shortcut-recorder/shortcut-recorder";
+import { getCustomShortcuts, getPlatformPreference } from "../lib/shortcutsConfig";
 
 /**
  * Checks if the currently focused element is an input, textarea, or contenteditable.
@@ -20,45 +22,86 @@ export function useGlobalShortcuts({
   onOpenCommandPalette,
   onOpenHelp,
   onOpenCreateTask,
+  onToggleSidebar,
 }) {
   const navigate = useNavigate();
 
   const handleKeyDown = useCallback(
     (e) => {
-      // If the user is typing in an input, ignore global shortcuts (unless it's a specific global override)
+      const platform = getPlatformPreference();
+      const shortcuts = getCustomShortcuts();
+
+      // Check command palette shortcut first (works even inside inputs if mod+k is pressed)
+      if (
+        (shortcuts.openCommandMenu && matchesShortcut(e, shortcuts.openCommandMenu, platform)) ||
+        ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k")
+      ) {
+        e.preventDefault();
+        onOpenCommandPalette?.();
+        return;
+      }
+
+      // Check toggle sidebar shortcut
+      if (
+        (shortcuts.toggleSidebar && matchesShortcut(e, shortcuts.toggleSidebar, platform)) ||
+        ((e.metaKey || e.ctrlKey) && (e.key === "." || e.key.toLowerCase() === "b"))
+      ) {
+        e.preventDefault();
+        onToggleSidebar?.();
+        return;
+      }
+
+      // If the user is typing in an input, ignore other global shortcuts
       if (isInputFocused()) {
         return;
       }
 
-      // 1. Single Key Shortcuts
-      if (!e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey) {
-        if (e.key === "?") {
-          e.preventDefault();
-          onOpenHelp?.();
-          return;
-        }
-        if (e.key === "/") {
-          e.preventDefault();
-          onOpenCommandPalette?.();
-          return;
-        }
-        if (e.key.toLowerCase() === "c") {
-          e.preventDefault();
-          onOpenCreateTask?.();
-          return;
-        }
+      // Check create issue shortcut
+      if (
+        (shortcuts.createIssue && matchesShortcut(e, shortcuts.createIssue, platform)) ||
+        (!e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey && e.key.toLowerCase() === "c")
+      ) {
+        e.preventDefault();
+        onOpenCreateTask?.();
+        return;
       }
 
-      // 2. Chords (G + key)
-      // For this, we'll keep a small piece of state locally in a module variable or ref.
-      // However, since it's simpler to manage this directly in the event listener, we can use a closure.
-      // We attach this via a simple timer mechanism for chord sequences.
+      // Navigation shortcuts from Cheatsheet:
+      // Option / Alt + 1 -> Go to inbox
+      if (matchesShortcut(e, "alt+1", platform)) {
+        e.preventDefault();
+        navigate("/inbox");
+        return;
+      }
+      // Option / Alt + 2 -> Go to projects
+      if (matchesShortcut(e, "alt+2", platform)) {
+        e.preventDefault();
+        navigate("/projects");
+        return;
+      }
+      // Shift + Mod + F -> Search everything / command palette
+      if (matchesShortcut(e, "shift+mod+f", platform)) {
+        e.preventDefault();
+        onOpenCommandPalette?.();
+        return;
+      }
+
+      // Help / Keyboard shortcuts: '?' (Shift + / on US keyboards or direct '?')
+      if (
+        !e.metaKey &&
+        !e.ctrlKey &&
+        !e.altKey &&
+        (e.key === "?" || (e.shiftKey && (e.key === "/" || e.code === "Slash")))
+      ) {
+        e.preventDefault();
+        onOpenHelp?.();
+        return;
+      }
     },
-    [onOpenCommandPalette, onOpenHelp, onOpenCreateTask, navigate],
+    [onOpenCommandPalette, onOpenHelp, onOpenCreateTask, onToggleSidebar, navigate],
   );
 
   useEffect(() => {
-    // We need a way to track sequence state
     let sequenceTimeout = null;
     let sequence = "";
 
@@ -89,6 +132,10 @@ export function useGlobalShortcuts({
             e.preventDefault();
             navigate("/dashboard");
             break;
+          case "b":
+            e.preventDefault();
+            navigate("/kanban");
+            break;
           case "p":
             e.preventDefault();
             navigate("/projects");
@@ -96,6 +143,10 @@ export function useGlobalShortcuts({
           case "t":
             e.preventDefault();
             navigate("/tasks");
+            break;
+          case "s":
+            e.preventDefault();
+            navigate("/settings");
             break;
           case "i":
             e.preventDefault();

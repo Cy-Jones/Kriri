@@ -164,7 +164,7 @@
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --background: oklch(19% 0 0);
+  --background: #000000;
   --surface: oklch(21.5% 0 0);
   --surface-raised: oklch(24% 0 0);
   /* Keep muted surfaces and hover states distinct from the base surface in dark mode. */

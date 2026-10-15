@@ -3,30 +3,25 @@ const { handleError } = require("../utils/errorHandler");
 
 const { getIO } = require("../socket");
 
-const generateSlug = async (name, workspace_id) => {
+const generateSlug = async (name, workspace_id, client = db) => {
   let baseSlug = name
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)+/g, "");
   if (!baseSlug) baseSlug = "project";
 
-  let slug = baseSlug;
-  let counter = 1;
-  let isUnique = false;
+  const res = await client.query(
+    "SELECT slug FROM projects WHERE workspace_id = $1 AND slug LIKE $2",
+    [workspace_id, `${baseSlug}%`],
+  );
+  const existingSlugs = new Set(res.rows.map((r) => r.slug));
+  if (!existingSlugs.has(baseSlug)) return baseSlug;
 
-  while (!isUnique) {
-    const res = await db.query(
-      "SELECT 1 FROM projects WHERE workspace_id = $1 AND slug = $2",
-      [workspace_id, slug],
-    );
-    if (res.rows.length === 0) {
-      isUnique = true;
-    } else {
-      slug = `${baseSlug}-${counter}`;
-      counter++;
-    }
+  let counter = 1;
+  while (existingSlugs.has(`${baseSlug}-${counter}`)) {
+    counter++;
   }
-  return slug;
+  return `${baseSlug}-${counter}`;
 };
 
 exports.getAllProjects = async (req, res) => {
@@ -140,7 +135,7 @@ exports.createProject = async (req, res) => {
     try {
       await client.query("BEGIN");
       const workspace_id = req.workspace.id;
-      const slug = await generateSlug(name, workspace_id);
+      const slug = await generateSlug(name, workspace_id, client);
 
       // Extract lead_id from lead object (if provided)
       const lead_id = lead && lead.id ? lead.id : null;
@@ -258,34 +253,45 @@ exports.updateProject = async (req, res) => {
 
       const { rows } = await client.query(
         `UPDATE projects 
-         SET name = COALESCE($1, name),
-             description = COALESCE($2, description),
-             short_summary = COALESCE($3, short_summary),
-             status = COALESCE($4, status),
-             health = COALESCE($5, health),
-             priority = COALESCE($6, priority),
-             start_date = COALESCE($7, start_date),
-             due_date = COALESCE($8, due_date),
-             position = COALESCE($9, position),
-             lead_id = CASE WHEN $10::boolean THEN $11 ELSE lead_id END,
-             labels = COALESCE($12, labels),
-             progress = COALESCE($13, progress),
+         SET name = CASE WHEN $1::boolean THEN $2 ELSE name END,
+             description = CASE WHEN $3::boolean THEN $4 ELSE description END,
+             short_summary = CASE WHEN $5::boolean THEN $6 ELSE short_summary END,
+             status = CASE WHEN $7::boolean THEN $8 ELSE status END,
+             health = CASE WHEN $9::boolean THEN $10 ELSE health END,
+             priority = CASE WHEN $11::boolean THEN $12 ELSE priority END,
+             start_date = CASE WHEN $13::boolean THEN $14 ELSE start_date END,
+             due_date = CASE WHEN $15::boolean THEN $16 ELSE due_date END,
+             position = CASE WHEN $17::boolean THEN $18 ELSE position END,
+             lead_id = CASE WHEN $19::boolean THEN $20 ELSE lead_id END,
+             labels = CASE WHEN $21::boolean THEN $22 ELSE labels END,
+             progress = CASE WHEN $23::boolean THEN $24 ELSE progress END,
              updated_at = CURRENT_TIMESTAMP
-         WHERE id = $14 AND workspace_id = $15 RETURNING *`,
+         WHERE id = $25 AND workspace_id = $26 RETURNING *`,
         [
-          name,
-          description,
-          short_summary,
-          status,
-          health,
-          priority,
-          start_date,
-          due_date,
-          position,
+          name !== undefined,
+          name || null,
+          description !== undefined,
+          description !== undefined ? description : null,
+          short_summary !== undefined,
+          short_summary !== undefined ? short_summary : null,
+          status !== undefined,
+          status || null,
+          health !== undefined,
+          health || null,
+          priority !== undefined,
+          priority || null,
+          start_date !== undefined,
+          start_date !== undefined ? start_date : null,
+          due_date !== undefined,
+          due_date !== undefined ? due_date : null,
+          position !== undefined,
+          position !== undefined ? position : null,
           lead !== undefined,
           lead_id,
+          labels !== undefined,
           labels ? JSON.stringify(labels) : null,
-          progress,
+          progress !== undefined,
+          progress !== undefined ? progress : null,
           id,
           req.workspace.id,
         ],

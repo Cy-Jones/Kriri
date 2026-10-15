@@ -9,72 +9,42 @@ const getToken = async () => {
   return localStorage.getItem("token") || "";
 };
 
+const request = async (endpoint, options = {}) => {
+  const token = await getToken();
+  const headers = {
+    Authorization: `Bearer ${token}`,
+    ...(options.body ? { "Content-Type": "application/json" } : {}),
+    ...options.headers,
+  };
+
+  const res = await fetch(`/api${endpoint}`, {
+    ...options,
+    headers,
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    const error = new Error(errorData.error || "API Request Failed");
+    error.response = { data: errorData };
+    throw error;
+  }
+  return res.json();
+};
+
 export const api = {
-  get: async (endpoint) => {
-    const token = await getToken();
-    const res = await fetch(`/api${endpoint}`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-    if (!res.ok) {
-      const errorData = await res.json().catch(() => ({}));
-      const error = new Error(errorData.error || "API Request Failed");
-      error.response = { data: errorData };
-      throw error;
-    }
-    return res.json();
-  },
-  post: async (endpoint, data) => {
-    const token = await getToken();
-    const res = await fetch(`/api${endpoint}`, {
+  get: (endpoint) => request(endpoint),
+  post: (endpoint, data) =>
+    request(endpoint, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
       body: JSON.stringify(data),
-    });
-    if (!res.ok) {
-      const errorData = await res.json().catch(() => ({}));
-      const error = new Error(errorData.error || "API Request Failed");
-      error.response = { data: errorData };
-      throw error;
-    }
-    return res.json();
-  },
-  put: async (endpoint, data) => {
-    const token = await getToken();
-    const res = await fetch(`/api${endpoint}`, {
+    }),
+  put: (endpoint, data) =>
+    request(endpoint, {
       method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
       body: JSON.stringify(data),
-    });
-    if (!res.ok) {
-      const errorData = await res.json().catch(() => ({}));
-      const error = new Error(errorData.error || "API Request Failed");
-      error.response = { data: errorData };
-      throw error;
-    }
-    return res.json();
-  },
-  delete: async (endpoint) => {
-    const token = await getToken();
-    const res = await fetch(`/api${endpoint}`, {
+    }),
+  delete: (endpoint) =>
+    request(endpoint, {
       method: "DELETE",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-    if (!res.ok) {
-      const errorData = await res.json().catch(() => ({}));
-      const error = new Error(errorData.error || "API Request Failed");
-      error.response = { data: errorData };
-      throw error;
-    }
-    return res.json();
-  },
+    }),
 };

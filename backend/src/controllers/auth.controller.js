@@ -2,7 +2,8 @@ const db = require("../config/database");
 const { clerkClient, getAuth } = require("@clerk/express");
 
 exports.sync = async (req, res) => {
-  const { userId: clerkUserId } = getAuth(req);
+  const auth = req.clerkAuth || (typeof req.auth === "function" ? getAuth(req) : req.auth);
+  const clerkUserId = auth?.userId;
 
   if (!clerkUserId) {
     return res.status(401).json({ error: "Unauthorized: missing user ID" });

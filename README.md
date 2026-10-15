@@ -82,7 +82,18 @@ Kriri's architecture is designed around **Workspaces**, **Projects**, and **Task
    npm run dev
    ```
 
-5. **Clerk Webhooks:**
+5. **Running Both Backend & Frontend at Once:**
+   You can run both services simultaneously from the root directory with a single command:
+   ```bash
+   npm run dev
+   ```
+   *Uses `concurrently` to stream backend (cyan) and frontend (magenta) logs together with auto-termination if either fails.*
+
+   Alternatively, you can run them individually:
+   - Backend only: `npm run dev:backend` (or `cd backend && npm run dev`)
+   - Frontend only: `npm run dev:frontend` (or `cd frontend && npm run dev`)
+
+6. **Clerk Webhooks:**
    To enable JIT provisioning, configure Clerk Webhooks to point to `http://<your-domain>/api/webhooks/clerk` and subscribe to:
    - `user.created`, `user.updated`, `user.deleted`
    - `organizationMembership.updated`

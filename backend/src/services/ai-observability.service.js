@@ -9,8 +9,8 @@ const missingVariable = !apiKey
     : null;
 
 if (missingVariable && process.env.NODE_ENV !== "production") {
-  throw new Error(
-    `${missingVariable} variable required by PostHog is missing or un-configured, this causes events to be silently missed. This error stops appearing once ${missingVariable} is configured`,
+  console.warn(
+    `[ai-observability] ${missingVariable} is not configured; AI observability events will be skipped.`,
   );
 }
 

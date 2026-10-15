@@ -152,7 +152,7 @@ export default function TaskDetailsModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/50 backdrop-blur-sm">
       <div className="w-full max-w-3xl bg-surface border border-border rounded-xl shadow-xl overflow-hidden flex flex-col max-h-[90vh]">
         {/* Header */}
         <div className="px-6 py-4 flex items-center justify-between border-b border-border bg-surface-elevated">
@@ -183,9 +183,9 @@ export default function TaskDetailsModal({
             Loading details...
           </div>
         ) : (
-          <div className="flex flex-1 overflow-hidden">
+          <div className="flex flex-col md:flex-row flex-1 overflow-y-auto md:overflow-hidden">
             {/* Left side: Main Content */}
-            <div className="flex-1 border-r border-border flex flex-col overflow-y-auto">
+            <div className="flex-1 md:border-r border-b md:border-b-0 border-border flex flex-col overflow-y-visible md:overflow-y-auto">
               <div className="p-6">
                 <h1 className="text-xl font-semibold text-text-primary mb-4">
                   {task?.title}
@@ -237,7 +237,7 @@ export default function TaskDetailsModal({
             </div>
 
             {/* Right side: Properties */}
-            <div className="w-[280px] bg-surface-elevated flex-shrink-0 flex flex-col">
+            <div className="w-full md:w-[280px] bg-surface-elevated flex-shrink-0 flex flex-col">
               <div className="p-6 space-y-6 flex-1 overflow-y-auto">
                 <div>
                   <label className="text-xs text-text-muted uppercase tracking-wider font-semibold mb-2 block">

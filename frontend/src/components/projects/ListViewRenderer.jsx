@@ -186,7 +186,14 @@ export default function ListViewRenderer({
                       onDragStart={(e) => handleDragStart(e, project)}
                       onDragOver={(e) => e.preventDefault()}
                       onDrop={(e) => handleDropOnRow(e, project)}
-                      onClick={() => navigate(`/projects/${project.id}`)}
+                      onClick={() =>
+                        navigate(`/projects/${project.id}`, {
+                          state: {
+                            loadingTitle:
+                              project.name || project.title || "Project Details",
+                          },
+                        })
+                      }
                       className="grid gap-8 items-center px-6 py-2 hover:bg-white/[0.02] rounded-xl transition-colors cursor-pointer text-[13px] group mx-2"
                       style={{ gridTemplateColumns: gridCols }}
                     >
@@ -420,7 +427,12 @@ export default function ListViewRenderer({
                           className={`flex items-center gap-1.5 text-[12px] text-[#8a8f98] px-2 py-1 -ml-2 rounded-full transition-colors ${canManageProjects ? "cursor-pointer hover:bg-white/[0.04]" : "cursor-default"}`}
                           onClick={(e) => {
                             e.stopPropagation();
-                            navigate(`/projects/${project.id}?tab=issues`);
+                            navigate(`/projects/${project.id}?tab=issues`, {
+                              state: {
+                                loadingTitle:
+                                  project.name || project.title || "Project Issues",
+                              },
+                            });
                           }}
                         >
                           <CheckCircle2 size={12} className="opacity-60" />

@@ -7,6 +7,7 @@ import { Plus, Settings2, X } from "lucide-react";
 import CreateProjectModal from "../components/CreateProjectModal";
 import ConfirmModal from "../components/ConfirmModal";
 import { ErrorBoundary } from "../components/ErrorBoundary";
+import PageLoading from "../components/PageLoading";
 
 import ListViewRenderer from "../components/projects/ListViewRenderer";
 import BoardViewRenderer from "../components/projects/BoardViewRenderer";
@@ -219,14 +220,7 @@ export default function Projects() {
   ]);
 
   if (loading) {
-    return (
-      <div className="w-full h-full flex items-center justify-center text-[#8a8f98]">
-        <div className="flex items-center gap-3">
-          <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-          <span className="text-sm font-medium">Loading KRIRI Projects...</span>
-        </div>
-      </div>
-    );
+    return <PageLoading label="Projects" />;
   }
 
   const activeView = viewConfig.activeView || "list";

@@ -845,7 +845,14 @@ export default function BoardViewRenderer({
                                           : [...prev, project.id],
                                       );
                                     } else {
-                                      navigate(`/projects/${project.id}`);
+                                      navigate(`/projects/${project.id}`, {
+                                        state: {
+                                          loadingTitle:
+                                            project.name ||
+                                            project.title ||
+                                            "Project Details",
+                                        },
+                                      });
                                     }
                                   }}
                                   onDeleteProject={onDeleteProject}

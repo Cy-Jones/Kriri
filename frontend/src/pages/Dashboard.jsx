@@ -14,6 +14,7 @@ import { Drawer, Basket } from "@lucasmarkes/hairline/react";
 import CreateProjectModal from "../components/CreateProjectModal";
 import { api } from "../lib/api";
 import posthog from "../lib/posthog";
+import PageLoading from "../components/PageLoading";
 
 // Arc Components
 import { Button } from "../registry/components/button/button";
@@ -85,7 +86,7 @@ export default function Dashboard() {
   }, []);
 
   if (loading) {
-    return <div className="p-8 text-text-muted">Loading dashboard...</div>;
+    return <PageLoading label="Dashboard" />;
   }
 
   const hasData = summary && summary.activeProjectCount > 0;
@@ -93,8 +94,8 @@ export default function Dashboard() {
   if (!hasData) {
     return (
       <div className="flex flex-col h-full relative">
-        <div className="flex flex-col items-center justify-center flex-1 max-w-sm mx-auto text-center gap-6 mt-10 animate-in fade-in zoom-in-95 duration-500">
-          <div className="w-80 h-80 flex items-center justify-center relative overflow-visible">
+        <div className="flex flex-col items-center justify-center flex-1 max-w-sm mx-auto text-center gap-6 mt-6 sm:mt-10 animate-in fade-in zoom-in-95 duration-500">
+          <div className="w-64 h-64 sm:w-80 sm:h-80 flex items-center justify-center relative overflow-visible">
             <Drawer
               theme="dark"
               intensity={0.7}
@@ -150,14 +151,14 @@ export default function Dashboard() {
 
   return (
     <div className="flex flex-col h-full relative">
-      <div className="flex flex-col gap-10 max-w-5xl mx-auto w-full pb-20 animate-in fade-in duration-500">
+      <div className="flex flex-col gap-6 sm:gap-8 lg:gap-10 max-w-5xl mx-auto w-full pb-16 sm:pb-20 animate-in fade-in duration-500">
         {/* Header Section */}
-        <div className="flex items-center justify-between mt-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 mt-1 sm:mt-4">
           <div className="flex flex-col gap-1">
-            <span className="text-[15px] font-medium text-text-muted">
+            <span className="text-[13px] sm:text-[15px] font-medium text-text-muted">
               {dateString}
             </span>
-            <h1 className="text-3xl font-semibold text-white tracking-tight">
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-semibold text-white tracking-tight">
               {greeting}, {userName || "User"}
             </h1>
           </div>
@@ -175,7 +176,7 @@ export default function Dashboard() {
         </div>
 
         {/* Stats Overview */}
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3.5 lg:gap-4">
           {[
             {
               label: "Tasks Due Today",
@@ -204,16 +205,16 @@ export default function Dashboard() {
           ].map((stat, i) => (
             <div
               key={i}
-              className="p-4 rounded-xl border border-white/[0.06] bg-white/[0.01] hover:bg-white/[0.02] transition-colors group flex flex-col gap-2"
+              className="p-3.5 sm:p-4 rounded-xl border border-white/[0.06] bg-white/[0.01] hover:bg-white/[0.02] transition-colors group flex flex-col justify-between gap-1.5 sm:gap-2"
             >
-              <span className="text-[13px] font-medium text-text-muted">
+              <span className="text-[12px] sm:text-[13px] font-medium text-text-muted truncate">
                 {stat.label}
               </span>
-              <div className="flex items-end justify-between mt-1">
-                <div className="text-3xl font-semibold text-white">
+              <div className="flex items-baseline justify-between mt-0.5 sm:mt-1 gap-2">
+                <div className="text-2xl sm:text-3xl font-semibold text-white">
                   <AnimatedCounter value={stat.value} />
                 </div>
-                <span className={`text-[12px] font-medium ${stat.tone}`}>
+                <span className={`text-[11px] sm:text-[12px] font-medium whitespace-nowrap ${stat.tone}`}>
                   {stat.change}
                 </span>
               </div>
@@ -222,9 +223,9 @@ export default function Dashboard() {
         </div>
 
         {/* Active Projects */}
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-3.5 sm:gap-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-[13px] font-medium text-text-muted flex items-center gap-2 uppercase tracking-wider">
+            <h3 className="text-[12px] sm:text-[13px] font-medium text-text-muted flex items-center gap-2 uppercase tracking-wider">
               Recent Projects
             </h3>
             <Button
@@ -236,20 +237,20 @@ export default function Dashboard() {
             </Button>
           </div>
           {summary.recentProjects && summary.recentProjects.length > 0 ? (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
               {summary.recentProjects.map((project) => (
                 <div
                   key={project.id}
                   onClick={() => navigate(`/projects/${project.id}`)}
-                  className="p-5 rounded-xl border border-white/[0.06] bg-white/[0.01] hover:bg-white/[0.03] transition-colors cursor-pointer group flex flex-col justify-between min-h-[120px]"
+                  className="p-4 sm:p-5 rounded-xl border border-white/[0.06] bg-white/[0.01] hover:bg-white/[0.03] transition-colors cursor-pointer group flex flex-col justify-between min-h-[110px] sm:min-h-[120px]"
                 >
-                  <div className="flex items-start justify-between">
-                    <span className="font-semibold text-white group-hover:text-accent transition-colors line-clamp-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="font-semibold text-white group-hover:text-accent transition-colors line-clamp-2 text-[13px] sm:text-sm">
                       {project.name}
                     </span>
                   </div>
-                  <div className="flex items-center justify-between mt-4">
-                    <span className="text-xs text-text-muted font-mono">
+                  <div className="flex items-center justify-between mt-3 sm:mt-4 gap-2">
+                    <span className="text-xs text-text-muted font-mono truncate">
                       {project.slug}
                     </span>
                     <Badge
@@ -257,7 +258,7 @@ export default function Dashboard() {
                       tone={
                         project.status === "In Progress" ? "warning" : "neutral"
                       }
-                      className="text-[10px] px-1.5 py-0"
+                      className="text-[10px] px-1.5 py-0 shrink-0"
                     >
                       {project.status || "Planned"}
                     </Badge>
@@ -266,13 +267,13 @@ export default function Dashboard() {
               ))}
             </div>
           ) : (
-            <div className="p-6 rounded-xl border border-white/[0.06] bg-white/[0.02] flex items-center justify-between">
+            <div className="p-5 sm:p-6 rounded-xl border border-white/[0.06] bg-white/[0.02] flex items-center justify-between gap-4">
               <div className="flex flex-col gap-1">
-                <span className="text-white font-medium">
+                <span className="text-white font-medium text-sm sm:text-base">
                   You have {summary.activeProjectCount} active project
                   {summary.activeProjectCount !== 1 && "s"}
                 </span>
-                <span className="text-text-muted text-sm">
+                <span className="text-text-muted text-xs sm:text-sm">
                   Navigate to the projects page to view their progress and
                   milestones.
                 </span>
@@ -285,9 +286,9 @@ export default function Dashboard() {
         </div>
 
         {/* My Priorities (Tasks) */}
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-3.5 sm:gap-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-[13px] font-medium text-text-muted flex items-center gap-2 uppercase tracking-wider">
+            <h3 className="text-[12px] sm:text-[13px] font-medium text-text-muted flex items-center gap-2 uppercase tracking-wider">
               My Priorities
             </h3>
             <Button
@@ -305,28 +306,33 @@ export default function Dashboard() {
                 <div
                   key={i}
                   onClick={() => navigate("/tasks")}
-                  className="flex items-center justify-between p-3 px-4 border-b border-white/[0.04] last:border-0 hover:bg-white/[0.03] transition-colors group cursor-pointer"
+                  className="flex items-center justify-between gap-3 p-3 px-3.5 sm:px-4 border-b border-white/[0.04] last:border-0 hover:bg-white/[0.03] transition-colors group cursor-pointer"
                 >
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2 sm:gap-3.5 min-w-0 flex-1">
                     <Badge
                       variant="outline"
                       tone={
                         task.status === "In Progress" ? "warning" : "neutral"
                       }
-                      className="w-24 justify-center truncate"
+                      className="hidden md:inline-flex w-24 justify-center truncate shrink-0"
                     >
                       {task.status}
                     </Badge>
 
-                    <span className="text-[12px] font-mono text-text-muted w-16 truncate">
-                      {task.project_slug}-{task.id}
+                    <span className="text-[11px] sm:text-[12px] font-mono text-text-muted shrink-0">
+                      {task.project_slug ? `${task.project_slug}-${task.id}` : `#${task.id}`}
                     </span>
-                    <span className="text-[13.5px] text-white font-medium group-hover:text-white transition-colors line-clamp-1">
+                    <span className="text-[13px] sm:text-[13.5px] text-white font-medium group-hover:text-white transition-colors truncate">
                       {task.title}
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-4 min-w-[120px] justify-end">
+                  <div className="flex items-center gap-2 sm:gap-3 shrink-0 justify-end">
+                    {task.due_date && (
+                      <span className="text-[11px] text-text-muted hidden lg:inline-block">
+                        {new Date(task.due_date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                      </span>
+                    )}
                     <Badge
                       tone={
                         task.priority === "High"
@@ -336,6 +342,7 @@ export default function Dashboard() {
                             : "neutral"
                       }
                       variant="soft"
+                      className="shrink-0 text-[11px]"
                     >
                       {task.priority}
                     </Badge>
@@ -343,15 +350,15 @@ export default function Dashboard() {
                 </div>
               ))
             ) : (
-              <div className="flex flex-col items-center justify-center p-8 gap-4 flex-1">
-                <div className="w-32 h-32 relative">
+              <div className="flex flex-col items-center justify-center p-8 gap-3 sm:gap-4 flex-1">
+                <div className="w-24 h-24 sm:w-32 sm:h-32 relative">
                   <Basket
                     theme="dark"
                     intensity={0.7}
                     className="w-full h-full text-text-muted opacity-70"
                   />
                 </div>
-                <div className="text-center text-text-muted text-sm">
+                <div className="text-center text-text-muted text-xs sm:text-sm">
                   No active tasks assigned to you right now.
                 </div>
               </div>

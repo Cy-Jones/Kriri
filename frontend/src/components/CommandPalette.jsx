@@ -1,200 +1,271 @@
-import { useEffect, useState } from "react";
-import { Command } from "cmdk";
+import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
+import { AnimatePresence, motion } from "motion/react";
 import {
   LayoutGrid,
   KanbanSquare,
-  CheckSquare,
+  CheckCircle2,
+  Folder,
   Settings,
   LogOut,
   Plus,
-  Search,
-  Folder,
-  CheckCircle2,
+  HelpCircle,
 } from "lucide-react";
 import { useClerk, useOrganization } from "@clerk/clerk-react";
 import { api } from "../lib/api";
+import { CommandPalette as ArcCommandPalette } from "@/registry/components/command-palette/command-palette";
+import { matchesShortcut } from "@/registry/components/shortcut-recorder/shortcut-recorder";
+import { getPlatformPreference, getCustomShortcuts } from "../lib/shortcutsConfig";
 
-export default function CommandPalette({ openCreateTask }) {
+export default function CommandPalette({ openCreateTask, openHelp }) {
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const navigate = useNavigate();
   const { signOut } = useClerk();
   const { organization } = useOrganization();
   const [projects, setProjects] = useState([]);
   const [tasks, setTasks] = useState([]);
-  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const down = (e) => {
-      if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
+    setMounted(true);
+  }, []);
+
+  // Keyboard shortcut (Cmd/Ctrl + K or customized) & custom event listener
+  useEffect(() => {
+    const onKey = (e) => {
+      const platform = getPlatformPreference();
+      const shortcuts = getCustomShortcuts();
+      const customOpen = shortcuts.openCommandMenu;
+
+      if (
+        (customOpen && matchesShortcut(e, customOpen, platform)) ||
+        ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k")
+      ) {
         e.preventDefault();
-        setOpen((open) => !open);
+        setOpen((prev) => !prev);
+        return;
+      }
+      if (e.key === "Escape" && open) {
+        e.preventDefault();
+        setOpen(false);
       }
     };
     const handleCustomOpen = () => setOpen(true);
 
-    document.addEventListener("keydown", down);
+    window.addEventListener("keydown", onKey);
     window.addEventListener("open-command-palette", handleCustomOpen);
     return () => {
-      document.removeEventListener("keydown", down);
+      window.removeEventListener("keydown", onKey);
       window.removeEventListener("open-command-palette", handleCustomOpen);
     };
-  }, []);
+  }, [open]);
 
+  // Prevent background scrolling while open
+  useEffect(() => {
+    if (!open) return;
+    const root = document.documentElement;
+    const prevRootOverflow = root.style.overflow;
+    const prevBodyOverflow = document.body.style.overflow;
+    root.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";
+    return () => {
+      root.style.overflow = prevRootOverflow;
+      document.body.style.overflow = prevBodyOverflow;
+    };
+  }, [open]);
+
+  // Fetch dynamic projects and tasks when palette opens
   useEffect(() => {
     if (open && organization?.id) {
       const fetchData = async () => {
-        setLoading(true);
         try {
           const [projRes, tasksRes] = await Promise.all([
-            api.get("/projects"),
-            api.get("/tasks"),
+            api.get("/projects").catch(() => ({ data: { projects: [] } })),
+            api.get("/tasks").catch(() => ({ data: { tasks: [] } })),
           ]);
-          setProjects(projRes.data.projects || []);
-          setTasks(tasksRes.data.tasks || []);
+          setProjects(projRes.data?.projects || []);
+          setTasks(tasksRes.data?.tasks || []);
         } catch (err) {
-          console.error("Failed to load search data", err);
-        } finally {
-          setLoading(false);
+          console.error("Failed to load command palette data", err);
         }
       };
       fetchData();
     }
   }, [open, organization?.id]);
 
-  const runCommand = (command) => {
-    setOpen(false);
-    command();
-  };
+  const items = useMemo(() => {
+    const list = [
+      // Actions
+      {
+        id: "action-create-issue",
+        label: "Create Issue",
+        description: "Create a new task or issue",
+        group: "Actions",
+        icon: <Plus className="w-4 h-4 text-foreground" />,
+        shortcut: "C",
+        keywords: ["create", "task", "issue", "new"],
+        onSelect: () => {
+          setOpen(false);
+          openCreateTask?.();
+        },
+      },
+      {
+        id: "action-shortcuts",
+        label: "Keyboard Shortcuts",
+        description: "View all keyboard shortcuts and commands",
+        group: "Actions",
+        icon: <HelpCircle className="w-4 h-4 text-foreground" />,
+        shortcut: "?",
+        keywords: ["shortcuts", "help", "keyboard", "hotkeys"],
+        onSelect: () => {
+          setOpen(false);
+          openHelp?.();
+        },
+      },
+      // Navigation
+      {
+        id: "nav-dashboard",
+        label: "Go to Dashboard",
+        description: "Workspace overview and metrics",
+        group: "Navigation",
+        icon: <LayoutGrid className="w-4 h-4 text-foreground" />,
+        shortcut: "G D",
+        keywords: ["home", "overview", "dashboard"],
+        onSelect: () => {
+          setOpen(false);
+          navigate("/dashboard", { state: { loadingTitle: "Dashboard" } });
+        },
+      },
+      {
+        id: "nav-board",
+        label: "Go to Board",
+        description: "Kanban board with status columns",
+        group: "Navigation",
+        icon: <KanbanSquare className="w-4 h-4 text-foreground" />,
+        shortcut: "G B",
+        keywords: ["kanban", "board", "tasks", "issues"],
+        onSelect: () => {
+          setOpen(false);
+          navigate("/kanban", { state: { loadingTitle: "Board" } });
+        },
+      },
+      {
+        id: "nav-projects",
+        label: "Go to Projects",
+        description: "All projects and repositories",
+        group: "Navigation",
+        icon: <Folder className="w-4 h-4 text-foreground" />,
+        shortcut: "G P",
+        keywords: ["projects", "repos", "workspaces"],
+        onSelect: () => {
+          setOpen(false);
+          navigate("/projects", { state: { loadingTitle: "Projects" } });
+        },
+      },
+      {
+        id: "nav-settings",
+        label: "Go to Settings",
+        description: "Workspace configuration and preferences",
+        group: "Navigation",
+        icon: <Settings className="w-4 h-4 text-foreground" />,
+        shortcut: "G S",
+        keywords: ["settings", "preferences", "account"],
+        onSelect: () => {
+          setOpen(false);
+          navigate("/settings", { state: { loadingTitle: "Settings" } });
+        },
+      },
+      {
+        id: "action-logout",
+        label: "Log Out",
+        description: "Sign out of your session",
+        group: "Actions",
+        icon: <LogOut className="w-4 h-4 text-rose-500" />,
+        keywords: ["logout", "signout", "exit"],
+        onSelect: () => {
+          setOpen(false);
+          signOut(() => navigate("/"));
+        },
+      },
+    ];
 
-  return (
-    <Command.Dialog
-      open={open}
-      onOpenChange={setOpen}
-      label="Global Command Menu"
-      className="fixed inset-0 z-[100] flex items-start justify-center pt-[15vh] sm:pt-[20vh] bg-black/50 backdrop-blur-sm"
-    >
-      <Command
-        className="w-full max-w-[500px] bg-[#1a1b1e] text-white border border-white/10 rounded-xl shadow-2xl overflow-hidden flex flex-col"
-        filter={(value, search) => {
-          if (value.toLowerCase().includes(search.toLowerCase())) return 1;
-          return 0;
-        }}
-      >
-        <div className="flex items-center border-b border-white/10 px-3">
-          <Search className="w-5 h-5 text-text-muted shrink-0 mr-2" />
-          <Command.Input
-            placeholder="Type a command or search..."
-            className="w-full bg-transparent border-none outline-none text-[15px] h-12 text-white placeholder-text-muted focus:ring-0 p-0"
+    // Dynamic Projects
+    if (projects.length > 0) {
+      projects.forEach((p) => {
+        list.push({
+          id: `proj-${p.id}`,
+          label: p.name,
+          description: p.slug ? `/${p.slug}` : undefined,
+          group: "Projects",
+          icon: <Folder className="w-4 h-4 text-foreground" />,
+          keywords: [p.name, p.slug || "", "project"],
+          onSelect: () => {
+            setOpen(false);
+            navigate(`/projects/${p.id}`, {
+              state: { loadingTitle: p.name },
+            });
+          },
+        });
+      });
+    }
+
+    // Dynamic Issues
+    if (tasks.length > 0) {
+      tasks.forEach((t) => {
+        list.push({
+          id: `task-${t.id}`,
+          label: t.title,
+          description: t.status ? t.status.replace("_", " ") : "Issue",
+          group: "Issues",
+          icon: <CheckCircle2 className="w-4 h-4 text-foreground" />,
+          keywords: [t.title, t.status || "", t.priority || "", "task", "issue"],
+          onSelect: () => {
+            setOpen(false);
+            navigate("/kanban", { state: { loadingTitle: "Board" } });
+          },
+        });
+      });
+    }
+
+    return list;
+  }, [projects, tasks, navigate, openCreateTask, signOut]);
+
+  if (!mounted) return null;
+
+  return createPortal(
+    <AnimatePresence>
+      {open ? (
+        <div className="fixed inset-0 z-[100] flex items-start justify-center">
+          {/* Glass Scrim Backdrop */}
+          <motion.div
+            key="backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            onClick={() => setOpen(false)}
+            className="fixed inset-0 bg-black/60 [backdrop-filter:blur(12px)_saturate(140%)] [-webkit-backdrop-filter:blur(12px)_saturate(140%)]"
           />
+
+          {/* Modal Panel Layer */}
+          <div className="fixed inset-x-4 bottom-4 top-[14vh] sm:top-[18vh] z-[101] flex items-start justify-center pointer-events-none">
+            <div className="w-full max-w-xl pointer-events-auto">
+              <ArcCommandPalette
+                items={items}
+                placeholder="Type a command or search…"
+                onSelect={(item) => {
+                  item.onSelect?.();
+                  setOpen(false);
+                }}
+                onClose={() => setOpen(false)}
+                autoFocus
+              />
+            </div>
+          </div>
         </div>
-        <Command.List className="max-h-[300px] overflow-y-auto p-2">
-          <Command.Empty className="py-6 text-center text-[13px] text-text-muted">
-            {loading ? "Loading..." : "No results found."}
-          </Command.Empty>
-
-          {projects.length > 0 && (
-            <Command.Group
-              heading="Projects"
-              className="text-[11px] font-medium text-text-muted px-2 py-1.5 [&_[cmdk-group-items]]:flex [&_[cmdk-group-items]]:flex-col [&_[cmdk-group-items]]:gap-1"
-            >
-              {projects.map((p) => (
-                <Command.Item
-                  key={`proj-${p.id}`}
-                  value={`Project ${p.name} ${p.slug}`}
-                  onSelect={() =>
-                    runCommand(() => navigate(`/projects/${p.id}`))
-                  }
-                  className="flex items-center gap-2 px-2 py-2 text-[13px] text-white rounded-md cursor-pointer hover:bg-white/10 data-[selected=true]:bg-white/10 outline-none"
-                >
-                  <Folder size={14} className="text-text-muted" />
-                  <span className="truncate">{p.name}</span>
-                  <span className="text-[11px] text-text-muted ml-auto">
-                    {p.slug}
-                  </span>
-                </Command.Item>
-              ))}
-            </Command.Group>
-          )}
-
-          {tasks.length > 0 && (
-            <Command.Group
-              heading="Issues"
-              className="text-[11px] font-medium text-text-muted px-2 py-1.5 mt-2 [&_[cmdk-group-items]]:flex [&_[cmdk-group-items]]:flex-col [&_[cmdk-group-items]]:gap-1"
-            >
-              {tasks.map((t) => (
-                <Command.Item
-                  key={`task-${t.id}`}
-                  value={`Issue ${t.title}`}
-                  onSelect={() =>
-                    runCommand(() => {
-                      // For now navigate to kanban since we don't have a direct issue page yet
-                      // But if TaskDetailsModal takes URL params later, we can route there.
-                      navigate("/kanban");
-                    })
-                  }
-                  className="flex items-center gap-2 px-2 py-2 text-[13px] text-white rounded-md cursor-pointer hover:bg-white/10 data-[selected=true]:bg-white/10 outline-none"
-                >
-                  <CheckCircle2 size={14} className="text-text-muted" />
-                  <span className="truncate">{t.title}</span>
-                </Command.Item>
-              ))}
-            </Command.Group>
-          )}
-
-          <Command.Group
-            heading="Navigation"
-            className="text-[11px] font-medium text-text-muted px-2 py-1.5 mt-2 [&_[cmdk-group-items]]:flex [&_[cmdk-group-items]]:flex-col [&_[cmdk-group-items]]:gap-1"
-          >
-            <Command.Item
-              value="Go to Dashboard"
-              onSelect={() => runCommand(() => navigate("/dashboard"))}
-              className="flex items-center gap-2 px-2 py-2 text-[13px] text-white rounded-md cursor-pointer hover:bg-white/10 data-[selected=true]:bg-white/10 outline-none"
-            >
-              <LayoutGrid size={16} className="text-text-muted" />
-              Go to Dashboard
-            </Command.Item>
-            <Command.Item
-              value="Go to Board kanban"
-              onSelect={() => runCommand(() => navigate("/kanban"))}
-              className="flex items-center gap-2 px-2 py-2 text-[13px] text-white rounded-md cursor-pointer hover:bg-white/10 data-[selected=true]:bg-white/10 outline-none"
-            >
-              <KanbanSquare size={16} className="text-text-muted" />
-              Go to Board
-            </Command.Item>
-            <Command.Item
-              value="Go to Settings"
-              onSelect={() => runCommand(() => navigate("/settings"))}
-              className="flex items-center gap-2 px-2 py-2 text-[13px] text-white rounded-md cursor-pointer hover:bg-white/10 data-[selected=true]:bg-white/10 outline-none"
-            >
-              <Settings size={16} className="text-text-muted" />
-              Go to Settings
-            </Command.Item>
-          </Command.Group>
-
-          <Command.Group
-            heading="Actions"
-            className="text-[11px] font-medium text-text-muted px-2 py-1.5 mt-2 [&_[cmdk-group-items]]:flex [&_[cmdk-group-items]]:flex-col [&_[cmdk-group-items]]:gap-1"
-          >
-            <Command.Item
-              value="Create Issue Task"
-              onSelect={() => runCommand(() => openCreateTask())}
-              className="flex items-center gap-2 px-2 py-2 text-[13px] text-white rounded-md cursor-pointer hover:bg-white/10 data-[selected=true]:bg-white/10 outline-none"
-            >
-              <Plus size={16} className="text-text-muted" />
-              Create Issue
-            </Command.Item>
-            <Command.Item
-              value="Log Out signout"
-              onSelect={() => runCommand(() => signOut(() => navigate("/")))}
-              className="flex items-center gap-2 px-2 py-2 text-[13px] text-danger rounded-md cursor-pointer hover:bg-danger/10 data-[selected=true]:bg-danger/10 outline-none"
-            >
-              <LogOut size={16} className="text-danger opacity-80" />
-              Log Out
-            </Command.Item>
-          </Command.Group>
-        </Command.List>
-      </Command>
-    </Command.Dialog>
+      ) : null}
+    </AnimatePresence>,
+    document.body,
   );
 }

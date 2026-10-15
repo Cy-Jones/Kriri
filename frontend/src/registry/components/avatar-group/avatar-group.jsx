@@ -89,7 +89,7 @@ export function AvatarGroup({
                   className={styles.avatar}
                   name={member.name}
                   src={member.src}
-                  status={member.status}
+                  status={member.status === "online" ? "online" : undefined}
                   size={size}
                 />
               </span>

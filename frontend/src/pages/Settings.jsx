@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useOrganization, UserProfile } from "@clerk/clerk-react";
 import { api } from "../lib/api";
+import PageLoading from "../components/PageLoading";
 
 export default function Settings() {
   const [activeTab, setActiveTab] = useState("General");
@@ -39,6 +40,10 @@ export default function Settings() {
     }
   };
 
+  if (!isLoaded) {
+    return <PageLoading label="Settings" />;
+  }
+
   return (
     <div className="w-full flex flex-col h-full animate-in fade-in duration-300">
       <div className="flex items-center justify-between mb-8">
@@ -52,14 +57,14 @@ export default function Settings() {
         </div>
       </div>
 
-      <div className="flex gap-10">
+      <div className="flex flex-col sm:flex-row gap-6 sm:gap-10">
         {/* Sidebar Nav */}
-        <div className="w-48 flex flex-col gap-1">
+        <div className="w-full sm:w-48 flex flex-row sm:flex-col gap-1 border-b sm:border-b-0 pb-3 sm:pb-0 border-white/[0.06]">
           {tabs.map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`text-left px-3 py-2 rounded-md text-[13px] font-medium transition-colors ${
+              className={`text-center sm:text-left px-3 py-1.5 sm:py-2 rounded-md text-[13px] font-medium transition-colors flex-1 sm:flex-initial ${
                 activeTab === tab
                   ? "bg-white/[0.06] text-white"
                   : "text-text-secondary hover:text-white hover:bg-white/[0.02]"

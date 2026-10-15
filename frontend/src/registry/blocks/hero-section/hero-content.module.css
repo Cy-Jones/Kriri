@@ -51,6 +51,7 @@
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
+  align-items: center;
   gap: var(--space-3);
   margin-top: var(--space-3);
 }
@@ -173,7 +174,7 @@
 }
 @container hero (max-width: 560px) {
   .inner {
-    padding: var(--space-16) var(--space-4);
+    padding: 3rem var(--space-4) 2.25rem;
   }
   .actions {
     width: 100%;

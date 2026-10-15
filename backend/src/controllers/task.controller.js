@@ -81,7 +81,7 @@ exports.createTask = async (req, res) => {
             [
               req.workspace.id,
               clerkUserId,
-              req.auth?.userId,
+              req.auth?.userId || req.user?.clerk_user_id,
               "task_assigned",
               "New Issue Assigned",
               `${req.user.name} assigned issue "${title}" to you.`,
@@ -138,27 +138,35 @@ exports.updateTask = async (req, res) => {
 
     const { rows } = await db.query(
       `UPDATE tasks t 
-       SET status = COALESCE($1, status), 
-           title = COALESCE($2, title), 
-           priority = COALESCE($3, priority), 
-           assignee_id = COALESCE($4, assignee_id), 
-           description = COALESCE($5, description),
-           position = COALESCE($6, position),
-           progress = COALESCE($7, progress),
-           due_date = COALESCE($8, due_date),
-           completed_at = CASE WHEN $1 = 'Done' AND status != 'Done' THEN CURRENT_TIMESTAMP WHEN $1 != 'Done' THEN NULL ELSE completed_at END
+       SET status = CASE WHEN $1::boolean THEN $2 ELSE t.status END, 
+           title = CASE WHEN $3::boolean THEN $4 ELSE t.title END, 
+           priority = CASE WHEN $5::boolean THEN $6 ELSE t.priority END, 
+           assignee_id = CASE WHEN $7::boolean THEN $8 ELSE t.assignee_id END, 
+           description = CASE WHEN $9::boolean THEN $10 ELSE t.description END,
+           position = CASE WHEN $11::boolean THEN $12 ELSE t.position END,
+           progress = CASE WHEN $13::boolean THEN $14 ELSE t.progress END,
+           due_date = CASE WHEN $15::boolean THEN $16 ELSE t.due_date END,
+           completed_at = CASE WHEN $1::boolean AND $2 = 'Done' AND status != 'Done' THEN CURRENT_TIMESTAMP WHEN $1::boolean AND $2 != 'Done' THEN NULL ELSE completed_at END
        FROM projects p
-       WHERE t.id = $9 AND t.project_id = p.id AND p.workspace_id = $10 
+       WHERE t.id = $17 AND t.project_id = p.id AND p.workspace_id = $18 
        RETURNING t.*`,
       [
-        status,
-        title,
-        priority,
-        assignee_id,
-        description,
-        position,
-        progress,
-        due_date,
+        status !== undefined,
+        status || null,
+        title !== undefined,
+        title || null,
+        priority !== undefined,
+        priority || null,
+        assignee_id !== undefined,
+        assignee_id !== undefined ? assignee_id : null,
+        description !== undefined,
+        description !== undefined ? description : null,
+        position !== undefined,
+        position !== undefined ? position : null,
+        progress !== undefined,
+        progress !== undefined ? progress : null,
+        due_date !== undefined,
+        due_date !== undefined ? due_date : null,
         id,
         req.workspace.id,
       ],
@@ -191,7 +199,7 @@ exports.updateTask = async (req, res) => {
               [
                 req.workspace.id,
                 clerkUserId,
-                req.auth?.userId,
+                req.auth?.userId || req.user?.clerk_user_id,
                 "task_assigned",
                 "Issue Reassigned",
                 `${req.user.name} assigned issue "${updatedTask.title}" to you.`,
@@ -227,7 +235,7 @@ exports.updateTask = async (req, res) => {
             [
               req.workspace.id,
               clerkUserId,
-              req.auth?.userId,
+              req.auth?.userId || req.user?.clerk_user_id,
               "task_completed",
               "Issue Completed",
               `${req.user.name} completed the issue "${updatedTask.title}" that you reported.`,

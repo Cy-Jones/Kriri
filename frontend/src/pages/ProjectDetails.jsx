@@ -8,6 +8,7 @@ import {
 import { useUser, useOrganization } from "@clerk/clerk-react";
 import { api } from "../lib/api";
 import posthog from "../lib/posthog";
+import PageLoading from "../components/PageLoading";
 import { useSocket } from "../contexts/SocketContext";
 import StatusPicker, { getStatusIcon } from "../components/StatusPicker";
 import PriorityPicker, { getPriorityIcon } from "../components/PriorityPicker";
@@ -101,7 +102,10 @@ export default function ProjectDetails() {
       .catch((err) => {
         console.error(err);
         if (err?.response?.data?.error === "Project not found") {
-          navigate("/projects");
+          navigate("/404", {
+            state: { from: `/projects/${id}` },
+            replace: true,
+          });
         }
         setLoading(false);
       });
@@ -227,7 +231,14 @@ export default function ProjectDetails() {
     }
   };
 
-  if (loading) return null;
+  if (loading) {
+    return (
+      <PageLoading
+        label={project?.name || project?.title || "Project Details"}
+        description="Fetching project issues, milestones & metadata"
+      />
+    );
+  }
 
   if (!project) {
     return <div className="p-8 text-white">Project not found</div>;
@@ -312,10 +323,10 @@ export default function ProjectDetails() {
               </p>
 
               {/* Quick Properties row */}
-              <div className="flex items-center gap-6 text-[13px] text-[#85868a] font-medium border-b border-[#2a2a2a] pb-6 mb-6">
-                <div className="flex items-center gap-4">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6 text-[13px] text-[#85868a] font-medium border-b border-[#2a2a2a] pb-6 mb-6">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
                   <span className="w-20">Properties</span>
-                  <div className="flex items-center gap-3 text-white">
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-white">
                     <div className="flex items-center gap-1.5 border border-[#333538] bg-white/5 rounded-full px-2 py-0.5">
                       <svg
                         width="12"
@@ -551,9 +562,9 @@ export default function ProjectDetails() {
                   </div>
                 </div>
               ) : (
-                <div className="flex-1 bg-white/[0.01] border border-white/[0.05] rounded-xl overflow-hidden flex flex-col shadow-sm">
+                <div className="flex-1 bg-white/[0.01] border border-white/[0.05] rounded-xl overflow-x-auto flex flex-col shadow-sm">
                   {/* Table Header */}
-                  <div className="grid grid-cols-[80px_minmax(200px,1fr)_120px_100px_100px_80px] gap-4 px-5 py-3 border-b border-white/[0.05] text-xs font-medium text-[#8a8f98] uppercase tracking-wider">
+                  <div className="grid grid-cols-[80px_minmax(200px,1fr)_120px_100px_100px_80px] min-w-[680px] gap-4 px-5 py-3 border-b border-white/[0.05] text-xs font-medium text-[#8a8f98] uppercase tracking-wider">
                     <div>ID</div>
                     <div>Title</div>
                     <div>Status</div>
@@ -563,7 +574,7 @@ export default function ProjectDetails() {
                   </div>
 
                   {/* Table Body */}
-                  <div className="flex-1 overflow-y-auto divide-y divide-white/[0.05] custom-scrollbar">
+                  <div className="flex-1 overflow-y-auto divide-y divide-white/[0.05] custom-scrollbar min-w-[680px]">
                     {tasks.map((task, idx) => (
                       <div
                         key={task.id}

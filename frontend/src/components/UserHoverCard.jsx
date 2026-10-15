@@ -6,8 +6,30 @@ import { Clock, Box } from "lucide-react";
 export default function UserHoverCard({ children, user }) {
   if (!user) return children;
 
+  const isOnline =
+    user.status === "online" ||
+    user.status === "Online" ||
+    user.status === "Active" ||
+    user.isOnline === true;
+  const isAway = user.status === "away" || user.status === "Away";
+
+  const defaultTimeMap = {
+    "Sarah Chen": "9:42 AM",
+    "Alex Vance": "5:18 PM",
+    "Elena Rostova": "2:34 AM",
+    "Dev Patel": "11:05 AM",
+    "David Kim": "4:15 PM",
+  };
+
+  const localTime = user.localTime || defaultTimeMap[user.name] || "10:24 AM";
+  const role =
+    user.role ||
+    (user.name === "Elena Rostova" || user.name === "Sarah Chen"
+      ? "Lead"
+      : "Member");
+
   return (
-    <HoverCard.Root openDelay={300} closeDelay={100}>
+    <HoverCard.Root openDelay={250} closeDelay={100}>
       <HoverCard.Trigger asChild>{children}</HoverCard.Trigger>
       <HoverCard.Portal>
         <HoverCard.Content
@@ -18,14 +40,18 @@ export default function UserHoverCard({ children, user }) {
         >
           <div className="flex justify-between items-start">
             <div className="flex gap-3">
-              <Avatar name={user.name} size="md" />
+              <Avatar
+                name={user.name}
+                size="md"
+                status={isOnline ? "online" : undefined}
+              />
               <div>
                 <div className="flex items-center gap-2">
                   <span className="text-[14px] font-medium text-[#e8e8e8]">
                     {user.name}
                   </span>
                   <span className="text-[10px] text-[#8a8f98] bg-[#2a2b2d] border border-[#3c3f44] px-1.5 py-0.5 rounded">
-                    Lead
+                    {role}
                   </span>
                 </div>
                 <div className="text-[13px] text-[#8a8f98]">
@@ -37,17 +63,29 @@ export default function UserHoverCard({ children, user }) {
 
           <div className="mt-4 space-y-2">
             <div className="flex items-center gap-2 text-[12px] text-[#8a8f98]">
-              <div className="w-1.5 h-1.5 rounded-full bg-[#3fb950] ml-1"></div>
-              <span className="ml-1 text-[#d1d2d5]">Online</span>
-            </div>
-            <div className="flex items-center gap-2 text-[12px] text-[#8a8f98]">
-              <Clock size={14} className="ml-0.5" />
-              <span className="ml-0.5">
-                1:34 AM <span className="opacity-60">local time</span>
+              <div
+                className={`w-1.5 h-1.5 rounded-full ml-1 ${
+                  isOnline
+                    ? "bg-[#3fb950]"
+                    : isAway
+                    ? "bg-[#f59e0b]"
+                    : "bg-[#71717a]"
+                }`}
+              />
+              <span
+                className={`ml-1 ${isOnline ? "text-[#d1d2d5]" : "text-[#8a8f98]"}`}
+              >
+                {isOnline ? "Online" : isAway ? "Away" : "Offline"}
               </span>
             </div>
             <div className="flex items-center gap-2 text-[12px] text-[#8a8f98]">
-              <Box size={14} className="ml-0.5" />
+              <Clock size={14} className="ml-0.5 text-[#8a8f98]" />
+              <span className="ml-0.5 text-[#8a8f98]">
+                {localTime} <span className="opacity-60">local time</span>
+              </span>
+            </div>
+            <div className="flex items-center gap-2 text-[12px] text-[#8a8f98]">
+              <Box size={14} className="ml-0.5 text-[#8a8f98]" />
               <span className="ml-0.5 text-[#e8e8e8]">Kriri Web Platform</span>
             </div>
           </div>

@@ -21,6 +21,19 @@ const standard = [...motionTokens.ease.standard];
 /** A link, a callback, or (with neither) a button that confirms in place, so previews always answer a click. */
 function Action({ action, variant, size = "lg", arrow }) {
   const [confirmed, setConfirmed] = useState(false);
+  if (variant === "primary" && action.href) {
+    return (
+      <a
+        className="group relative inline-flex items-center justify-center gap-2.5 h-[48px] px-6 rounded-full bg-white text-black font-medium text-sm sm:text-base hover:bg-zinc-100 transition-all duration-300 shadow-[0_0_28px_rgba(255,255,255,0.18)] active:scale-[0.98]"
+        href={action.href}
+      >
+        <span>{action.label}</span>
+        <span className="w-6 h-6 rounded-full bg-black/10 flex items-center justify-center transition-transform duration-300 group-hover:translate-x-0.5">
+          <ArrowRight size={13} strokeWidth={2.5} className="text-black" />
+        </span>
+      </a>
+    );
+  }
   if (action.href) {
     return (
       <a

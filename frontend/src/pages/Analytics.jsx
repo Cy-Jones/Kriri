@@ -13,6 +13,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { Plot as Chart } from "@lucasmarkes/hairline/react";
+import PageLoading from "../components/PageLoading";
 
 export default function Analytics() {
   const [data, setData] = useState(null);
@@ -37,13 +38,13 @@ export default function Analytics() {
   }, [organization?.id, isLoaded]);
 
   if (loading) {
-    return <div className="p-8 text-text-muted">Loading analytics...</div>;
+    return <PageLoading label="Analytics" />;
   }
 
   if (!data) {
     return (
       <div className="flex flex-col h-full w-full min-w-0 min-h-0 animate-in fade-in duration-300">
-        <div className="flex items-center justify-between mb-6 flex-shrink-0 px-8 pt-6">
+        <div className="flex items-center justify-between mb-6 flex-shrink-0">
           <h1 className="text-xl font-semibold text-white tracking-tight">
             Analytics
           </h1>
@@ -73,46 +74,46 @@ export default function Analytics() {
 
   return (
     <div className="flex flex-col h-full w-full min-w-0 min-h-0 animate-in fade-in duration-300">
-      {/* Header - Full Width */}
-      <div className="flex items-center justify-between mb-6 flex-shrink-0 px-8 pt-6">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6 flex-shrink-0">
         <h1 className="text-xl font-semibold text-white tracking-tight">
           Analytics
         </h1>
       </div>
 
-      {/* Content - Centered */}
-      <div className="flex-1 overflow-y-auto w-full px-8">
-        <div className="flex flex-col gap-10 max-w-5xl mx-auto w-full pb-20">
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto w-full">
+        <div className="flex flex-col gap-8 sm:gap-10 max-w-5xl mx-auto w-full pb-20">
           {/* Stats Overview */}
-          <div className="grid grid-cols-3 gap-4">
-            <div className="p-5 rounded-xl border border-border bg-surface-elevated/50 flex flex-col gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+            <div className="p-4 sm:p-5 rounded-xl border border-border bg-surface-elevated/50 flex flex-col gap-2 sm:gap-3">
               <div className="flex items-center justify-between text-text-secondary">
                 <span className="text-[13px] font-medium">Issues Closed</span>
               </div>
               <div className="flex items-baseline gap-2">
-                <span className="text-3xl font-semibold text-white">
+                <span className="text-2xl sm:text-3xl font-semibold text-white">
                   {data.stats.completedIssues}
                 </span>
               </div>
             </div>
 
-            <div className="p-5 rounded-xl border border-border bg-surface-elevated/50 flex flex-col gap-3">
+            <div className="p-4 sm:p-5 rounded-xl border border-border bg-surface-elevated/50 flex flex-col gap-2 sm:gap-3">
               <div className="flex items-center justify-between text-text-secondary">
                 <span className="text-[13px] font-medium">Active Issues</span>
               </div>
               <div className="flex items-baseline gap-2">
-                <span className="text-3xl font-semibold text-white">
+                <span className="text-2xl sm:text-3xl font-semibold text-white">
                   {data.stats.activeIssues}
                 </span>
               </div>
             </div>
 
-            <div className="p-5 rounded-xl border border-border bg-surface-elevated/50 flex flex-col gap-3">
+            <div className="p-4 sm:p-5 rounded-xl border border-border bg-surface-elevated/50 flex flex-col gap-2 sm:gap-3">
               <div className="flex items-center justify-between text-text-secondary">
                 <span className="text-[13px] font-medium">Completion Rate</span>
               </div>
               <div className="flex items-baseline gap-2">
-                <span className="text-3xl font-semibold text-white">
+                <span className="text-2xl sm:text-3xl font-semibold text-white">
                   {data.stats.completionRate}%
                 </span>
               </div>
@@ -120,7 +121,7 @@ export default function Analytics() {
           </div>
 
           {/* Charts Section */}
-          <div className="grid grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Trend Chart */}
             <div className="flex flex-col gap-4">
               <h2 className="text-[15px] font-medium text-white">

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
 import { Input } from "../registry/components/input/input";
 import { Button } from "../registry/components/button/button";
@@ -82,14 +82,18 @@ export default function Onboarding() {
       {/* Top Navigation */}
       <nav className="absolute top-0 left-0 w-full flex justify-between items-center px-6 md:px-10 h-24 z-10">
         <div className="flex items-center gap-8">
-          <div className="flex items-center gap-2">
+          <Link
+            to="/"
+            className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+            title="Kriri Home"
+          >
             <div className="w-6 h-6 bg-white rounded-md flex items-center justify-center shadow-sm">
               <div className="w-2.5 h-2.5 bg-[#080808] rounded-[2px]" />
             </div>
             <span className="font-semibold tracking-tight text-[15px]">
               Kriri
             </span>
-          </div>
+          </Link>
 
           {/* Back button integrated into nav */}
           {step > 1 && (

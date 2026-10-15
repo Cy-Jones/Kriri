@@ -8,6 +8,9 @@
   color: var(--foreground);
   font-family: var(--font-body);
   letter-spacing: var(--tracking-body);
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
   transition:
     background-color var(--duration-standard) var(--ease-standard),
     border-color var(--duration-standard) var(--ease-standard),
@@ -18,9 +21,17 @@
   top: 0;
 }
 .header[data-scrolled] {
-  border-bottom-color: var(--border);
-  background: var(--background);
-  box-shadow: var(--shadow-resting);
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.5);
+}
+:root[data-theme="light"] .header[data-scrolled],
+:root:not([data-theme="dark"]) .header[data-scrolled] {
+  border-bottom-color: rgba(0, 0, 0, 0.08);
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
 }
 
 .inner {
@@ -66,7 +77,7 @@
 
 .nav {
   min-width: 0;
-  margin-left: var(--space-4);
+  margin-left: auto;
 }
 .header[data-variant="centered"] .nav {
   margin: 0;
@@ -165,7 +176,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  margin-left: auto;
+  margin-left: var(--space-3);
 }
 .header[data-variant="centered"] .actions {
   justify-self: end;
@@ -478,13 +489,44 @@
   .inner {
     padding: 0 var(--space-4);
   }
+  .bar {
+    height: 52px;
+  }
+  .actions {
+    gap: 8px;
+    margin-left: auto;
+  }
+  .actions .action {
+    height: 32px;
+    font-size: 13px;
+    font-weight: 500;
+  }
+  .actions .primary {
+    border-radius: 9999px;
+    padding: 0 14px;
+    background: #e6e6e6;
+    color: #000000;
+    border-color: transparent;
+  }
+  .actions .secondary {
+    padding: 0 6px;
+    color: #8a8f98;
+    background: transparent;
+    border-color: transparent;
+  }
+  .actions .secondary:active {
+    color: #ffffff;
+  }
+  .menuButton {
+    display: grid;
+    width: 32px;
+    height: 32px;
+    margin-left: 2px;
+  }
   .nav,
   .wideOnly,
   .panel {
     display: none;
-  }
-  .menuButton {
-    display: grid;
   }
   .header[data-variant="centered"] .bar {
     display: flex;

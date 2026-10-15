@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { Lockers, Riffle } from "@lucasmarkes/hairline/react";
 import { api } from "../lib/api";
-import { useUser } from "@clerk/clerk-react";
+import { useUser, useOrganization } from "@clerk/clerk-react";
 import {
   Check,
   CheckCheck,
@@ -18,6 +18,7 @@ import {
   Inbox as InboxIconLucide,
 } from "lucide-react";
 import { useListShortcuts } from "../hooks/useListShortcuts";
+import PageLoading from "../components/PageLoading";
 
 const NotificationTypeIcon = ({ size = 14 }) => (
   <svg
@@ -172,7 +173,8 @@ export default function Inbox() {
     showUnreadFirst: true,
   });
 
-  const { organization, isLoaded } = useUser();
+  const { user, isLoaded, isSignedIn } = useUser();
+  const { organization } = useOrganization();
 
   const fetchFilterData = async () => {
     try {
@@ -208,18 +210,20 @@ export default function Inbox() {
       const data = await api.get("/workspaces/current/notifications");
       setNotifications(data || []);
     } catch (error) {
-      console.error("Failed to fetch notifications", error);
+      if (error?.message !== "Unauthorized") {
+        console.error("Failed to fetch notifications", error);
+      }
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (isLoaded) {
+    if (isLoaded && isSignedIn && user) {
       fetchNotifications();
       fetchFilterData();
     }
-  }, [organization?.id, isLoaded]);
+  }, [organization?.id, isLoaded, isSignedIn, user?.id]);
 
   const markAsRead = async (id) => {
     try {
@@ -339,10 +343,16 @@ export default function Inbox() {
     onOpenItem: (notif) => handleSelect(notif),
   });
 
+  if (loading) {
+    return <PageLoading label="Inbox" />;
+  }
+
   return (
     <div className="flex h-full w-full bg-[#1c1d21] text-[#e8e8e8] text-[13px] font-sans antialiased">
       {/* Left Sidebar */}
-      <div className="w-[320px] flex-shrink-0 border-r border-white/[0.06] flex flex-col bg-transparent relative z-10">
+      <div
+        className={`w-full md:w-[320px] md:flex-shrink-0 border-r border-white/[0.06] flex flex-col bg-transparent relative z-10 ${selectedNotif ? "hidden md:flex" : "flex"}`}
+      >
         {/* Header */}
         <div className="h-12 flex items-center justify-between px-3 border-b border-white/[0.06] flex-shrink-0">
           <div className="flex items-center gap-2">
@@ -798,9 +808,30 @@ export default function Inbox() {
       </div>
 
       {/* Right Pane */}
-      <div className="flex-1 flex flex-col bg-transparent overflow-y-auto relative z-0">
+      <div
+        className={`flex-1 flex flex-col bg-transparent overflow-y-auto relative z-0 ${selectedNotif ? "flex" : "hidden md:flex"}`}
+      >
         {selectedNotif ? (
-          <div className="flex-1 max-w-3xl w-full mx-auto p-8 md:p-12 flex flex-col">
+          <div className="flex-1 max-w-3xl w-full mx-auto p-4 sm:p-8 md:p-12 flex flex-col">
+            <button
+              type="button"
+              onClick={() => setSelectedNotifId(null)}
+              className="md:hidden flex items-center gap-1.5 text-xs text-[#8a8f98] hover:text-white mb-6 -ml-1 transition-colors self-start"
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="m15 18-6-6 6-6" />
+              </svg>
+              <span>Back to Inbox</span>
+            </button>
             <div className="flex items-start gap-4 mb-8 border-b border-white/[0.06] pb-6">
               <div className="mt-0.5 text-[#8a8f98]">
                 <IssueIcon size={20} />

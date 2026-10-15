@@ -1,9 +1,14 @@
 .agents/skills
 project-tracker-app-blueprint.md
 skills-lock.json
+node_modules
+dist
+.env
+.env.local
 .DS_Store
 *.log
 summary.log
 hairline-*.html
 hairline-*.png
 Kriri_Instructions.md
+.vscode/

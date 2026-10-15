@@ -1,45 +1,46 @@
 import {
-  CheckCircle2,
-  Wand2,
-  Users,
-  BarChart2,
+  Sieve,
+  Turntable,
+  Riffle,
+  Plot,
   Keyboard,
-  RefreshCw,
-} from "lucide-react";
+  Relay,
+} from "@lucasmarkes/hairline/react";
+import { useTheme } from "@/contexts/ThemeContext";
 
 const features = [
   {
-    icon: <CheckCircle2 className="w-3.5 h-3.5 text-zinc-300" />,
+    figure: Sieve,
     title: "Purpose-built for speed",
     description:
       "Navigate instantly, create tasks in milliseconds. Built for teams that move fast.",
   },
   {
-    icon: <Wand2 className="w-3.5 h-3.5 text-zinc-300" />,
+    figure: Turntable,
     title: "AI-powered insights",
     description:
       "Automatically summarize activity, detect risks, and predict project bottlenecks.",
   },
   {
-    icon: <Users className="w-3.5 h-3.5 text-zinc-300" />,
+    figure: Riffle,
     title: "Real-time collaboration",
     description:
       "Work together seamlessly. See updates instantly without refreshing.",
   },
   {
-    icon: <BarChart2 className="w-3.5 h-3.5 text-zinc-300" />,
+    figure: Plot,
     title: "Advanced reporting",
     description:
       "Beautiful built-in analytics that turn raw data into understandable insights.",
   },
   {
-    icon: <Keyboard className="w-3.5 h-3.5 text-zinc-300" />,
+    figure: Keyboard,
     title: "Keyboard-first design",
     description:
       "Command palettes and shortcuts let you do everything without touching the mouse.",
   },
   {
-    icon: <RefreshCw className="w-3.5 h-3.5 text-zinc-300" />,
+    figure: Relay,
     title: "Instant synchronisation",
     description:
       "Local-first architecture guarantees your changes save instantly, even offline.",
@@ -47,43 +48,76 @@ const features = [
 ];
 
 export function FeaturesSection() {
+  const { theme } = useTheme();
+
   return (
     <section
       id="features"
-      className="py-24 sm:py-32 bg-background relative overflow-hidden"
+      className="py-14 sm:py-24 lg:py-32 bg-transparent relative overflow-hidden scroll-mt-24 sm:scroll-mt-28"
     >
-      <div className="mx-auto max-w-7xl px-6 lg:px-8 relative z-10">
-        <div className="mx-auto max-w-2xl lg:text-center">
-          <p className="text-3xl font-medium tracking-tight text-white sm:text-4xl">
-            A better way to build
-            <br />
-            software
-          </p>
-          <p className="mt-6 text-base leading-7 text-zinc-400 max-w-xl mx-auto">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 relative z-10">
+        {/* Section Header */}
+        <div className="mx-auto max-w-2xl text-center mb-10 sm:mb-16">
+          <h2 className="text-2xl sm:text-4xl lg:text-5xl font-medium tracking-tight text-foreground font-display text-balance">
+            A better way to build software
+          </h2>
+          <p className="mt-3 sm:mt-4 text-xs sm:text-base leading-relaxed text-muted-foreground max-w-xl mx-auto text-pretty">
             Kriri brings issues, projects, and product roadmaps into one unified
             workspace, designed to help you execute faster.
           </p>
         </div>
 
-        <div className="mx-auto mt-16 max-w-2xl sm:mt-20 lg:mt-24 lg:max-w-none">
-          <dl className="grid max-w-xl grid-cols-1 gap-6 lg:max-w-none lg:grid-cols-3">
-            {features.map((feature) => (
-              <div
-                key={feature.title}
-                className="flex flex-col p-5 rounded-[14px] bg-[#111113] border border-white/10 hover:border-white/15 transition-colors"
-              >
-                <dt className="flex items-center gap-x-3 text-sm font-medium text-zinc-100">
-                  <div className="h-7 w-7 flex items-center justify-center rounded-md bg-[#1C1C1F] border border-white/5">
-                    {feature.icon}
+        {/* Editorial Grid */}
+        <div className="mx-auto max-w-6xl border-t border-b border-border">
+          <div className="grid grid-cols-1 md:grid-cols-3">
+            {features.map((feature, index) => {
+              const Figure = feature.figure;
+              const isLastCol = index % 3 === 2;
+              const isFirstRow = index < 3;
+              const isLastItem = index === features.length - 1;
+
+              // Middle dividing line: First row ALWAYS has border-b on md screens.
+              // Column dividers: Columns 0 & 1 have border-r on md screens.
+              const borderClasses = [
+                !isLastCol ? "md:border-r md:border-border" : "",
+                isFirstRow
+                  ? "border-b border-border"
+                  : !isLastItem
+                    ? "border-b md:border-b-0 border-border"
+                    : "",
+              ]
+                .filter(Boolean)
+                .join(" ");
+
+              return (
+                <div
+                  key={feature.title}
+                  className={`group relative flex flex-col justify-between p-4 sm:p-8 lg:p-10 transition-colors hover:bg-foreground/[0.02] ${borderClasses}`}
+                >
+                  {/* Centered Interactive Hairline Figure Stage - Enlarged on mobile */}
+                  <div className="my-6 sm:my-8 lg:my-10 flex items-center justify-center h-64 sm:h-64 lg:h-72 relative select-none">
+                    <div className="w-60 h-60 sm:w-56 sm:h-56 lg:w-64 lg:h-64 xl:w-72 xl:h-72 flex items-center justify-center">
+                      <Figure
+                        theme={theme === "light" ? "light" : "dark"}
+                        intensity={0.85}
+                        className="w-full h-full text-muted-foreground group-hover:text-foreground transition-colors"
+                      />
+                    </div>
                   </div>
-                  {feature.title}
-                </dt>
-                <dd className="mt-3 flex flex-auto flex-col text-[13px] leading-relaxed text-zinc-400">
-                  <p className="flex-auto">{feature.description}</p>
-                </dd>
-              </div>
-            ))}
-          </dl>
+
+                  {/* Bottom Title & Description */}
+                  <div>
+                    <h3 className="text-sm sm:text-base font-semibold text-foreground tracking-tight">
+                      {feature.title}
+                    </h3>
+                    <p className="mt-2 text-xs sm:text-[13px] leading-relaxed text-muted-foreground">
+                      {feature.description}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
     </section>
