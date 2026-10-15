@@ -7,11 +7,11 @@
 
 ---
 
-## ⚡ Overview
+## Overview
 
 Kriri is a high-performance project management platform built to streamline team workflows. Combining a powerful relational database with real-time updates and an intuitive frontend, Kriri brings clarity to complex operations. From Kanban boards to dynamic list views, your data is always exactly where you need it.
 
-## 🛠️ Technology Stack
+## Technology Stack
 
 Kriri is built using modern, reliable technologies carefully chosen to deliver a seamless user experience.
 
@@ -22,7 +22,7 @@ Kriri is built using modern, reliable technologies carefully chosen to deliver a
 - **State Management:** React hooks and context
 - **Routing:** React Router DOM
 
-## 📐 Architecture & Logic
+## Architecture & Logic
 
 Kriri's architecture is designed around **Workspaces**, **Projects**, and **Tasks**. 
 
@@ -32,7 +32,7 @@ Kriri's architecture is designed around **Workspaces**, **Projects**, and **Task
 4. **Tasks (Issues)**: The core operational unit. Tasks are strongly linked to both a Project and a Workspace, ensuring data integrity.
 5. **Real-time Synchronization**: (Planned) The platform will leverage WebSockets to guarantee instantaneous state synchronization across all connected clients.
 
-## 🚀 Features
+## Features
 
 - **Multi-tenant Workspaces:** Create organizations, invite team members, and assign roles effortlessly.
 - **Multiple Views:** Visualize your projects via Kanban boards, dynamic Lists, or Timelines.
@@ -40,7 +40,7 @@ Kriri's architecture is designed around **Workspaces**, **Projects**, and **Task
 - **Dark Mode First:** Designed with a sleek, premium dark-mode aesthetic.
 - **Drag-and-Drop:** Intuitive interfaces for re-ordering and updating task/project statuses.
 
-## ⚙️ Local Development
+## Local Development
 
 ### Prerequisites
 - Node.js (v18+)
