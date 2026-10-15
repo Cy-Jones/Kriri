@@ -32,7 +32,7 @@ import PageLoading from "../components/PageLoading";
 import { Button } from "../registry/components/button/button";
 import { Badge } from "../registry/components/badge/badge";
 import { AvatarGroup } from "../registry/components/avatar-group/avatar-group";
-import { useUser } from "@clerk/clerk-react";
+import { useUser, useOrganization } from "@clerk/clerk-react";
 import { useSocket } from "../contexts/SocketContext";
 
 const COLUMNS = ["Todo", "In Progress", "In Review", "Done"];
@@ -125,6 +125,8 @@ export default function Kanban() {
   const [selectedTaskId, setSelectedTaskId] = useState(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [createModalStatus, setCreateModalStatus] = useState("Todo");
+  const { user } = useUser();
+  const { organization } = useOrganization();
   const socket = useSocket();
 
   useEffect(() => {
@@ -161,14 +163,19 @@ export default function Kanban() {
   }, [socket]);
 
   useEffect(() => {
+    if (!user) return;
+    setLoading(true);
     api
       .get("/tasks")
       .then((data) => {
         setTasks(data);
         setLoading(false);
       })
-      .catch(console.error);
-  }, []);
+      .catch((err) => {
+        console.error(err);
+        setLoading(false);
+      });
+  }, [user?.id, organization?.id]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {

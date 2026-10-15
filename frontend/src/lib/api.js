@@ -1,4 +1,11 @@
 const getToken = async () => {
+  if (window.Clerk && !window.Clerk.session) {
+    for (let i = 0; i < 15; i++) {
+      if (window.Clerk?.session) break;
+      await new Promise((r) => setTimeout(r, 100));
+    }
+  }
+
   if (window.Clerk && window.Clerk.session) {
     try {
       return await window.Clerk.session.getToken();

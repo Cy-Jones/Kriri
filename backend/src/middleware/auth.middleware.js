@@ -71,18 +71,61 @@ exports.verifyToken = async (req, res, next) => {
       req.user = userRes.rows[0];
 
       // 2. Resolve Active Organization / Workspace
-      // Clerk sets orgId when an organization is active in the session
+      const requestedWsId = req.headers["x-workspace-id"];
       const clerkOrgId = orgId;
 
+      let workspace = null;
+
+      // Check explicit workspace header first
+      if (requestedWsId) {
+        const headerWsRes = await db.query(
+          `SELECT w.*, wm.role 
+           FROM workspaces w
+           JOIN workspace_members wm ON w.id = wm.workspace_id
+           WHERE (w.id::text = $1 OR w.slug = $1 OR w.clerk_org_id = $1) AND wm.user_id = $2`,
+          [requestedWsId, req.user.id],
+        );
+        if (headerWsRes.rows.length > 0) {
+          req.workspace = headerWsRes.rows[0];
+          req.workspaceRole = headerWsRes.rows[0].role;
+          return next();
+        }
+      }
+
       if (!clerkOrgId) {
-        // Some routes might not need an active org (e.g. user profile fetch),
-        // but for workspace routes, they will fail later if req.workspace is not set.
+        // Fallback: resolve user's primary/active workspace from database
+        const userWsRes = await db.query(
+          `SELECT w.*, wm.role 
+           FROM workspaces w
+           JOIN workspace_members wm ON w.id = wm.workspace_id
+           WHERE wm.user_id = $1
+           ORDER BY w.id DESC LIMIT 1`,
+          [req.user.id],
+        );
+        if (userWsRes.rows.length > 0) {
+          req.workspace = userWsRes.rows[0];
+          req.workspaceRole = userWsRes.rows[0].role;
+          return next();
+        }
+        // If user is not yet a member of any workspace, assign them to the default workspace
+        const fallbackWs = await db.query(
+          "SELECT * FROM workspaces ORDER BY id DESC LIMIT 1",
+        );
+        if (fallbackWs.rows.length > 0) {
+          const ws = fallbackWs.rows[0];
+          await db.query(
+            "INSERT INTO workspace_members (workspace_id, user_id, role) VALUES ($1, $2, 'Owner') ON CONFLICT DO NOTHING",
+            [ws.id, req.user.id],
+          );
+          req.workspace = ws;
+          req.workspaceRole = "Owner";
+          return next();
+        }
         req.workspace = null;
         req.workspaceRole = null;
         return next();
       }
 
-      let workspace;
       const wsRes = await db.query(
         "SELECT * FROM workspaces WHERE clerk_org_id = $1",
         [clerkOrgId],

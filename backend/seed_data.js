@@ -33,23 +33,11 @@ async function seed() {
 
   const memberIds = teamRes.rows.map((u) => u.id);
 
-  // 2. Identify target workspaces for user smartjones07@gmail.com
+  // 2. Identify all workspaces
   const wsRes = await db.query(
-    `SELECT w.id, w.name, w.slug 
-     FROM workspaces w 
-     JOIN workspace_members wm ON w.id = wm.workspace_id 
-     WHERE wm.user_id = $1`,
-    [cyrus.id],
+    `SELECT id, name, slug FROM workspaces ORDER BY id ASC`,
   );
-
   let targetWorkspaces = wsRes.rows;
-  if (targetWorkspaces.length === 0) {
-    // If no workspace found, attach to workspace 1 or 11
-    const defaultWs = await db.query(
-      "SELECT id, name, slug FROM workspaces ORDER BY id ASC LIMIT 2",
-    );
-    targetWorkspaces = defaultWs.rows;
-  }
 
   console.log(
     `Target workspaces:`,

@@ -13,7 +13,7 @@ import TaskDetailsModal from "../components/TaskDetailsModal";
 import CreateTaskModal from "../components/CreateTaskModal";
 import { Format as Checklist } from "@lucasmarkes/hairline/react";
 import PageLoading from "../components/PageLoading";
-import { useUser } from "@clerk/clerk-react";
+import { useUser, useOrganization } from "@clerk/clerk-react";
 import { useSocket } from "../contexts/SocketContext";
 import { useListShortcuts } from "../hooks/useListShortcuts";
 
@@ -25,6 +25,7 @@ export default function Tasks() {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(null);
   const { user } = useUser();
+  const { organization } = useOrganization();
   const socket = useSocket();
 
   useEffect(() => {
@@ -61,6 +62,8 @@ export default function Tasks() {
   }, [socket]);
 
   useEffect(() => {
+    if (!user) return;
+    setLoading(true);
     api
       .get("/tasks")
       .then((data) => {
@@ -71,7 +74,7 @@ export default function Tasks() {
         console.error(err);
         setLoading(false);
       });
-  }, []);
+  }, [user?.id, organization?.id]);
 
   const filteredTasks = tasks.filter(
     (t) =>

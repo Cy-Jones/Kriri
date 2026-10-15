@@ -79,8 +79,9 @@ export function useProjectData(user, organization) {
     };
   }, [socket]);
 
-  // Initial API fetch
+  // Fetch projects once user context is loaded or workspace changes
   useEffect(() => {
+    if (!user) return;
     setLoading(true);
     api
       .get("/projects")
@@ -113,7 +114,7 @@ export function useProjectData(user, organization) {
         setProjects([]);
         setLoading(false);
       });
-  }, []);
+  }, [user?.id, organization?.id]);
 
   const handleUpdateProject = async (projectId, updatedFields) => {
     if (!canManageProjects) return;

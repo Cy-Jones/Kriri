@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { api } from "../lib/api";
-import { useUser } from "@clerk/clerk-react";
+import { useUser, useOrganization } from "@clerk/clerk-react";
 import {
   LineChart,
   Line,
@@ -18,7 +18,8 @@ import PageLoading from "../components/PageLoading";
 export default function Analytics() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const { organization, isLoaded } = useUser();
+  const { user, isLoaded } = useUser();
+  const { organization } = useOrganization();
 
   useEffect(() => {
     const fetchAnalytics = async () => {
@@ -32,10 +33,10 @@ export default function Analytics() {
         setLoading(false);
       }
     };
-    if (isLoaded) {
+    if (isLoaded && user) {
       fetchAnalytics();
     }
-  }, [organization?.id, isLoaded]);
+  }, [organization?.id, isLoaded, user?.id]);
 
   if (loading) {
     return <PageLoading label="Analytics" />;
