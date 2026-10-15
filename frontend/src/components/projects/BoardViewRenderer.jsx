@@ -139,7 +139,7 @@ function SortableProjectItem({
     >
       <div className="flex items-start justify-between">
         <div className="font-mono text-[11px] text-[#8a8f98] font-medium tracking-wider pt-0.5">
-          {config.properties.id ? project.id : ""}
+          {config.properties.id ? (project.identifier || project.id) : ""}
         </div>
 
         <div className="flex items-center gap-1.5 -mr-1">

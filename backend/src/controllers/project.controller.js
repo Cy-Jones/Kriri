@@ -24,6 +24,42 @@ const generateSlug = async (name, workspace_id, client = db) => {
   return `${baseSlug}-${counter}`;
 };
 
+const getUserIdentifierCode = (name) => {
+  if (!name || typeof name !== "string") return "USR";
+  const clean = name.trim();
+  if (!clean) return "USR";
+  const parts = clean.split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) {
+    return parts.map((p) => p[0].toUpperCase()).slice(0, 3).join("");
+  }
+  return clean.slice(0, 3).toUpperCase();
+};
+
+const generateProjectIdentifier = async (workspace_id, user_name, client = db) => {
+  const userCode = getUserIdentifierCode(user_name);
+  const prefix = `KRI-${userCode}-`;
+
+  const res = await client.query(
+    "SELECT identifier FROM projects WHERE workspace_id = $1 AND identifier LIKE $2",
+    [workspace_id, `${prefix}%`],
+  );
+
+  let maxNum = 0;
+  for (const row of res.rows) {
+    if (row.identifier) {
+      const match = row.identifier.match(new RegExp(`^${prefix}(\\d+)$`));
+      if (match) {
+        const num = parseInt(match[1], 10);
+        if (!isNaN(num) && num > maxNum) {
+          maxNum = num;
+        }
+      }
+    }
+  }
+
+  return `${prefix}${maxNum + 1}`;
+};
+
 exports.getAllProjects = async (req, res) => {
   try {
     const { rows } = await db.query(
@@ -69,6 +105,7 @@ exports.getAllProjects = async (req, res) => {
 exports.getProjectById = async (req, res) => {
   try {
     const { id } = req.params;
+    const isNumeric = /^\d+$/.test(id);
     const { rows } = await db.query(
       `
       SELECT 
@@ -88,9 +125,9 @@ exports.getProjectById = async (req, res) => {
           FROM milestones m WHERE m.project_id = p.id
         ) as milestones
       FROM projects p
-      WHERE p.id = $1 AND p.workspace_id = $2
+      WHERE (p.id = $1 OR p.identifier = $2 OR p.slug = $2) AND p.workspace_id = $3
     `,
-      [id, req.workspace.id],
+      [isNumeric ? parseInt(id, 10) : -1, id, req.workspace.id],
     );
 
     if (rows.length === 0)
@@ -136,20 +173,26 @@ exports.createProject = async (req, res) => {
       await client.query("BEGIN");
       const workspace_id = req.workspace.id;
       const slug = await generateSlug(name, workspace_id, client);
+      const identifier = await generateProjectIdentifier(
+        workspace_id,
+        req.user?.name,
+        client,
+      );
 
       // Extract lead_id from lead object (if provided)
       const lead_id = lead && lead.id ? lead.id : null;
 
       const { rows } = await client.query(
         `INSERT INTO projects (
-          workspace_id, owner_id, name, slug, description, short_summary, status, health, priority, start_date, due_date,
+          workspace_id, owner_id, name, slug, identifier, description, short_summary, status, health, priority, start_date, due_date,
           lead_id, labels, progress, position
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING *`,
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) RETURNING *`,
         [
           workspace_id,
           req.user.id,
           name,
           slug,
+          identifier,
           description,
           short_summary,
           status || "Planning",

@@ -371,16 +371,18 @@ async function seed() {
 
     let position = 1;
     for (const p of projectsData) {
+      const identifier = `KRI-CJ-${position}`;
       // Upsert project
       const projRes = await db.query(
         `INSERT INTO projects (
-           workspace_id, owner_id, name, slug, description, short_summary,
+           workspace_id, owner_id, name, slug, identifier, description, short_summary,
            status, health, priority, progress, position, lead_id, labels,
            created_at, updated_at
-         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW() - ($14 || ' days')::interval, NOW() - ($14 || ' days')::interval)
+         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NOW() - ($15 || ' days')::interval, NOW() - ($15 || ' days')::interval)
          ON CONFLICT (workspace_id, slug) 
          DO UPDATE SET
            name = EXCLUDED.name,
+           identifier = COALESCE(projects.identifier, EXCLUDED.identifier),
            description = EXCLUDED.description,
            short_summary = EXCLUDED.short_summary,
            status = EXCLUDED.status,
@@ -396,6 +398,7 @@ async function seed() {
           cyrus.id,
           p.name,
           p.slug,
+          identifier,
           p.description,
           p.short_summary,
           p.status,

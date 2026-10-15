@@ -271,6 +271,11 @@ export default function ProjectDetails() {
                 <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
               </svg>
             </div>
+            {project.identifier && (
+              <span className="font-mono text-[11px] text-[#8a8f98] bg-white/[0.04] px-1.5 py-0.5 rounded border border-white/[0.06]">
+                {project.identifier}
+              </span>
+            )}
             <span className="text-white">{project.name}</span>
           </div>
         </div>

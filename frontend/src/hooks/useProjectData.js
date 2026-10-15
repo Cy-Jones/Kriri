@@ -90,6 +90,7 @@ export function useProjectData(user, organization) {
           const enriched = data.map((p, idx) => ({
             ...p,
             id: p.id,
+            identifier: p.identifier || `KRI-PRJ-${idx + 1}`,
             name: p.name || `Project ${idx + 1}`,
             status: p.status || "Planned",
             priority: p.priority || "No priority",

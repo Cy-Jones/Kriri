@@ -151,7 +151,7 @@ exports.getCurrentWorkspaceSummary = async (req, res) => {
           [wsId, userId],
         ),
         db.query(
-          `SELECT p.id, p.name, p.slug, p.status, p.health, p.updated_at
+          `SELECT p.id, p.name, p.slug, p.identifier, p.status, p.health, p.updated_at
          FROM projects p
          WHERE p.workspace_id = $1
          ORDER BY p.updated_at DESC

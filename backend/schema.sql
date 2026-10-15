@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS projects (
     workspace_id INTEGER REFERENCES workspaces(id) ON DELETE CASCADE,
     name VARCHAR(255) NOT NULL,
     slug VARCHAR(255) NOT NULL,
+    identifier VARCHAR(50),
     description TEXT,
     short_summary TEXT,
     owner_id INTEGER REFERENCES users(id) ON DELETE SET NULL,

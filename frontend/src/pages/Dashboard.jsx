@@ -251,7 +251,7 @@ export default function Dashboard() {
                   </div>
                   <div className="flex items-center justify-between mt-3 sm:mt-4 gap-2">
                     <span className="text-xs text-text-muted font-mono truncate">
-                      {project.slug}
+                      {project.identifier || project.slug}
                     </span>
                     <Badge
                       variant="outline"

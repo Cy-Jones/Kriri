@@ -228,7 +228,7 @@ export default function ListViewRenderer({
                             </span>
                             {properties.id && (
                               <span className="text-[12px] text-[#8a8f98] font-mono whitespace-nowrap flex-shrink-0">
-                                {project.id}
+                                {project.identifier || project.id}
                               </span>
                             )}
                           </div>

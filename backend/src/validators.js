@@ -2,6 +2,7 @@ const { z } = require("zod");
 
 exports.projectSchema = z.object({
   name: z.string().min(1, "Name is required"),
+  identifier: z.string().optional(),
   description: z.string().optional(),
   short_summary: z.string().optional(),
   status: z
