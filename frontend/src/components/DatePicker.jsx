@@ -85,21 +85,61 @@ export default function DatePicker({
   const selectedFormatted =
     value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null;
 
+  // Mobile detection
+  const [isMobile, setIsMobile] = useState(
+    typeof window !== "undefined" ? window.innerWidth < 640 : false
+  );
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 640);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   const positionClass =
     placement === "top" ? "bottom-full mb-2" : "top-full mt-2";
   const alignClass = align === "right" ? "right-0" : "left-0";
 
-  return (
+  const pickerContent = (
     <div
       ref={popoverRef}
-      className={`absolute ${positionClass} ${alignClass} bg-[#1e1f21] border border-[#333538] rounded-xl shadow-2xl w-[280px] z-50 text-white overflow-hidden text-[13px] flex flex-col`}
+      className={`bg-[#1e1f21] border border-[#333538] rounded-xl shadow-2xl ${
+        isMobile
+          ? "w-[300px] max-w-[calc(100vw-32px)] z-[100]"
+          : `absolute ${positionClass} ${alignClass} w-[270px] z-[70]`
+      } text-white overflow-hidden text-[12px] sm:text-[12.5px] flex flex-col`}
     >
-      <div className="p-3 pb-2 border-b border-[#333538]">
-        <div className="text-[#8a8f98] mb-2 font-medium">{placeholder}</div>
-        <div className="relative flex items-center w-full bg-[#1b1c1e] border border-[#333538] focus-within:border-[#5e6ad2] rounded-md px-2 py-1 min-h-[32px] transition-colors">
+      <div className="p-2.5 sm:p-3 pb-2 border-b border-[#333538]">
+        <div className="flex items-center justify-between mb-1.5">
+          <span className="text-[#8a8f98] font-medium text-[11.5px] sm:text-[12px]">
+            {placeholder}
+          </span>
+          {isMobile && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="text-[#8a8f98] hover:text-white p-0.5 rounded transition-colors"
+            >
+              <svg
+                width="13"
+                height="13"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          )}
+        </div>
+        <div className="relative flex items-center w-full bg-[#1b1c1e] border border-[#333538] focus-within:border-[#5e6ad2] rounded-md px-2 py-0.5 min-h-[30px] transition-colors">
           {value ? (
             <div className="flex items-center justify-between w-full">
-              <span className="bg-[#5e6ad2]/20 text-[#aebdf8] px-1.5 py-0.5 rounded text-[13px]">
+              <span className="bg-[#5e6ad2]/20 text-[#aebdf8] px-1.5 py-0.5 rounded text-[12px]">
                 {value}
               </span>
               <button
@@ -130,18 +170,18 @@ export default function DatePicker({
               onKeyDown={(e) => {
                 if (e.key === "Enter") e.preventDefault();
               }}
-              className="w-full bg-transparent border-none text-[13px] text-white focus:outline-none placeholder:text-[#55565a]"
+              className="w-full bg-transparent border-none text-[12px] text-white focus:outline-none placeholder:text-[#55565a]"
             />
           )}
         </div>
 
-        <div className="flex items-center justify-between gap-1 mt-3">
+        <div className="flex items-center justify-between gap-1 mt-2.5">
           {tabs.map((tab) => (
             <button
               type="button"
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`px-2 py-1 rounded-full text-[12px] font-medium transition-colors whitespace-nowrap ${
+              className={`px-1.5 sm:px-2 py-0.5 rounded-full text-[11px] font-medium transition-colors whitespace-nowrap ${
                 activeTab === tab
                   ? "bg-white/10 text-white"
                   : "text-[#8a8f98] hover:text-white hover:bg-white/[0.03]"
@@ -153,7 +193,7 @@ export default function DatePicker({
         </div>
       </div>
 
-      <div className="p-3 flex-1 overflow-y-auto max-h-[250px] custom-scrollbar">
+      <div className="p-2.5 sm:p-3 flex-1 overflow-y-auto max-h-[240px] custom-scrollbar">
         {activeTab === "Day" && (
           <div>
             <div className="flex items-center justify-between mb-3 text-[13px]">
@@ -195,9 +235,9 @@ export default function DatePicker({
                 </button>
               </div>
             </div>
-            <div className="grid grid-cols-7 gap-y-2 text-center text-[12px]">
+            <div className="grid grid-cols-7 gap-y-1.5 text-center text-[11px] sm:text-[12px]">
               {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((d) => (
-                <div key={d} className="text-[#55565a] font-medium mb-1">
+                <div key={d} className="text-[#55565a] font-medium mb-0.5">
                   {d}
                 </div>
               ))}
@@ -210,7 +250,7 @@ export default function DatePicker({
                     type="button"
                     key={i}
                     onClick={() => handleSelect(dayObj.formatted)}
-                    className={`w-7 h-7 mx-auto rounded-full flex items-center justify-center transition-colors ${
+                    className={`w-6.5 h-6.5 mx-auto rounded-full flex items-center justify-center transition-colors text-[11px] sm:text-[11.5px] ${
                       isSelected
                         ? "bg-white/10 text-white border border-[#55565a]"
                         : dayObj.isCurrentMonth
@@ -332,4 +372,14 @@ export default function DatePicker({
       </div>
     </div>
   );
+
+  if (isMobile) {
+    return (
+      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in-0 duration-150">
+        {pickerContent}
+      </div>
+    );
+  }
+
+  return pickerContent;
 }

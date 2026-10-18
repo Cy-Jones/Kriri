@@ -53,7 +53,7 @@ export const kririFaqItems = [
     category: "Ergonomics",
     question: "What design philosophy guides Kriri?",
     answer:
-      "Kriri is engineered around an absolute pitch-black (#000000) Swiss foundation with 1px hairline borders, Geist & Inter typography, and zero visual clutter.",
+      "Kriri is engineered around an absolute pitch-black (#000000) Swiss foundation with 1px hairline borders, Plus Jakarta Sans typography, and zero visual clutter.",
   },
   {
     id: "infrastructure",

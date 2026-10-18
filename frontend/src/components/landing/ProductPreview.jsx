@@ -18,8 +18,7 @@ import {
   PanelLeftOpen,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { Plot as Chart, Lockers } from "@lucasmarkes/hairline/react";
-import { IssuesEmptyIcon } from "../EmptyStateIcons";
+import { Format as Checklist, Lockers, Plot as Chart } from "@lucasmarkes/hairline/react";
 
 const initialTasks = [
   {
@@ -278,7 +277,7 @@ export function ProductPreview() {
         <div
           className="relative mx-auto w-full max-w-full xl:max-w-[1360px] 2xl:max-w-[1400px] rounded-xl sm:rounded-2xl bg-black border border-white/10 shadow-[0_24px_70px_-15px_rgba(0,0,0,0.55),0_8px_24px_-8px_rgba(0,0,0,0.35)] overflow-hidden ring-1 ring-white/10 font-sans"
           style={{
-            fontFamily: 'var(--font-sans, "Geist Variable", sans-serif)',
+            fontFamily: 'var(--font-sans, "Plus Jakarta Sans", sans-serif)',
           }}
         >
           {/* Mac Window Top Bar */}
@@ -468,9 +467,9 @@ export function ProductPreview() {
 
                       <button
                         type="button"
-                        className="h-7 sm:h-8 px-2.5 sm:px-3 rounded-md bg-white text-black hover:bg-gray-100 transition-colors text-xs font-medium flex items-center gap-1.5 shadow-sm w-fit"
+                        className="h-7 sm:h-8 px-3 sm:px-4 rounded-full bg-white text-black hover:bg-zinc-100 transition-all text-xs font-medium flex items-center gap-1.5 shadow-[0_0_20px_rgba(255,255,255,0.14)] active:scale-[0.98] w-fit"
                       >
-                        <Plus size={13} /> New Issue
+                        <Plus size={13} strokeWidth={2.2} /> New Issue
                       </button>
                     </div>
 
@@ -501,9 +500,8 @@ export function ProductPreview() {
 
                     {issueTab === "backlog" ? (
                       <div className="flex-1 flex flex-col items-center justify-center p-8 sm:p-12 text-center gap-4 border border-white/[0.05] bg-white/[0.01] rounded-xl">
-                        <div className="w-14 h-14 sm:w-16 sm:h-16 bg-white/[0.03] border border-white/[0.05] rounded-2xl flex items-center justify-center text-[#8a8f98] shadow-sm relative overflow-hidden">
-                          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-8 bg-white/20 blur-xl rounded-full" />
-                          <IssuesEmptyIcon className="w-10 h-10 sm:w-12 sm:h-12" />
+                        <div className="w-48 h-48 flex items-center justify-center relative overflow-visible">
+                          <Checklist theme="dark" intensity={0.7} className="w-full h-full text-[#8a8f98] opacity-80" />
                         </div>
                         <div>
                           <h2 className="text-sm sm:text-base font-semibold text-white tracking-tight">
@@ -516,9 +514,9 @@ export function ProductPreview() {
                         </div>
                         <button
                           type="button"
-                          className="h-7 sm:h-8 px-3 bg-white text-black rounded-md font-medium text-xs hover:bg-gray-100 transition-colors shadow-sm flex items-center gap-1.5"
+                          className="h-7 sm:h-8 px-4 bg-white text-black rounded-full font-medium text-xs hover:bg-zinc-100 transition-all shadow-[0_0_20px_rgba(255,255,255,0.14)] active:scale-[0.98] flex items-center gap-1.5"
                         >
-                          <Plus size={13} /> Create issue
+                          <Plus size={13} strokeWidth={2.2} /> Create issue
                         </button>
                       </div>
                     ) : (
@@ -711,9 +709,9 @@ export function ProductPreview() {
                       </h1>
                       <button
                         type="button"
-                        className="h-7 sm:h-8 px-2.5 sm:px-3 rounded-md bg-white text-black hover:bg-gray-100 transition-colors text-xs font-medium flex items-center gap-1.5 shadow-sm w-fit"
+                        className="h-7 sm:h-8 px-3 sm:px-4 rounded-full bg-white text-black hover:bg-zinc-100 transition-all text-xs font-medium flex items-center gap-1.5 shadow-[0_0_20px_rgba(255,255,255,0.14)] active:scale-[0.98] w-fit"
                       >
-                        <Plus size={13} /> New Issue
+                        <Plus size={13} strokeWidth={2.2} /> New Issue
                       </button>
                     </div>
 
@@ -797,9 +795,9 @@ export function ProductPreview() {
                       <button
                         type="button"
                         onClick={() => setActiveTab("projects")}
-                        className="h-7 sm:h-8 px-2.5 sm:px-3 rounded-md bg-white text-black hover:bg-gray-100 transition-colors text-xs font-medium flex items-center gap-1.5 shadow-sm cursor-pointer w-fit"
+                        className="h-7 sm:h-8 px-3 sm:px-4 rounded-full bg-white text-black hover:bg-zinc-100 transition-all text-xs font-medium flex items-center gap-1.5 shadow-[0_0_20px_rgba(255,255,255,0.14)] active:scale-[0.98] cursor-pointer w-fit"
                       >
-                        <Plus size={13} /> New Project
+                        <Plus size={13} strokeWidth={2.2} /> New Project
                       </button>
                     </div>
 
@@ -883,9 +881,9 @@ export function ProductPreview() {
                       </div>
                       <button
                         type="button"
-                        className="h-7 sm:h-8 px-2.5 sm:px-3 rounded-md bg-white text-black hover:bg-gray-100 transition-colors text-xs font-medium flex items-center gap-1.5 shadow-sm w-fit"
+                        className="h-7 sm:h-8 px-3 sm:px-4 rounded-full bg-white text-black hover:bg-zinc-100 transition-all text-xs font-medium flex items-center gap-1.5 shadow-[0_0_20px_rgba(255,255,255,0.14)] active:scale-[0.98] w-fit"
                       >
-                        <Plus size={13} /> New Project
+                        <Plus size={13} strokeWidth={2.2} /> New Project
                       </button>
                     </div>
 
@@ -974,12 +972,8 @@ export function ProductPreview() {
 
                     {notifications.length === 0 ? (
                       <div className="flex-1 flex flex-col items-center justify-center h-full text-[#8a8f98] gap-3 sm:gap-4 my-auto select-none">
-                        <div className="w-44 h-44 sm:w-36 sm:h-36 2xl:w-40 2xl:h-40 relative overflow-visible flex items-center justify-center">
-                          <Lockers
-                            theme="dark"
-                            intensity={0.7}
-                            className="w-full h-full text-[#8a8f98]"
-                          />
+                        <div className="w-32 h-32 relative overflow-visible">
+                          <Lockers theme="dark" intensity={0.5} className="w-full h-full opacity-60" />
                         </div>
                         <span className="text-[13px] text-[#8a8f98] font-medium">
                           All caught up
@@ -1046,12 +1040,8 @@ export function ProductPreview() {
                     </div>
 
                     <div className="flex-1 flex flex-col items-center justify-center max-w-sm mx-auto text-center gap-3.5 sm:gap-4.5 lg:gap-6 my-auto select-none">
-                      <div className="w-48 h-48 sm:w-44 sm:h-44 md:w-52 md:h-52 2xl:w-60 2xl:h-60 flex items-center justify-center relative overflow-visible">
-                        <Chart
-                          theme="dark"
-                          intensity={0.8}
-                          className="w-full h-full text-[#8a8f98]"
-                        />
+                      <div className="w-48 h-48 flex items-center justify-center relative overflow-visible">
+                        <Chart theme="dark" intensity={0.7} className="w-full h-full text-[#8a8f98] opacity-80" />
                       </div>
 
                       <div className="flex flex-col gap-2">

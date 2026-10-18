@@ -162,10 +162,16 @@ export default function TaskDetailsModal({
             </div>
             <div>
               <h2 className="text-lg font-semibold text-text-primary">
-                {loading ? "Loading..." : `Task #${task?.id}`}
+                {loading
+                  ? "Loading..."
+                  : task?.project_identifier
+                    ? `${task.project_identifier}-${task.id}`
+                    : `Task #${task?.id}`}
               </h2>
               <div className="text-sm text-text-secondary">
-                Project ID: {task?.project_id}
+                {task?.project_identifier
+                  ? `${task.project_identifier}${task.project_name ? ` · ${task.project_name}` : ""}`
+                  : `Project #${task?.project_id}`}
               </div>
             </div>
           </div>
@@ -315,7 +321,7 @@ export default function TaskDetailsModal({
                 <button
                   type="submit"
                   disabled={!newComment.trim()}
-                  className="bg-accent hover:bg-accent-hover text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2"
+                  className="bg-accent hover:bg-accent-hover text-white px-3.5 h-8 rounded-full transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-1.5 shadow-sm"
                 >
                   <Send size="small" />
                 </button>

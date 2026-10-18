@@ -298,6 +298,11 @@ export default function KeyboardShortcutsHelp({ isOpen, onOpenChange }) {
             keywords: "save submit confirm done",
           },
           {
+            label: "Send comment / reply",
+            shortcut: "mod+enter",
+            keywords: "reply comment send submit inbox message",
+          },
+          {
             label: "Cancel / Close",
             shortcut: "esc",
             keywords: "cancel close dismiss exit",
@@ -426,13 +431,13 @@ export default function KeyboardShortcutsHelp({ isOpen, onOpenChange }) {
           }}
           className={`h-[42px] px-3 rounded-xl border flex items-center justify-between cursor-pointer transition-all ${
             isRecording
-              ? "bg-[#1f2026] border-purple-500/80 ring-2 ring-purple-500/20"
+              ? "bg-[#1f2026] border-white/40 ring-1 ring-white/20"
               : "bg-[#18191c] border-white/[0.08] hover:border-white/20"
           }`}
         >
           <div className="flex items-center gap-1.5 min-w-0 flex-1">
             {isRecording && (
-              <span className="w-2 h-2 rounded-full bg-purple-400 animate-pulse mr-1 flex-none" />
+              <span className="w-1.5 h-1.5 rounded-full bg-white/80 mr-1 flex-none" />
             )}
 
             {isRecording && tokens.length === 0 ? (

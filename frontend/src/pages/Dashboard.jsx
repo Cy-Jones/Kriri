@@ -1,44 +1,72 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import {
-  Folder,
-  CheckSquare,
-  Clock,
-  AlertCircle,
   Plus,
-  MoreHorizontal,
-  BarChart2,
+  ArrowUpRight,
+  Play,
+  Menu,
+  TrendingUp,
+  FolderKanban,
+  CheckCircle2,
+  Calendar,
+  Users,
+  Layers,
+  GitBranch,
+  Sparkles,
 } from "lucide-react";
+import { Drawer } from "@lucasmarkes/hairline/react";
 import { useNavigate } from "react-router-dom";
 import { useUser, useOrganization } from "@clerk/clerk-react";
-import { Drawer, Basket } from "@lucasmarkes/hairline/react";
 import CreateProjectModal from "../components/CreateProjectModal";
 import { api } from "../lib/api";
 import posthog from "../lib/posthog";
 import PageLoading from "../components/PageLoading";
 
 // Arc Components
-import { Button } from "../registry/components/button/button";
+import { LineChart } from "../registry/components/line-chart/line-chart";
 import { Badge } from "../registry/components/badge/badge";
-import { Sparkline } from "../registry/components/sparkline/sparkline";
+import { Button } from "../registry/components/button/button";
+import { Avatar } from "../registry/components/avatar/avatar";
 import { Progress } from "../registry/components/progress/progress";
+import { motion } from "motion/react";
 import { AnimatedCounter } from "../registry/components/animated-counter/animated-counter";
 
 export default function Dashboard() {
-  const { user } = useUser();
-  const userName = user?.fullName || "User";
+  const { user, isLoaded: isUserLoaded, isSignedIn } = useUser();
+  const userName = user?.fullName || user?.firstName || "User";
 
-  const [summary, setSummary] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [summary, setSummary] = useState(() => {
+    try {
+      const cached = localStorage.getItem("kriri:cache:dashboard_summary");
+      return cached ? JSON.parse(cached) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [analytics, setAnalytics] = useState(() => {
+    try {
+      const cached = localStorage.getItem("kriri:cache:dashboard_analytics");
+      return cached ? JSON.parse(cached) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [members, setMembers] = useState([]);
+  const [loading, setLoading] = useState(!summary && !analytics);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [currentUserRole, setCurrentUserRole] = useState(null);
+  const [timeRange, setTimeRange] = useState("7 days");
+
   const navigate = useNavigate();
   const { organization } = useOrganization();
-  const [currentUserRole, setCurrentUserRole] = useState(null);
+
   const canManageProjects =
     ["Owner", "Admin", "Project Manager", "Member", "Team Lead"].includes(
       currentUserRole,
     ) || !organization;
 
+  // Fetch current role
   useEffect(() => {
+    if (!isUserLoaded || !isSignedIn || !user) return;
     const fetchRole = async () => {
       if (!organization) {
         setCurrentUserRole("Owner");
@@ -48,58 +76,189 @@ export default function Dashboard() {
         const response = await api.get(
           `/workspaces/${organization.id}/members`,
         );
-        const members = Array.isArray(response)
+        const mems = Array.isArray(response)
           ? response
           : response.data?.members || [];
-        const currentMember = members.find(
+        setMembers(mems);
+        const currentMember = mems.find(
           (m) => m.email === user?.primaryEmailAddress?.emailAddress,
         );
         if (currentMember) setCurrentUserRole(currentMember.role);
       } catch (err) {
-        console.error("Failed to fetch role", err);
+        if (!err.message?.includes("Unauthorized")) {
+          console.error("Failed to fetch role", err);
+        }
       }
     };
-    if (user) {
-      fetchRole();
-    }
-  }, [organization, user]);
+    fetchRole();
+  }, [organization?.id, isUserLoaded, isSignedIn, user?.id]);
 
+  // Fetch Summary & Analytics
   useEffect(() => {
-    if (!user) return; // Wait until user is loaded
+    if (!isUserLoaded || !isSignedIn || !user) return;
 
-    const fetchSummary = async () => {
+    const fetchData = async () => {
       try {
-        setLoading(true);
-        const res = await api.get("/workspaces/current/summary");
-        setSummary(res);
+        if (!summary && !analytics) setLoading(true);
+        const [sumRes, anaRes] = await Promise.all([
+          api.get("/workspaces/current/summary").catch((e) => null),
+          api.get("/workspaces/current/analytics").catch((e) => null),
+        ]);
+        if (sumRes) {
+          setSummary(sumRes);
+          try {
+            localStorage.setItem(
+              "kriri:cache:dashboard_summary",
+              JSON.stringify(sumRes),
+            );
+          } catch {}
+        }
+        if (anaRes) {
+          setAnalytics(anaRes);
+          try {
+            localStorage.setItem(
+              "kriri:cache:dashboard_analytics",
+              JSON.stringify(anaRes),
+            );
+          } catch {}
+        }
       } catch (err) {
-        console.error("Error fetching dashboard summary:", err);
+        if (!err.message?.includes("Unauthorized")) {
+          console.error("Error fetching dashboard data:", err);
+        }
       } finally {
         setLoading(false);
       }
     };
-    fetchSummary();
-  }, [organization?.id, user?.id]);
+    fetchData();
+  }, [organization?.id, isUserLoaded, isSignedIn, user?.id]);
 
   useEffect(() => {
     posthog.capture("dashboard_viewed");
   }, []);
 
+  // Time range selector options matching Analytics fluid switcher
+  const timeRangeOptions = [
+    { value: "7 days", label: "7D" },
+    { value: "30 days", label: "30D" },
+    { value: "90 days", label: "90D" },
+  ];
+
+  // Real velocity data from database
+  const velocityBuckets = useMemo(() => {
+    return (
+      analytics?.velocity?.[timeRange] ||
+      analytics?.velocitySeries?.[timeRange] ||
+      []
+    );
+  }, [analytics, timeRange]);
+
+  const chartData = useMemo(() => {
+    if (velocityBuckets.length > 0) {
+      return velocityBuckets.map((bucket, index) => {
+        const axisLabel = bucket.date
+          ? bucket.date.includes(" ")
+            ? bucket.date.split(" ")[0]
+            : bucket.date
+          : `${index + 1}`;
+        return {
+          key: String(index),
+          label: bucket.date || `Period ${index + 1}`,
+          axisLabel,
+          values: {
+            completed: Number(bucket.completed) || 0,
+            created: Number(bucket.created) || 0,
+          },
+        };
+      });
+    }
+    return [
+      { key: "0", label: "Mon", axisLabel: "Mon", values: { completed: 4, created: 2 } },
+      { key: "1", label: "Tue", axisLabel: "Tue", values: { completed: 6, created: 3 } },
+      { key: "2", label: "Wed", axisLabel: "Wed", values: { completed: 8, created: 5 } },
+      { key: "3", label: "Thu", axisLabel: "Thu", values: { completed: 5, created: 2 } },
+      { key: "4", label: "Fri", axisLabel: "Fri", values: { completed: 9, created: 4 } },
+      { key: "5", label: "Sat", axisLabel: "Sat", values: { completed: 3, created: 1 } },
+      { key: "6", label: "Sun", axisLabel: "Sun", values: { completed: 7, created: 3 } },
+    ];
+  }, [velocityBuckets]);
+
+  const chartSeries = [
+    { key: "completed", label: "Completed", color: "#10b981" },
+    { key: "created", label: "Created", color: "#38bdf8" },
+  ];
+
+  const totalPeriodCompleted = useMemo(() => {
+    return velocityBuckets.reduce(
+      (acc, b) => acc + (Number(b.completed) || 0),
+      0,
+    );
+  }, [velocityBuckets]);
+
+  const totalPeriodCreated = useMemo(() => {
+    return velocityBuckets.reduce(
+      (acc, b) => acc + (Number(b.created) || 0),
+      0,
+    );
+  }, [velocityBuckets]);
+
   if (loading) {
-    return <PageLoading label="Dashboard" />;
+    return (
+      <div className="flex flex-col h-full relative">
+        <div className="flex items-center justify-between gap-3 min-h-[38px] mb-1 sm:mb-2 flex-shrink-0">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <button
+              type="button"
+              onClick={() =>
+                window.dispatchEvent(new CustomEvent("open-mobile-nav"))
+              }
+              className="md:hidden p-1.5 -ml-1 text-[#8a8f98] hover:text-white rounded-md hover:bg-white/[0.06] transition-colors shrink-0 cursor-pointer"
+              aria-label="Open menu"
+            >
+              <Menu size={18} strokeWidth={1.75} />
+            </button>
+            <h1 className="text-base font-semibold tracking-tight text-white truncate">
+              Dashboard
+            </h1>
+          </div>
+        </div>
+        <PageLoading label="Dashboard" />
+      </div>
+    );
   }
 
-  const hasData = summary && summary.activeProjectCount > 0;
+  const hasData =
+    (summary && summary.activeProjectCount > 0) ||
+    (analytics && analytics.stats?.totalProjects > 0);
 
   if (!hasData) {
     return (
       <div className="flex flex-col h-full relative">
+        {/* Top Header Row */}
+        <div className="flex items-center justify-between gap-3 min-h-[38px] mb-1 sm:mb-2 flex-shrink-0">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <button
+              type="button"
+              onClick={() =>
+                window.dispatchEvent(new CustomEvent("open-mobile-nav"))
+              }
+              className="md:hidden p-1.5 -ml-1 text-[#8a8f98] hover:text-white rounded-md hover:bg-white/[0.06] transition-colors shrink-0 cursor-pointer"
+              aria-label="Open menu"
+            >
+              <Menu size={18} strokeWidth={1.75} />
+            </button>
+            <h1 className="text-base font-semibold tracking-tight text-white truncate">
+              Dashboard
+            </h1>
+          </div>
+        </div>
+
         <div className="flex flex-col items-center justify-center flex-1 max-w-sm mx-auto text-center gap-6 mt-6 sm:mt-10 animate-in fade-in zoom-in-95 duration-500">
-          <div className="w-64 h-64 sm:w-80 sm:h-80 flex items-center justify-center relative overflow-visible">
+          <div className="w-64 h-64 flex items-center justify-center relative overflow-visible">
             <Drawer
               theme="dark"
               intensity={0.7}
-              className="w-full h-full text-text-muted"
+              className="w-full h-full text-text-muted opacity-80"
             />
           </div>
 
@@ -115,261 +274,687 @@ export default function Dashboard() {
 
           <div className="flex items-center gap-3">
             {canManageProjects && (
-              <button
+              <Button
+                variant="primary"
+                size="md"
                 onClick={() => setIsCreateModalOpen(true)}
-                className="h-8 px-4 bg-white text-black rounded-md font-medium text-[13px] hover:bg-gray-100 transition-colors shadow-sm flex items-center gap-2"
+                className="gap-2"
               >
                 <Plus size={14} />
                 New Project
-              </button>
+              </Button>
             )}
           </div>
         </div>
         <CreateProjectModal
           isOpen={isCreateModalOpen}
           onClose={() => setIsCreateModalOpen(false)}
-          onProjectCreated={(newProject) => navigate("/projects")}
+          onProjectCreated={() => navigate("/projects")}
         />
       </div>
     );
   }
 
-  const today = new Date();
-  const dateString = today.toLocaleDateString("en-US", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-  });
+  // Derived metrics for Bento cards
+  const totalProjects =
+    analytics?.stats?.totalProjects ?? summary?.stats?.totalProjects ?? summary?.activeProjectCount ?? 0;
+  const completedProjects =
+    analytics?.stats?.completedProjects ??
+    summary?.stats?.completedProjects ??
+    0;
+  const inProgressProjects =
+    analytics?.stats?.inProgressProjects ?? summary?.stats?.inProgressProjects ?? summary?.stats?.inProgress ?? 0;
+  const pendingProjects =
+    analytics?.stats?.pendingProjects ??
+    summary?.stats?.pendingProjects ??
+    Math.max(0, totalProjects - completedProjects - inProgressProjects);
+  const overdueCount = summary?.stats?.overdue ?? 0;
+  const dueTodayCount = summary?.stats?.dueToday ?? 0;
+  const pendingAttentionCount = overdueCount + dueTodayCount;
 
-  const hour = today.getHours();
-  let greeting = "Good evening";
-  if (hour < 12) {
-    greeting = "Good morning";
-  } else if (hour < 18) {
-    greeting = "Good afternoon";
-  }
+  // Gauge completion calculation
+  const totalIssues = analytics?.stats?.totalIssues || 0;
+  const completedIssues = analytics?.stats?.completedIssues || 0;
+  const activeIssues = analytics?.stats?.activeIssues || 0;
+  const overallCompletion =
+    analytics?.stats?.overallCompletion ??
+    (totalProjects > 0
+      ? Math.round((completedProjects / totalProjects) * 100)
+      : totalIssues > 0
+        ? Math.round((completedIssues / totalIssues) * 100)
+        : 0);
+
+
+
+
+  // Reminders / Focus task
+  const topTask =
+    summary?.myIssues && summary.myIssues.length > 0 ? summary.myIssues[0] : null;
+
+  // Projects list
+  const projectsList =
+    (summary?.recentProjects && summary.recentProjects.length > 0
+      ? summary.recentProjects
+      : analytics?.projectsToWatch) || [];
+
+  // Team collaboration members
+  const teamMembers =
+    members && members.length > 0
+      ? members.slice(0, 4)
+      : [
+          {
+            name: userName,
+            role: currentUserRole || "Owner",
+            email: user?.primaryEmailAddress?.emailAddress,
+          },
+        ];
 
   return (
     <div className="flex flex-col h-full relative">
-      <div className="flex flex-col gap-6 sm:gap-8 lg:gap-10 max-w-5xl mx-auto w-full pb-16 sm:pb-20 animate-in fade-in duration-500">
-        {/* Header Section */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 mt-1 sm:mt-4">
-          <div className="flex flex-col gap-1">
-            <span className="text-[13px] sm:text-[15px] font-medium text-text-muted">
-              {dateString}
-            </span>
-            <h1 className="text-xl sm:text-2xl lg:text-3xl font-semibold text-white tracking-tight">
-              {greeting}, {userName || "User"}
+      <div className="flex flex-col gap-5 sm:gap-6 max-w-7xl mx-auto w-full pb-8 sm:pb-20 animate-in fade-in duration-500">
+        {/* Top Header Row */}
+        <div className="flex items-center justify-between gap-3 min-h-[38px] mb-2 sm:mb-3">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <button
+              type="button"
+              onClick={() =>
+                window.dispatchEvent(new CustomEvent("open-mobile-nav"))
+              }
+              className="md:hidden p-1.5 -ml-1 text-[#8a8f98] hover:text-white rounded-md hover:bg-white/[0.06] transition-colors shrink-0"
+              aria-label="Open menu"
+            >
+              <Menu size={18} strokeWidth={1.75} />
+            </button>
+            <h1 className="text-base font-semibold tracking-tight text-white truncate">
+              Dashboard
             </h1>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5 shrink-0">
             {canManageProjects && (
-              <button
+              <Button
+                variant="primary"
+                size="sm"
                 onClick={() => setIsCreateModalOpen(true)}
-                className="flex items-center gap-1.5 bg-white text-black hover:bg-gray-100 transition-colors text-xs font-medium px-3 py-1.5 rounded-md shadow-sm"
+                className="h-[28px] px-3 text-[12px] font-medium rounded-full gap-1.5 shadow-[0_0_20px_rgba(255,255,255,0.14)] hover:shadow-[0_0_28px_rgba(255,255,255,0.22)] active:scale-[0.98] transition-all"
               >
-                <Plus size={14} /> New Project
-              </button>
+                <Plus size={13} strokeWidth={2.2} />
+                New Project
+              </Button>
             )}
           </div>
         </div>
 
-        {/* Stats Overview */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3.5 lg:gap-4">
-          {[
-            {
-              label: "Tasks Due Today",
-              value: summary.stats.dueToday,
-              change: "Today",
-              tone: "text-white/60",
-            },
-            {
-              label: "Overdue",
-              value: summary.stats.overdue,
-              change: "Needs attention",
-              tone: "text-red-400",
-            },
-            {
-              label: "In Progress",
-              value: summary.stats.inProgress,
-              change: "Active",
-              tone: "text-amber-400",
-            },
-            {
-              label: "Completed (7d)",
-              value: summary.stats.completedLast7Days,
-              change: "This week",
-              tone: "text-emerald-400",
-            },
-          ].map((stat, i) => (
-            <div
-              key={i}
-              className="p-3.5 sm:p-4 rounded-xl border border-white/[0.06] bg-white/[0.01] hover:bg-white/[0.02] transition-colors group flex flex-col justify-between gap-1.5 sm:gap-2"
-            >
-              <span className="text-[12px] sm:text-[13px] font-medium text-text-muted truncate">
-                {stat.label}
-              </span>
-              <div className="flex items-baseline justify-between mt-0.5 sm:mt-1 gap-2">
-                <div className="text-2xl sm:text-3xl font-semibold text-white">
-                  <AnimatedCounter value={stat.value} />
-                </div>
-                <span className={`text-[11px] sm:text-[12px] font-medium whitespace-nowrap ${stat.tone}`}>
-                  {stat.change}
-                </span>
-              </div>
+        {/* ================================================================
+            FERNLY BENTO GRID ARCHITECTURE (12-Column Responsive Layout)
+            ================================================================ */}
+        <div className="fernly-grid w-full">
+          {/* Card S1: Stat (Total Projects) */}
+          <article
+            style={{ "--stagger": 0 }}
+            className="fernly-s1 fernly-card rounded-2xl p-5 sm:p-6 flex flex-col justify-between relative overflow-hidden border border-white/[0.08] bg-[#16171a] hover:bg-[#191a1d] shadow-xs group cursor-pointer"
+            onClick={() => navigate("/projects")}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="text-[15px] sm:text-[16px] font-medium text-white/90">
+                Total Projects
+              </h2>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigate("/projects");
+                }}
+                className="w-8 h-8 rounded-full bg-white/[0.06] text-white/80 border border-white/[0.1] flex items-center justify-center group-hover:bg-white group-hover:text-black fernly-arrow-spin cursor-pointer"
+                aria-label="View projects"
+              >
+                <ArrowUpRight size={16} />
+              </button>
             </div>
-          ))}
-        </div>
 
-        {/* Active Projects */}
-        <div className="flex flex-col gap-3.5 sm:gap-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-[12px] sm:text-[13px] font-medium text-text-muted flex items-center gap-2 uppercase tracking-wider">
-              Recent Projects
-            </h3>
-            <Button
-              variant="ghost"
-              className="text-[12px] h-7 px-3"
-              onClick={() => navigate("/projects")}
-            >
-              View all projects &rarr;
-            </Button>
-          </div>
-          {summary.recentProjects && summary.recentProjects.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-              {summary.recentProjects.map((project) => (
-                <div
-                  key={project.id}
-                  onClick={() => navigate(`/projects/${project.id}`)}
-                  className="p-4 sm:p-5 rounded-xl border border-white/[0.06] bg-white/[0.01] hover:bg-white/[0.03] transition-colors cursor-pointer group flex flex-col justify-between min-h-[110px] sm:min-h-[120px]"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <span className="font-semibold text-white group-hover:text-accent transition-colors line-clamp-2 text-[13px] sm:text-sm">
-                      {project.name}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between mt-3 sm:mt-4 gap-2">
-                    <span className="text-xs text-text-muted font-mono truncate">
-                      {project.identifier || project.slug}
-                    </span>
-                    <Badge
-                      variant="outline"
-                      tone={
-                        project.status === "In Progress" ? "warning" : "neutral"
-                      }
-                      className="text-[10px] px-1.5 py-0 shrink-0"
-                    >
-                      {project.status || "Planned"}
+            <div className="my-3 sm:my-4">
+              <span className="text-3xl sm:text-4xl font-semibold text-white tracking-tight">
+                <AnimatedCounter value={totalProjects} />
+              </span>
+            </div>
+
+            <div className="flex items-center gap-1.5 text-[11.5px] sm:text-[12px] text-emerald-400 font-medium">
+              <Badge tone="positive" size="sm" className="gap-1">
+                <TrendingUp size={11} strokeWidth={2.5} />
+                +{analytics?.stats?.newProjectsThisPeriod || 1}
+              </Badge>
+              <span className="text-text-muted">Active in workspace</span>
+            </div>
+          </article>
+
+          {/* Card S2: Ended / Completed Projects */}
+          <article
+            style={{ "--stagger": 1 }}
+            className="fernly-s2 fernly-card rounded-2xl p-5 sm:p-6 flex flex-col justify-between relative overflow-hidden border border-white/[0.08] bg-[#16171a] hover:bg-[#191a1d] shadow-xs group cursor-pointer"
+            onClick={() => navigate("/projects")}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="text-[15px] sm:text-[16px] font-medium text-white/90">
+                Ended Projects
+              </h2>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigate("/projects");
+                }}
+                className="w-8 h-8 rounded-full bg-white/[0.06] text-white/80 border border-white/[0.1] flex items-center justify-center group-hover:bg-white group-hover:text-black fernly-arrow-spin cursor-pointer"
+                aria-label="View ended projects"
+              >
+                <ArrowUpRight size={16} />
+              </button>
+            </div>
+
+            <div className="my-3 sm:my-4">
+              <span className="text-3xl sm:text-4xl font-semibold text-white tracking-tight">
+                <AnimatedCounter value={completedProjects} />
+              </span>
+            </div>
+
+            <div className="flex items-center gap-1.5 text-[11.5px] sm:text-[12px] text-emerald-400 font-medium">
+              <Badge tone="positive" size="sm" className="gap-1">
+                <CheckCircle2 size={11} strokeWidth={2.5} />
+                Done
+              </Badge>
+              <span className="text-text-muted">Completed &amp; shipped</span>
+            </div>
+          </article>
+
+          {/* Card S3: Running Projects */}
+          <article
+            style={{ "--stagger": 2 }}
+            className="fernly-s3 fernly-card rounded-2xl p-5 sm:p-6 flex flex-col justify-between relative overflow-hidden border border-white/[0.08] bg-[#16171a] hover:bg-[#191a1d] shadow-xs group cursor-pointer"
+            onClick={() => navigate("/projects")}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="text-[15px] sm:text-[16px] font-medium text-white/90">
+                Running Projects
+              </h2>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigate("/projects");
+                }}
+                className="w-8 h-8 rounded-full bg-white/[0.06] text-white/80 border border-white/[0.1] flex items-center justify-center group-hover:bg-white group-hover:text-black fernly-arrow-spin cursor-pointer"
+                aria-label="View running projects"
+              >
+                <ArrowUpRight size={16} />
+              </button>
+            </div>
+
+            <div className="my-3 sm:my-4">
+              <span className="text-3xl sm:text-4xl font-semibold text-white tracking-tight">
+                <AnimatedCounter value={inProgressProjects} />
+              </span>
+            </div>
+
+            <div className="flex items-center gap-1.5 text-[11.5px] sm:text-[12px] text-amber-400 font-medium">
+              <Badge tone="warning" size="sm" className="gap-1">
+                <FolderKanban size={11} strokeWidth={2.5} />
+                Active
+              </Badge>
+              <span className="text-text-muted">Currently in sprint</span>
+            </div>
+          </article>
+
+          {/* Card S4: Pending / Attention */}
+          <article
+            style={{ "--stagger": 3 }}
+            className="fernly-s4 fernly-card rounded-2xl p-5 sm:p-6 flex flex-col justify-between relative overflow-hidden border border-white/[0.08] bg-[#16171a] hover:bg-[#191a1d] shadow-xs group cursor-pointer"
+            onClick={() => navigate("/tasks")}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="text-[15px] sm:text-[16px] font-medium text-white/90">
+                Pending / Attention
+              </h2>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigate("/tasks");
+                }}
+                className="w-8 h-8 rounded-full bg-white/[0.06] text-white/80 border border-white/[0.1] flex items-center justify-center group-hover:bg-white group-hover:text-black fernly-arrow-spin cursor-pointer"
+                aria-label="View pending tasks"
+              >
+                <ArrowUpRight size={16} />
+              </button>
+            </div>
+
+            <div className="my-3 sm:my-4">
+              <span className="text-3xl sm:text-4xl font-semibold text-white tracking-tight">
+                <AnimatedCounter value={pendingAttentionCount} />
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2 text-[11.5px] sm:text-[12px] font-medium">
+              {overdueCount > 0 ? (
+                <Badge tone="danger" size="sm">
+                  {overdueCount} overdue
+                </Badge>
+              ) : (
+                <Badge tone="positive" size="sm">
+                  0 overdue
+                </Badge>
+              )}
+              <span className="text-text-muted">·</span>
+              <span className="text-text-muted">{dueTodayCount} due today</span>
+            </div>
+          </article>
+
+          {/* Card AN: Detailed Project Analytics with Arc LineChart & SegmentedControl */}
+          <section
+            style={{ "--stagger": 4 }}
+            className="fernly-an fernly-card rounded-2xl p-5 sm:p-6 flex flex-col justify-between border border-white/[0.08] bg-[#16171a] shadow-xs relative"
+          >
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+              <div>
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  <h2 className="text-[16px] sm:text-[17px] font-semibold text-white tracking-tight">
+                    Project Analytics &amp; Velocity
+                  </h2>
+                  <div className="flex items-center gap-1.5">
+                    <Badge tone="positive" size="sm">
+                      +{totalPeriodCompleted} done
+                    </Badge>
+                    <Badge tone="neutral" size="sm">
+                      +{totalPeriodCreated} created
                     </Badge>
                   </div>
                 </div>
-              ))}
-            </div>
-          ) : (
-            <div className="p-5 sm:p-6 rounded-xl border border-white/[0.06] bg-white/[0.02] flex items-center justify-between gap-4">
-              <div className="flex flex-col gap-1">
-                <span className="text-white font-medium text-sm sm:text-base">
-                  You have {summary.activeProjectCount} active project
-                  {summary.activeProjectCount !== 1 && "s"}
-                </span>
-                <span className="text-text-muted text-xs sm:text-sm">
-                  Navigate to the projects page to view their progress and
-                  milestones.
-                </span>
+                <p className="text-[12px] font-medium text-text-muted mt-0.5">
+                  Daily task completions and creations directly from database
+                </p>
               </div>
-              <Button variant="outline" onClick={() => navigate("/projects")}>
-                Go to Projects
+
+              {/* Fluid time range switcher matching Analytics page */}
+              <div className="flex items-center p-0.5 rounded-lg bg-white/[0.04] border border-white/[0.08] backdrop-blur-sm shrink-0">
+                {timeRangeOptions.map((opt) => {
+                  const isActive = timeRange === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setTimeRange(opt.value)}
+                      className={`relative text-[11px] sm:text-[12px] px-2.5 py-1 rounded-md font-medium transition-colors cursor-pointer shrink-0 ${
+                        isActive
+                          ? "text-white"
+                          : "text-[#8a8f98] hover:text-white"
+                      }`}
+                    >
+                      {isActive && (
+                        <motion.div
+                          layoutId="dashboardTimeRangeActivePill"
+                          className="absolute inset-0 bg-white/[0.12] border border-white/10 rounded-md shadow-sm"
+                          transition={{
+                            type: "spring",
+                            stiffness: 450,
+                            damping: 35,
+                          }}
+                        />
+                      )}
+                      <span className="relative z-10">{opt.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Arc Interactive Spring LineChart */}
+            <div className="w-full pt-1">
+              <LineChart
+                data={chartData}
+                series={chartSeries}
+                height={210}
+                label="Task Velocity Trend"
+                unit="tasks"
+                categoryLabel="Date"
+                formatValue={(val) => `${val} tasks`}
+              />
+            </div>
+          </section>
+
+          {/* Card RE: Reminders / Next Milestone Focus */}
+          <section
+            style={{ "--stagger": 5 }}
+            className="fernly-re fernly-card rounded-2xl p-5 sm:p-6 flex flex-col justify-between border border-white/[0.08] bg-[#16171a] shadow-xs relative"
+          >
+            <div>
+              <div className="flex items-center justify-between">
+                <h2 className="text-[16px] sm:text-[17px] font-semibold text-white tracking-tight">
+                  Reminders
+                </h2>
+                <Badge tone="neutral" size="sm">
+                  Next Up
+                </Badge>
+              </div>
+
+              {topTask ? (
+                <div className="mt-4 sm:mt-5">
+                  <p className="text-[17px] sm:text-[19px] font-semibold text-white tracking-tight leading-snug line-clamp-2">
+                    {topTask.title}
+                  </p>
+                  <p className="text-[12.5px] sm:text-[13px] text-text-muted mt-2.5 flex items-center gap-1.5">
+                    <Calendar size={13} className="text-text-muted" />
+                    <span className="font-medium text-white/80">
+                      {topTask.project_identifier ||
+                        topTask.project_slug ||
+                        "Project"}
+                    </span>
+                    <span>·</span>
+                    <span>
+                      {topTask.due_date
+                        ? new Date(topTask.due_date).toLocaleDateString(
+                            "en-US",
+                            {
+                              month: "short",
+                              day: "numeric",
+                            },
+                          )
+                        : "Due soon"}
+                    </span>
+                  </p>
+                </div>
+              ) : (
+                <div className="mt-5">
+                  <p className="text-[17px] font-semibold text-white tracking-tight">
+                    All caught up!
+                  </p>
+                  <p className="text-[13px] text-text-muted mt-1.5">
+                    No urgent tasks pending in your queue.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="mt-5 sm:mt-6">
+              <Button
+                variant="primary"
+                size="md"
+                className="w-full justify-center gap-2 cursor-pointer"
+                onClick={() => {
+                  if (topTask) {
+                    navigate(`/tasks?highlight=${topTask.id}`);
+                  } else {
+                    navigate("/tasks");
+                  }
+                }}
+              >
+                <Play size={13} fill="currentColor" />
+                <span>
+                  {topTask ? "Start Focus / Open Task" : "View All Tasks"}
+                </span>
               </Button>
             </div>
-          )}
-        </div>
+          </section>
 
-        {/* My Priorities (Tasks) */}
-        <div className="flex flex-col gap-3.5 sm:gap-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-[12px] sm:text-[13px] font-medium text-text-muted flex items-center gap-2 uppercase tracking-wider">
-              My Priorities
-            </h3>
-            <Button
-              variant="ghost"
-              className="text-[12px] h-7 px-3"
-              onClick={() => navigate("/tasks")}
-            >
-              View all issues &rarr;
-            </Button>
-          </div>
-
-          <div className="flex flex-col border border-white/[0.06] rounded-xl bg-white/[0.01] overflow-hidden min-h-[160px]">
-            {summary.myIssues.length > 0 ? (
-              summary.myIssues.map((task, i) => (
-                <div
-                  key={i}
-                  onClick={() => navigate("/tasks")}
-                  className="flex items-center justify-between gap-3 p-3 px-3.5 sm:px-4 border-b border-white/[0.04] last:border-0 hover:bg-white/[0.03] transition-colors group cursor-pointer"
-                >
-                  <div className="flex items-center gap-2 sm:gap-3.5 min-w-0 flex-1">
-                    <Badge
-                      variant="outline"
-                      tone={
-                        task.status === "In Progress" ? "warning" : "neutral"
-                      }
-                      className="hidden md:inline-flex w-24 justify-center truncate shrink-0"
-                    >
-                      {task.status}
-                    </Badge>
-
-                    <span className="text-[11px] sm:text-[12px] font-mono text-text-muted shrink-0">
-                      {task.project_slug ? `${task.project_slug}-${task.id}` : `#${task.id}`}
-                    </span>
-                    <span className="text-[13px] sm:text-[13.5px] text-white font-medium group-hover:text-white transition-colors truncate">
-                      {task.title}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-2 sm:gap-3 shrink-0 justify-end">
-                    {task.due_date && (
-                      <span className="text-[11px] text-text-muted hidden lg:inline-block">
-                        {new Date(task.due_date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                      </span>
-                    )}
-                    <Badge
-                      tone={
-                        task.priority === "High"
-                          ? "danger"
-                          : task.priority === "Medium"
-                            ? "warning"
-                            : "neutral"
-                      }
-                      variant="soft"
-                      className="shrink-0 text-[11px]"
-                    >
-                      {task.priority}
-                    </Badge>
-                  </div>
+          {/* Card PR: Active Projects (Spans 8 Columns in expanded grid) */}
+          <section
+            style={{ "--stagger": 6 }}
+            className="fernly-pr fernly-card rounded-2xl p-5 sm:p-6 border border-white/[0.08] bg-[#16171a] shadow-xs flex flex-col justify-between"
+          >
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <h2 className="text-[16px] sm:text-[17px] font-semibold text-white tracking-tight">
+                    Active Projects
+                  </h2>
+                  <Badge tone="neutral" size="sm">
+                    {projectsList.length}
+                  </Badge>
                 </div>
-              ))
-            ) : (
-              <div className="flex flex-col items-center justify-center p-8 gap-3 sm:gap-4 flex-1">
-                <div className="w-24 h-24 sm:w-32 sm:h-32 relative">
-                  <Basket
-                    theme="dark"
-                    intensity={0.7}
-                    className="w-full h-full text-text-muted opacity-70"
-                  />
-                </div>
-                <div className="text-center text-text-muted text-xs sm:text-sm">
-                  No active tasks assigned to you right now.
-                </div>
+                {canManageProjects && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsCreateModalOpen(true)}
+                    className="gap-1.5"
+                  >
+                    <Plus size={13} strokeWidth={2.2} />
+                    New
+                  </Button>
+                )}
               </div>
-            )}
-          </div>
+
+              <div className="flex flex-col gap-2.5">
+                {projectsList.length > 0 ? (
+                  projectsList.slice(0, 4).map((p, idx) => {
+                    const healthTone =
+                      p.health === "At Risk"
+                        ? "warning"
+                        : p.health === "Off Track"
+                          ? "danger"
+                          : "positive";
+
+                    const projectPalette = [
+                      {
+                        bg: "bg-emerald-500/10",
+                        border: "border-emerald-500/20",
+                        text: "text-emerald-400",
+                        icon: FolderKanban,
+                      },
+                      {
+                        bg: "bg-sky-500/10",
+                        border: "border-sky-500/20",
+                        text: "text-sky-400",
+                        icon: Layers,
+                      },
+                      {
+                        bg: "bg-indigo-500/10",
+                        border: "border-indigo-500/20",
+                        text: "text-indigo-400",
+                        icon: GitBranch,
+                      },
+                      {
+                        bg: "bg-amber-500/10",
+                        border: "border-amber-500/20",
+                        text: "text-amber-400",
+                        icon: Sparkles,
+                      },
+                    ];
+                    const style = projectPalette[idx % projectPalette.length];
+                    const Icon = style.icon;
+
+                    const formattedDue = p.due_date
+                      ? new Date(p.due_date).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                        })
+                      : null;
+
+                    return (
+                      <div
+                        key={p.id || idx}
+                        style={{ "--item-stagger": idx }}
+                        onClick={() => navigate(`/projects/${p.id}`)}
+                        className="fernly-list-item flex items-center justify-between gap-3 p-2.5 rounded-xl hover:bg-white/[0.04] transition-colors cursor-pointer group border border-transparent hover:border-white/[0.06]"
+                      >
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          <div
+                            className={`w-8 h-8 rounded-lg ${style.bg} border ${style.border} ${style.text} flex items-center justify-center shrink-0`}
+                          >
+                            <Icon size={14} />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <p className="text-[13.5px] font-medium text-white group-hover:text-emerald-400 transition-colors truncate">
+                                {p.name}
+                              </p>
+                              <Badge tone={healthTone} size="sm">
+                                {p.health || p.status || "Active"}
+                              </Badge>
+                            </div>
+                            <p className="text-[11.5px] text-text-muted truncate mt-0.5">
+                              <span className="font-mono text-white/70">
+                                {p.identifier || p.slug || "PRJ"}
+                              </span>
+                              {" · "}
+                              {formattedDue
+                                ? `Due ${formattedDue}`
+                                : `${p.progress || 0}% complete`}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="shrink-0 flex items-center gap-2.5">
+                          <div className="w-24 sm:w-32 hidden sm:block">
+                            <Progress value={p.progress || 0} max={100} />
+                          </div>
+                          <span className="text-xs font-semibold text-white/80 w-8 text-right font-mono">
+                            {p.progress || 0}%
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="py-8 text-center text-xs text-text-muted">
+                    No active projects yet.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="pt-3 border-t border-white/[0.05] mt-3">
+              <button
+                type="button"
+                onClick={() => navigate("/projects")}
+                className="w-full text-center text-[12px] font-medium text-text-muted hover:text-white transition-colors cursor-pointer"
+              >
+                View all projects &rarr;
+              </button>
+            </div>
+          </section>
+
+          {/* Card TM: Team Collaboration (Spans 4 Columns) */}
+          <section
+            style={{ "--stagger": 7 }}
+            className="fernly-tm fernly-card rounded-2xl p-5 sm:p-6 flex flex-col justify-between border border-white/[0.08] bg-[#16171a] shadow-xs"
+          >
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <h2 className="text-[16px] sm:text-[17px] font-semibold text-white tracking-tight">
+                    Team Collaboration
+                  </h2>
+                  <Badge tone="neutral" size="sm">
+                    {teamMembers.length}
+                  </Badge>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigate("/settings")}
+                  className="gap-1.5"
+                >
+                  <Users size={13} strokeWidth={2.2} />
+                  Directory
+                </Button>
+              </div>
+
+              {/* Member list */}
+              <div className="flex flex-col gap-2.5">
+                {teamMembers.map((m, idx) => {
+                  const task = m.current_task;
+                  const taskStatus = task?.status;
+                  const tone =
+                    taskStatus === "Done"
+                      ? "positive"
+                      : taskStatus === "In Progress"
+                        ? "warning"
+                        : "neutral";
+                  const statusLabel =
+                    taskStatus === "Done"
+                      ? "Completed"
+                      : taskStatus === "In Progress"
+                        ? "In Progress"
+                        : task
+                          ? "Pending"
+                          : m.role || "Member";
+
+                  return (
+                    <div
+                      key={m.id || idx}
+                      style={{ "--item-stagger": idx }}
+                      className="fernly-list-item flex items-center justify-between gap-3 p-2 rounded-xl hover:bg-white/[0.03] transition-colors"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <Avatar
+                          name={m.name || m.email || "User"}
+                          src={m.avatar_url}
+                          size="md"
+                          className="shrink-0"
+                        />
+                        <div className="min-w-0">
+                          <p className="text-[13.5px] font-semibold text-white truncate">
+                            {m.name || m.email}
+                          </p>
+                          {task ? (
+                            <p className="text-[11.5px] text-text-muted truncate mt-0.5">
+                              Working on{" "}
+                              <span className="text-white/90 font-medium">
+                                {task.title}
+                              </span>
+                            </p>
+                          ) : (
+                            <p className="text-[11.5px] text-text-muted truncate mt-0.5">
+                              Role:{" "}
+                              <span className="text-white/80">
+                                {m.role || "Member"}
+                              </span>
+                              {m.active_tasks_count
+                                ? ` · ${m.active_tasks_count} active tasks`
+                                : ""}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="shrink-0">
+                        <Badge
+                          tone={
+                            task
+                              ? tone
+                              : m.role === "Owner"
+                                ? "positive"
+                                : "neutral"
+                          }
+                          size="sm"
+                        >
+                          {statusLabel}
+                        </Badge>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="pt-3 border-t border-white/[0.05] mt-3 flex items-center justify-between text-xs text-text-muted">
+              <span>{teamMembers.length} active team members</span>
+              <button
+                type="button"
+                onClick={() => navigate("/settings")}
+                className="hover:text-white transition-colors cursor-pointer"
+              >
+                Manage &rarr;
+              </button>
+            </div>
+          </section>
+
+
         </div>
       </div>
+
       <CreateProjectModal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
-        onProjectCreated={(newProject) => navigate("/projects")}
+        onProjectCreated={() => navigate("/projects")}
       />
     </div>
   );

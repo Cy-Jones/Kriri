@@ -154,7 +154,7 @@ export default function Login() {
                 type="button"
                 disabled={Boolean(oauthLoading)}
                 onClick={() => handleOAuth("oauth_github")}
-                className="flex-1 h-9 sm:h-9.5 2xl:h-11 bg-surface hover:bg-surface-hover border border-border hover:border-foreground/20 text-foreground rounded-xl text-xs sm:text-sm font-medium transition-all flex items-center justify-center gap-2 active:scale-[0.98] shadow-sm disabled:opacity-60"
+                className="flex-1 h-9 sm:h-9.5 2xl:h-11 bg-surface hover:bg-surface-hover border border-border hover:border-foreground/20 text-foreground rounded-full text-xs sm:text-sm font-medium transition-all flex items-center justify-center gap-2 active:scale-[0.98] shadow-sm disabled:opacity-60"
               >
                 {oauthLoading === "oauth_github" ? (
                   <div className="w-3.5 h-3.5 rounded-full border-[1.5px] border-white/20 border-t-white animate-spin" />
@@ -174,7 +174,7 @@ export default function Login() {
                 type="button"
                 disabled={Boolean(oauthLoading)}
                 onClick={() => handleOAuth("oauth_google")}
-                className="flex-1 h-9 sm:h-9.5 2xl:h-11 bg-surface hover:bg-surface-hover border border-border hover:border-foreground/20 text-foreground rounded-xl text-xs sm:text-sm font-medium transition-all flex items-center justify-center gap-2 active:scale-[0.98] shadow-sm disabled:opacity-60"
+                className="flex-1 h-9 sm:h-9.5 2xl:h-11 bg-surface hover:bg-surface-hover border border-border hover:border-foreground/20 text-foreground rounded-full text-xs sm:text-sm font-medium transition-all flex items-center justify-center gap-2 active:scale-[0.98] shadow-sm disabled:opacity-60"
               >
                 {oauthLoading === "oauth_google" ? (
                   <div className="w-3.5 h-3.5 rounded-full border-[1.5px] border-white/20 border-t-white animate-spin" />

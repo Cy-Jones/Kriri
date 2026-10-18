@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useUser, useOrganization } from "@clerk/clerk-react";
+import { Plus, Settings2, X, FolderKanban } from "lucide-react";
 import { Loupe } from "@lucasmarkes/hairline/react";
-import { Plus, Settings2, X } from "lucide-react";
 
 import CreateProjectModal from "../components/CreateProjectModal";
 import ConfirmModal from "../components/ConfirmModal";
@@ -84,6 +84,8 @@ export default function Projects() {
     resetToDefaults,
   } = useProjectFilters(projects);
 
+  const activeView = viewConfig?.activeView || "list";
+
   // 3. Selection & Command Palette State
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedProjects, setSelectedProjects] = useState([]);
@@ -105,6 +107,18 @@ export default function Projects() {
   const displayOptionsRef = useRef(null);
   const timelineScrollRef = useRef(null);
   const keyTimeout = useRef(null);
+
+  // Enforce no timeline view on mobile devices
+  useEffect(() => {
+    const checkMobile = () => {
+      if (typeof window !== "undefined" && window.innerWidth < 768 && activeView === "timeline") {
+        setActiveView("list");
+      }
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, [activeView, setActiveView]);
 
   // Bulk update handler
   const handleBulkUpdate = async (field, value) => {
@@ -223,7 +237,6 @@ export default function Projects() {
     return <PageLoading label="Projects" />;
   }
 
-  const activeView = viewConfig.activeView || "list";
   const currentViewConfig =
     viewConfig[activeView] || workspaceDefaultConfig[activeView];
   const isNonDefaultDisplay =
@@ -273,12 +286,8 @@ export default function Projects() {
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
         {filteredProjects.length === 0 ? (
           <div className="flex flex-col items-center justify-center flex-1 max-w-sm mx-auto text-center gap-6 mt-10 animate-in fade-in zoom-in-95 duration-500">
-            <div className="w-80 h-80 flex items-center justify-center relative overflow-visible">
-              <Loupe
-                theme="dark"
-                intensity={0.7}
-                className="w-full h-full text-[#8a8f98]"
-              />
+            <div className="w-64 h-64 flex items-center justify-center relative overflow-visible">
+              <Loupe theme="dark" intensity={0.7} className="w-full h-full text-[#8a8f98] opacity-80" />
             </div>
             <div className="flex flex-col gap-1.5">
               <h2 className="text-base font-semibold text-white">
@@ -292,9 +301,9 @@ export default function Projects() {
             {canManageProjects && (
               <button
                 onClick={() => setIsCreateModalOpen(true)}
-                className="h-8 px-4 bg-white text-black rounded-md font-medium text-[13px] hover:bg-gray-100 transition-colors shadow-sm flex items-center gap-2"
+                className="h-8 px-4 bg-white text-black rounded-full font-medium text-[13px] hover:bg-zinc-100 transition-all duration-300 shadow-[0_0_20px_rgba(255,255,255,0.14)] hover:shadow-[0_0_28px_rgba(255,255,255,0.22)] active:scale-[0.98] flex items-center gap-2"
               >
-                <Plus size={14} /> New Project
+                <Plus size={14} strokeWidth={2.2} /> New Project
               </button>
             )}
           </div>
@@ -337,7 +346,7 @@ export default function Projects() {
               />
             )}
 
-            {activeView === "timeline" && (
+            {activeView === "timeline" && typeof window !== "undefined" && window.innerWidth >= 768 && (
               <ErrorBoundary>
                 <TimelineViewRenderer
                   projects={filteredProjects}
@@ -368,13 +377,13 @@ export default function Projects() {
           </span>
           <button
             onClick={() => setIsBulkActionMenuOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-md text-[13px] text-white font-medium transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-full text-[13px] text-white font-medium transition-all active:scale-[0.98]"
           >
             <Settings2 size={14} /> Actions
           </button>
           <button
             onClick={() => setSelectedProjects([])}
-            className="p-1.5 hover:bg-white/10 rounded-md text-[#8a8f98] hover:text-white transition-colors ml-1"
+            className="p-1.5 hover:bg-white/10 rounded-full text-[#8a8f98] hover:text-white transition-all ml-1 active:scale-[0.95]"
           >
             <X size={14} />
           </button>

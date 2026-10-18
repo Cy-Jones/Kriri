@@ -39,6 +39,11 @@ router.post(
   requireMinimumRole("Viewer"),
   workspaceController.markAllNotificationsAsRead,
 );
+router.delete(
+  "/current/notifications/:id",
+  requireMinimumRole("Viewer"),
+  workspaceController.deleteNotification,
+);
 router.get(
   "/current",
   requireMinimumRole("Viewer"),

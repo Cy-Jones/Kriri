@@ -1,4 +1,4 @@
-import { useRef, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Signal } from "lucide-react";
 
 const PRIORITY_OPTIONS = [
@@ -127,13 +127,48 @@ export default function PriorityPicker({ value, onChange, onClose }) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [onClose]);
 
-  return (
+  const [isMobile, setIsMobile] = useState(
+    typeof window !== "undefined" ? window.innerWidth < 640 : false
+  );
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 640);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  const content = (
     <div
       ref={popoverRef}
-      className="absolute top-full left-0 mt-2 bg-[#1e1f21] border border-[#333538] rounded-xl shadow-2xl w-[240px] z-50 text-white py-1"
+      className={`${
+        isMobile
+          ? "bg-[#1e1f21] border border-[#333538] rounded-2xl shadow-2xl w-[260px] max-w-[calc(100vw-32px)] text-white p-1.5 flex flex-col"
+          : "absolute top-full left-0 mt-2 bg-[#1e1f21] border border-[#333538] rounded-xl shadow-2xl w-[240px] z-50 text-white py-1"
+      }`}
     >
       <div className="flex items-center justify-between px-3 py-2 border-b border-[#333538] mb-1">
         <span className="text-[12px] text-[#8a8f98]">Change priority...</span>
+        {isMobile && (
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-[#8a8f98] hover:text-white p-0.5 rounded transition-colors"
+          >
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        )}
       </div>
       {PRIORITY_OPTIONS.map((option) => (
         <div
@@ -171,4 +206,14 @@ export default function PriorityPicker({ value, onChange, onClose }) {
       ))}
     </div>
   );
+
+  if (isMobile) {
+    return (
+      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in-0 duration-150">
+        {content}
+      </div>
+    );
+  }
+
+  return content;
 }

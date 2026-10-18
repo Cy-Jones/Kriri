@@ -251,7 +251,11 @@ exports.createProject = async (req, res) => {
       // Return created project (to avoid complex re-querying, we just respond with 201)
       res.status(201).json(newProject);
     } catch (error) {
-      await client.query("ROLLBACK");
+      try {
+        await client.query("ROLLBACK");
+      } catch (rbErr) {
+        console.error("Rollback error:", rbErr);
+      }
       console.error("Error creating project:", error);
       res.status(500).json({ error: "Server error" });
     } finally {
@@ -340,7 +344,11 @@ exports.updateProject = async (req, res) => {
         ],
       );
       if (rows.length === 0) {
-        await client.query("ROLLBACK");
+        try {
+          await client.query("ROLLBACK");
+        } catch (rbErr) {
+          console.error("Rollback error:", rbErr);
+        }
         return res.status(404).json({ error: "Project not found" });
       }
 
@@ -360,21 +368,36 @@ exports.updateProject = async (req, res) => {
         }
       }
 
-      // Sync milestones if provided
+      // Sync milestones safely: update existing, insert new, delete removed
       if (milestones && Array.isArray(milestones)) {
-        await client.query("DELETE FROM milestones WHERE project_id = $1", [
-          id,
-        ]);
+        const incomingIds = milestones.map((m) => m.id).filter(Boolean);
+        if (incomingIds.length > 0) {
+          const placeholders = incomingIds.map((_, i) => `$${i + 2}`).join(", ");
+          await client.query(
+            `DELETE FROM milestones WHERE project_id = $1 AND id NOT IN (${placeholders})`,
+            [id, ...incomingIds],
+          );
+        } else {
+          await client.query("DELETE FROM milestones WHERE project_id = $1", [
+            id,
+          ]);
+        }
+
         for (const m of milestones) {
-          if (m.name || m.title) {
+          const name = m.name || m.title;
+          const desc = m.desc || m.description || null;
+          const dueDate = m.date || m.due_date || null;
+          if (!name) continue;
+
+          if (m.id) {
+            await client.query(
+              "UPDATE milestones SET name = $1, description = $2, due_date = $3 WHERE id = $4 AND project_id = $5",
+              [name, desc, dueDate, m.id, id],
+            );
+          } else {
             await client.query(
               "INSERT INTO milestones (project_id, name, description, due_date) VALUES ($1, $2, $3, $4)",
-              [
-                id,
-                m.name || m.title,
-                m.desc || m.description || null,
-                m.date || m.due_date || null,
-              ],
+              [id, name, desc, dueDate],
             );
           }
         }
@@ -392,7 +415,11 @@ exports.updateProject = async (req, res) => {
 
       res.json(rows[0]);
     } catch (error) {
-      await client.query("ROLLBACK");
+      try {
+        await client.query("ROLLBACK");
+      } catch (rbErr) {
+        console.error("Rollback error:", rbErr);
+      }
       console.error("Error updating project:", error);
       res.status(500).json({ error: "Server error" });
     } finally {

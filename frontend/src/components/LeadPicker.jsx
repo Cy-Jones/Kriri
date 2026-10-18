@@ -1,4 +1,4 @@
-import { useRef, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 
 export default function LinearLeadPicker({
   onClose,
@@ -29,12 +29,51 @@ export default function LinearLeadPicker({
     return "U";
   };
 
-  return (
+  const [isMobile, setIsMobile] = useState(
+    typeof window !== "undefined" ? window.innerWidth < 640 : false
+  );
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 640);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  const content = (
     <div
       ref={popoverRef}
-      className="absolute top-full left-0 mt-2 bg-[#1e1f21] border border-[#333538] rounded-xl shadow-2xl w-[260px] max-h-[300px] overflow-y-auto z-50 text-white text-[13px] flex flex-col p-1.5 custom-scrollbar"
+      className={`${
+        isMobile
+          ? "bg-[#1e1f21] border border-[#333538] rounded-2xl shadow-2xl w-[280px] max-w-[calc(100vw-32px)] text-white text-[12.5px] flex flex-col p-2"
+          : "absolute top-full right-0 mt-2 bg-[#1e1f21] border border-[#333538] rounded-xl shadow-2xl w-[260px] max-h-[300px] overflow-y-auto z-50 text-white text-[13px] flex flex-col p-1.5 custom-scrollbar"
+      }`}
     >
-      {/* Current Lead */}
+      <div className="flex items-center justify-between px-2 py-1.5 border-b border-[#333538] mb-2">
+        <span className="text-[12px] font-medium text-[#8a8f98]">Assign project lead</span>
+        {isMobile && (
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-[#8a8f98] hover:text-white p-0.5 rounded transition-colors"
+          >
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        )}
+      </div>
+
+      {/* Current Lead / Unassigned */}
       <div
         onClick={() => handleSelect(null)}
         className="flex items-center gap-2 p-2 rounded-lg bg-white/[0.06] hover:bg-white/[0.08] cursor-pointer transition-colors mb-2"
@@ -68,44 +107,56 @@ export default function LinearLeadPicker({
         <span className="text-[#e8e8e8] font-medium truncate">
           {value ? value.name || value.email?.split("@")[0] : "Unassigned"}
         </span>
-        <span className="text-[#8a8f98] ml-auto text-[12px]">Project lead</span>
+        <span className="text-[#8a8f98] ml-auto text-[11.5px]">Project lead</span>
       </div>
 
-      <div className="px-2 pt-1 pb-2 text-[13px] font-medium text-[#8a8f98]">
+      <div className="px-2 pt-1 pb-1.5 text-[12px] font-medium text-[#8a8f98]">
         Assign user
       </div>
 
-      {availableMembers.length === 0 && (
-        <div className="p-2 text-[#8a8f98] text-center italic">
-          No members found.
-        </div>
-      )}
-
-      {availableMembers.map((member) => {
-        const displayName =
-          member.name || member.email?.split("@")[0] || "User";
-        const initial = getInitial(member.name, member.email);
-        return (
-          <div
-            key={member.id}
-            onClick={() => handleSelect(member)}
-            className="flex items-center gap-2 p-2 rounded-lg hover:bg-white/[0.04] cursor-pointer transition-colors"
-          >
-            {member.avatar_url ? (
-              <img
-                src={member.avatar_url}
-                alt={displayName}
-                className="w-5 h-5 rounded-full object-cover"
-              />
-            ) : (
-              <div className="w-5 h-5 rounded-full bg-[#ff7b93] text-white flex items-center justify-center text-[9px] font-medium">
-                {initial}
-              </div>
-            )}
-            <span className="text-[#d1d2d5] truncate">{displayName}</span>
+      <div className="flex flex-col gap-0.5 overflow-y-auto max-h-[220px] custom-scrollbar">
+        {availableMembers.length === 0 && (
+          <div className="p-2 text-[#8a8f98] text-center italic text-[12px]">
+            No members found.
           </div>
-        );
-      })}
+        )}
+
+        {availableMembers.map((member) => {
+          const displayName =
+            member.name || member.email?.split("@")[0] || "User";
+          const initial = getInitial(member.name, member.email);
+          return (
+            <div
+              key={member.id}
+              onClick={() => handleSelect(member)}
+              className="flex items-center gap-2 p-2 rounded-lg hover:bg-white/[0.04] cursor-pointer transition-colors"
+            >
+              {member.avatar_url ? (
+                <img
+                  src={member.avatar_url}
+                  alt={displayName}
+                  className="w-5 h-5 rounded-full object-cover"
+                />
+              ) : (
+                <div className="w-5 h-5 rounded-full bg-[#ff7b93] text-white flex items-center justify-center text-[9px] font-medium">
+                  {initial}
+                </div>
+              )}
+              <span className="text-[#d1d2d5] truncate">{displayName}</span>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
+
+  if (isMobile) {
+    return (
+      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in-0 duration-150">
+        {content}
+      </div>
+    );
+  }
+
+  return content;
 }

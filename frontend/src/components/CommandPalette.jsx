@@ -3,11 +3,11 @@ import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
 import {
-  LayoutGrid,
-  KanbanSquare,
+  LayoutDashboard,
+  Kanban,
   CheckCircle2,
-  Folder,
-  Settings,
+  FolderKanban,
+  Settings2,
   LogOut,
   Plus,
   HelpCircle,
@@ -129,7 +129,7 @@ export default function CommandPalette({ openCreateTask, openHelp }) {
         label: "Go to Dashboard",
         description: "Workspace overview and metrics",
         group: "Navigation",
-        icon: <LayoutGrid className="w-4 h-4 text-foreground" />,
+        icon: <LayoutDashboard className="w-4 h-4 text-foreground" />,
         shortcut: "G D",
         keywords: ["home", "overview", "dashboard"],
         onSelect: () => {
@@ -142,7 +142,7 @@ export default function CommandPalette({ openCreateTask, openHelp }) {
         label: "Go to Board",
         description: "Kanban board with status columns",
         group: "Navigation",
-        icon: <KanbanSquare className="w-4 h-4 text-foreground" />,
+        icon: <Kanban className="w-4 h-4 text-foreground" />,
         shortcut: "G B",
         keywords: ["kanban", "board", "tasks", "issues"],
         onSelect: () => {
@@ -155,7 +155,7 @@ export default function CommandPalette({ openCreateTask, openHelp }) {
         label: "Go to Projects",
         description: "All projects and repositories",
         group: "Navigation",
-        icon: <Folder className="w-4 h-4 text-foreground" />,
+        icon: <FolderKanban className="w-4 h-4 text-foreground" />,
         shortcut: "G P",
         keywords: ["projects", "repos", "workspaces"],
         onSelect: () => {
@@ -168,7 +168,7 @@ export default function CommandPalette({ openCreateTask, openHelp }) {
         label: "Go to Settings",
         description: "Workspace configuration and preferences",
         group: "Navigation",
-        icon: <Settings className="w-4 h-4 text-foreground" />,
+        icon: <Settings2 className="w-4 h-4 text-foreground" />,
         shortcut: "G S",
         keywords: ["settings", "preferences", "account"],
         onSelect: () => {

@@ -2,15 +2,16 @@
 .button {
   position: relative;
   display: inline-flex;
-  min-height: var(--control-height-md);
+  min-height: 28px;
+  height: 28px;
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
   border: 1px solid transparent;
-  border-radius: var(--radius-control);
-  padding: 0 var(--space-4);
+  border-radius: 9999px !important;
+  padding: 0 12px;
   font: inherit;
-  font-size: var(--text-sm);
+  font-size: 12px;
   font-weight: 500;
   line-height: var(--leading-body);
   white-space: nowrap;
@@ -21,7 +22,7 @@
     background var(--duration-fast) var(--ease-standard),
     border-color var(--duration-fast) var(--ease-standard),
     opacity var(--duration-fast) var(--ease-standard),
-    box-shadow var(--duration-fast) var(--ease-standard);
+    box-shadow 0.25s var(--ease-standard);
 }
 .button:focus-visible {
   outline: 2px solid var(--focus-ring);
@@ -71,9 +72,10 @@
   flex: none;
 }
 .primary {
-  color: var(--background);
-  background: var(--foreground);
-  border-color: var(--foreground);
+  color: #000000;
+  background: #ffffff;
+  border-color: #ffffff;
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.14);
 }
 .secondary {
   color: var(--foreground);
@@ -92,8 +94,9 @@
 }
 @media (hover: hover) and (pointer: fine) {
   .primary:hover:not(:disabled) {
-    opacity: 0.91;
-    box-shadow: var(--shadow-resting);
+    opacity: 0.95;
+    background: #f4f4f5;
+    box-shadow: 0 0 28px rgba(255, 255, 255, 0.22);
   }
   .secondary:hover:not(:disabled) {
     background: var(--surface-muted);
@@ -110,7 +113,7 @@
 }
 /* Color feedback on press, so touch and menu triggers (which never scale) still answer the finger. */
 .primary:active:not(:disabled) {
-  opacity: 0.84;
+  opacity: 0.88;
 }
 .secondary:active:not(:disabled),
 .ghost:active:not(:disabled) {
@@ -122,17 +125,25 @@
   background: var(--surface-muted);
 }
 .sm {
-  min-height: var(--control-height-sm);
-  padding-inline: var(--space-3);
-  font-size: var(--text-sm);
+  min-height: 28px;
+  height: 28px;
+  padding-inline: 12px;
+  font-size: 12px;
+  border-radius: 9999px !important;
 }
 .md {
-  min-height: var(--control-height-md);
+  min-height: 28px;
+  height: 28px;
+  padding-inline: 14px;
+  font-size: 12px;
+  border-radius: 9999px !important;
 }
 .lg {
-  min-height: var(--control-height-lg);
-  padding-inline: var(--space-5);
-  font-size: var(--text-sm);
+  min-height: 32px;
+  height: 32px;
+  padding-inline: 16px;
+  font-size: 13px;
+  border-radius: 9999px !important;
 }
 .loader {
   position: absolute;

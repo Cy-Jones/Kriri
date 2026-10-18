@@ -132,7 +132,7 @@ export default function ListViewRenderer({
     <div className="w-full flex flex-col h-full overflow-auto">
       <div className="min-w-max flex flex-col min-h-full">
         <div
-          className="grid gap-8 items-center px-6 py-2.5 text-[12px] font-medium text-[#8a8f98] sticky top-0 z-20 border-b border-white/[0.05]"
+          className="grid gap-8 items-center px-6 py-2.5 text-[12px] font-medium text-[#8a8f98] sticky top-0 z-20 border-b border-white/[0.05] bg-black md:bg-[#131416]"
           style={{ gridTemplateColumns: gridCols }}
         >
           <div>Name</div>
@@ -164,7 +164,7 @@ export default function ListViewRenderer({
                 {config.grouping !== "none" && (
                   <div
                     onClick={() => toggleGroupCollapse(`list_${groupTitle}`)}
-                    className="flex items-center gap-2 px-6 py-2 bg-[#18191c] hover:bg-white/[0.02] cursor-pointer text-[13px] font-medium text-[#e8e8e8] transition-colors"
+                    className="flex items-center gap-2 px-6 py-2 bg-[#151618] md:bg-[#18191c] hover:bg-white/[0.02] cursor-pointer text-[13px] font-medium text-[#e8e8e8] transition-colors"
                   >
                     {isCollapsed ? (
                       <ChevronRight size={14} className="text-[#8a8f98]" />

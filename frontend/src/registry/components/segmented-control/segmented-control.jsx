@@ -12,7 +12,9 @@ export default function SegmentedControl({
   label,
   onOptionIntent,
   className,
+  fullWidth = false,
 }) {
+  const isFullWidth = fullWidth || className?.includes("w-full");
   const id = useId();
   const reduced = useReducedMotion();
   const track = useRef(null);
@@ -99,12 +101,16 @@ export default function SegmentedControl({
       aria-label={label}
     >
       <LayoutGroup id={id}>
-        <motion.div ref={track} layoutScroll className={styles.track}>
+        <motion.div
+          ref={track}
+          layoutScroll
+          className={`${styles.track} ${isFullWidth ? "w-full" : ""}`}
+        >
           {options.map((option, index) => (
             <button
               key={option.value}
               id={`${id}-${option.value}`}
-              className={styles.button}
+              className={`${styles.button} ${isFullWidth ? "flex-1 justify-center text-center" : ""}`}
               type="button"
               data-value={option.value}
               aria-pressed={value === option.value}
@@ -129,7 +135,9 @@ export default function SegmentedControl({
                   aria-hidden="true"
                 />
               )}
-              <span className={styles.label}>
+              <span
+                className={`${styles.label} ${isFullWidth ? "justify-center w-full" : ""}`}
+              >
                 {option.label}
                 {option.accessory}
               </span>

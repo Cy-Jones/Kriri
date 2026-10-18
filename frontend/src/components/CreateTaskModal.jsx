@@ -1,6 +1,9 @@
 import { useState, useEffect } from "react";
 import { api } from "../lib/api";
 import posthog from "../lib/posthog";
+import { X, Tag } from "lucide-react";
+import { getStatusIcon } from "./StatusPicker";
+import { getPriorityIcon } from "./PriorityPicker";
 
 export default function CreateTaskModal({
   isOpen,
@@ -72,26 +75,10 @@ export default function CreateTaskModal({
     }
   };
 
-  const statusIcon = (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="text-text-muted"
-    >
-      <circle cx="12" cy="12" r="10" strokeDasharray="4 4" />
-    </svg>
-  );
-
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
       <div
-        className="w-full max-w-[720px] rounded-2xl shadow-2xl flex flex-col animate-in zoom-in-95 duration-200"
+        className="w-full max-w-[95vw] sm:max-w-[700px] md:max-w-3xl lg:max-w-4xl rounded-2xl shadow-2xl flex flex-col animate-in zoom-in-95 duration-200 overflow-hidden"
         style={{
           backgroundColor: "#212226",
           border: "1px solid rgba(255,255,255,0.08)",
@@ -99,12 +86,12 @@ export default function CreateTaskModal({
       >
         <form onSubmit={handleSubmit} className="flex flex-col">
           {/* Top Bar */}
-          <div className="px-4 py-3 flex items-center justify-between">
-            <div className="flex items-center gap-1.5 text-[13px] text-text-secondary">
+          <div className="px-4 py-3 flex items-center justify-between min-w-0 border-b border-white/[0.04]">
+            <div className="flex items-center gap-1.5 text-[12.5px] sm:text-[13px] text-text-secondary min-w-0 max-w-[calc(100%-48px)]">
               <select
                 value={projectId}
                 onChange={(e) => setProjectId(Number(e.target.value))}
-                className="bg-white/5 hover:bg-white/10 px-2 py-1 rounded cursor-pointer transition-colors text-text-secondary focus:outline-none"
+                className="bg-white/5 hover:bg-white/10 px-2 py-1 rounded cursor-pointer transition-colors text-text-secondary focus:outline-none truncate max-w-full text-ellipsis"
               >
                 {projects.map((p) => (
                   <option
@@ -112,157 +99,96 @@ export default function CreateTaskModal({
                     value={p.id}
                     className="bg-[#212226] text-white"
                   >
-                    {p.name}
+                    {p.identifier ? `${p.identifier} — ${p.name}` : p.name}
                   </option>
                 ))}
               </select>
-              <svg
-                width="10"
-                height="10"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="m9 18 6-6-6-6" />
-              </svg>
-              <span className="text-text-primary">New issue</span>
             </div>
-            <div className="flex items-center gap-2 text-text-muted">
-              <button
-                type="button"
-                className="p-1 hover:text-white transition-colors"
-              >
-                <svg
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M15 3h6v6" />
-                  <path d="M9 21H3v-6" />
-                  <path d="M21 3l-7 7" />
-                  <path d="M3 21l7-7" />
-                </svg>
-              </button>
+            <div className="flex items-center gap-1 text-text-muted shrink-0">
               <button
                 type="button"
                 onClick={onClose}
-                className="p-1 hover:text-white transition-colors"
+                className="p-1 hover:text-white transition-colors rounded-md hover:bg-white/[0.06]"
+                aria-label="Close"
               >
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M18 6 6 18" />
-                  <path d="M6 6l12 12" />
-                </svg>
+                <X size={15} />
               </button>
             </div>
           </div>
 
           {/* Inputs */}
-          <div className="px-5 py-2 flex flex-col gap-2">
+          <div className="px-5 sm:px-6 py-4 flex flex-col gap-2.5">
             <input
               autoFocus
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Issue title"
-              className="w-full bg-transparent text-[18px] font-medium text-white placeholder:text-text-muted focus:outline-none"
+              className="w-full bg-transparent text-[18px] sm:text-[22px] font-semibold text-white placeholder:text-text-muted focus:outline-none"
             />
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Add description..."
-              className="w-full bg-transparent text-[14px] text-white placeholder:text-text-muted focus:outline-none resize-none min-h-[120px]"
+              className="w-full bg-transparent text-[13.5px] sm:text-[14.5px] text-white placeholder:text-text-muted focus:outline-none resize-none min-h-[140px] sm:min-h-[170px]"
             />
           </div>
 
           {/* Bottom Bar */}
-          <div className="px-4 py-3 flex flex-wrap items-center justify-between gap-3 border-t border-white/5 mt-2">
-            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+          <div className="px-4 py-3 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 border-t border-white/5 mt-1 bg-[#1a1b1e]/50">
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 shrink-0 max-w-full">
+              {/* Status button */}
               <button
                 type="button"
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-white/10 hover:bg-white/5 transition-colors text-[12px] text-text-secondary bg-white/[0.02]"
+                onClick={() => {
+                  const statuses = ["Backlog", "Todo", "In Progress", "Done", "Canceled"];
+                  const next = statuses[(statuses.indexOf(status) + 1) % statuses.length];
+                  setStatus(next);
+                }}
+                className="flex items-center gap-1.5 h-[28px] px-2.5 rounded-md border border-white/10 hover:bg-white/5 transition-colors text-[11.5px] text-text-secondary bg-white/[0.02] shrink-0 whitespace-nowrap cursor-pointer"
+                title="Click to cycle status"
               >
-                {statusIcon}
-                <span>Todo</span>
+                {getStatusIcon(status)}
+                <span>{status}</span>
               </button>
 
+              {/* Priority button */}
               <button
                 type="button"
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-white/10 hover:bg-white/5 transition-colors text-[12px] text-text-secondary bg-white/[0.02]"
+                onClick={() => {
+                  const priorities = ["No priority", "Low", "Medium", "High", "Urgent"];
+                  const next = priorities[(priorities.indexOf(priority) + 1) % priorities.length];
+                  setPriority(next);
+                }}
+                className="flex items-center gap-1.5 h-[28px] px-2.5 rounded-md border border-white/10 hover:bg-white/5 transition-colors text-[11.5px] text-text-secondary bg-white/[0.02] shrink-0 whitespace-nowrap cursor-pointer"
+                title="Click to cycle priority"
               >
-                <span className="opacity-50">---</span>
-                <span>Priority</span>
+                {getPriorityIcon(priority)}
+                <span>{priority === "No priority" ? "Priority" : priority}</span>
               </button>
 
+              {/* Assignee button */}
               <button
                 type="button"
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-white/10 hover:bg-white/5 transition-colors text-[12px] text-text-primary bg-white/[0.02]"
+                className="flex items-center gap-1.5 h-[28px] px-2.5 rounded-md border border-white/10 hover:bg-white/5 transition-colors text-[11.5px] text-text-primary bg-white/[0.02] shrink-0 whitespace-nowrap"
               >
-                <div className="w-[14px] h-[14px] rounded-full bg-[#f54868] flex items-center justify-center text-white text-[7px] font-bold tracking-tighter">
+                <div className="w-[14px] h-[14px] rounded-full bg-[#f54868] flex items-center justify-center text-white text-[7px] font-bold tracking-tighter shrink-0">
                   CY
                 </div>
                 <span>cyruskjones</span>
               </button>
 
+              {/* Labels button */}
               <button
                 type="button"
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-white/10 hover:bg-white/5 transition-colors text-[12px] text-text-secondary bg-white/[0.02]"
+                className="flex items-center gap-1.5 h-[28px] px-2.5 rounded-md border border-white/10 hover:bg-white/5 transition-colors text-[11.5px] text-text-secondary bg-white/[0.02] shrink-0 whitespace-nowrap"
               >
-                <svg
-                  width="12"
-                  height="12"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="opacity-70"
-                >
-                  <path d="M11 20 20 11a2.83 2.83 0 0 0 0-4L17 4a2.83 2.83 0 0 0-4 0L4 13v7h7Z" />
-                  <path d="M7 17h.01" />
-                </svg>
+                <Tag size={12} className="opacity-70 shrink-0" />
                 <span>Labels</span>
-              </button>
-
-              <button
-                type="button"
-                className="flex items-center justify-center w-[26px] h-[26px] rounded-full border border-white/10 hover:bg-white/5 transition-colors text-text-secondary bg-white/[0.02]"
-              >
-                <svg
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <circle cx="12" cy="12" r="1" />
-                  <circle cx="19" cy="12" r="1" />
-                  <circle cx="5" cy="12" r="1" />
-                </svg>
               </button>
             </div>
 
-            <div className="flex items-center gap-4">
-              <label className="flex items-center gap-2 cursor-pointer group">
+            <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 pt-1 sm:pt-0 border-t sm:border-t-0 border-white/[0.04]">
+              <label className="flex items-center gap-2 cursor-pointer group shrink-0">
                 <div
                   className={`relative w-[28px] h-[16px] rounded-full transition-colors ${createMore ? "bg-accent" : "bg-white/20"}`}
                 >
@@ -276,7 +202,7 @@ export default function CreateTaskModal({
                   checked={createMore}
                   onChange={(e) => setCreateMore(e.target.checked)}
                 />
-                <span className="text-[12px] text-text-muted group-hover:text-text-secondary transition-colors select-none">
+                <span className="text-[12px] text-text-muted group-hover:text-text-secondary transition-colors select-none whitespace-nowrap">
                   Create more
                 </span>
               </label>
@@ -284,7 +210,7 @@ export default function CreateTaskModal({
               <button
                 type="submit"
                 disabled={loading || !title.trim()}
-                className="px-4 py-1.5 rounded-full font-medium text-[13px] bg-accent text-white hover:bg-accent-hover disabled:opacity-50 transition-all shadow-sm"
+                className="h-[28px] px-4 rounded-full font-medium text-[12.5px] bg-white text-black hover:bg-zinc-100 disabled:opacity-50 transition-all duration-300 shadow-[0_0_20px_rgba(255,255,255,0.14)] hover:shadow-[0_0_28px_rgba(255,255,255,0.22)] active:scale-[0.98] shrink-0 whitespace-nowrap"
               >
                 {loading ? "Creating..." : "Create issue"}
               </button>

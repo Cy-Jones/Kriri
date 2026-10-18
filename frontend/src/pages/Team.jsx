@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Search, Plus, MoreHorizontal, X } from "lucide-react";
+import { Search, Plus, MoreHorizontal, X, Menu } from "lucide-react";
 import {
   useUser,
   useOrganization,
@@ -19,6 +19,7 @@ export default function Team() {
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [activeActionMenu, setActiveActionMenu] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
 
   const [confirmModal, setConfirmModal] = useState({
     isOpen: false,
@@ -144,30 +145,50 @@ export default function Team() {
       (m.email || "").toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
+  const formatWorkspaceName = (name, isMobile = false) => {
+    if (!name) return "Personal Workspace";
+    if (isMobile) {
+      // Abbreviate "Development" to "Dev" so header fits with Invite button on mobile
+      const shortened = name.replace(/Development/gi, "Dev");
+      return `${shortened} Workspace`;
+    }
+    return `${name} Workspace`;
+  };
+
   if (loading) {
     return <PageLoading label="Team" />;
   }
 
   return (
     <div className="w-full flex flex-col h-full animate-in fade-in duration-300 relative">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 sm:mb-8">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight text-white mb-1">
-            {organization
-              ? `${organization.name} Workspace`
-              : "Personal Workspace"}
+      {/* Top Header Row with Title and Invite Member button */}
+      <div className="flex items-center justify-between gap-2 sm:gap-3 min-h-[38px] mb-2 sm:mb-2.5">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          <button
+            type="button"
+            onClick={() => window.dispatchEvent(new CustomEvent("open-mobile-nav"))}
+            className="md:hidden p-1.5 -ml-1 text-[#8a8f98] hover:text-white rounded-md hover:bg-white/[0.06] transition-colors shrink-0"
+            aria-label="Open menu"
+          >
+            <Menu size={18} strokeWidth={1.75} />
+          </button>
+          <h1 className="text-[13.5px] sm:text-base font-semibold tracking-tight text-white truncate">
+            <span className="sm:hidden">
+              {formatWorkspaceName(organization?.name, true)}
+            </span>
+            <span className="hidden sm:inline">
+              {formatWorkspaceName(organization?.name, false)}
+            </span>
           </h1>
-          <p className="text-[13px] text-text-muted">
-            Manage your workspace members and their roles.
-          </p>
         </div>
+
         {canManageRoles && (
           <button
             onClick={() => setShowInviteModal(true)}
             disabled={!organization} // Cannot invite to personal workspace
-            className={`h-8 px-3 rounded-md text-[13px] font-medium transition-colors flex items-center gap-1.5 ${
+            className={`h-[26px] sm:h-[28px] px-3 rounded-full text-[11px] sm:text-[12px] font-medium transition-all duration-300 flex items-center gap-1.5 shrink-0 active:scale-[0.98] ${
               organization
-                ? "bg-white text-black hover:bg-white/90"
+                ? "bg-white text-black hover:bg-zinc-100 shadow-[0_0_20px_rgba(255,255,255,0.14)] hover:shadow-[0_0_28px_rgba(255,255,255,0.22)]"
                 : "bg-white/10 text-white/50 cursor-not-allowed"
             }`}
             title={
@@ -176,26 +197,94 @@ export default function Team() {
                 : ""
             }
           >
-            <Plus size={16} />
-            Invite Member
+            <Plus size={13} strokeWidth={2.2} />
+            <span>Invite Member</span>
           </button>
         )}
       </div>
 
-      <div className="flex items-center gap-3 mb-6">
-        <div className="relative flex-1 max-w-[320px]">
-          <Search
-            size={14}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted"
-          />
-          <input
-            type="text"
-            placeholder="Filter by name or email..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-surface-elevated border border-border rounded-md pl-9 pr-3 py-1.5 text-[13px] text-white placeholder:text-text-muted focus:outline-none focus:border-white/20 transition-colors"
-          />
-        </div>
+      {/* Underneath: Tag (members count & tagline) on left, Search icon on right */}
+      <div className="flex items-center justify-between gap-2 mb-4 sm:mb-5 min-h-[30px]">
+        {isSearchOpen ? (
+          <div className="sm:hidden flex items-center gap-2 w-full animate-in fade-in duration-150">
+            <div className="relative flex-1">
+              <Search
+                size={14}
+                className="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted"
+              />
+              <input
+                type="text"
+                autoFocus
+                placeholder="Filter by name or email..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-[#1b1c1e] border border-[#333538] focus:border-[#5e6ad2] rounded-md pl-8 pr-7 py-1 text-xs text-white placeholder:text-text-muted focus:outline-none transition-colors"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted hover:text-white"
+                >
+                  <X size={12} />
+                </button>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setIsSearchOpen(false);
+                setSearchQuery("");
+              }}
+              className="text-[11.5px] text-text-muted hover:text-white shrink-0 px-1 py-1"
+            >
+              Cancel
+            </button>
+          </div>
+        ) : (
+          <>
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="px-2 py-0.5 rounded-full bg-white/[0.06] border border-white/[0.08] text-[11px] text-[#8a8f98] font-medium shrink-0">
+                {members.length} {members.length === 1 ? "member" : "members"}
+              </span>
+              <p className="text-[12px] sm:text-[13px] text-text-muted truncate">
+                Manage your workspace members and their roles.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              {/* Desktop Search Input */}
+              <div className="hidden sm:block relative">
+                <Search
+                  size={14}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted"
+                />
+                <input
+                  type="text"
+                  placeholder="Filter by name or email..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-[200px] bg-surface-elevated border border-border rounded-md pl-9 pr-3 py-1 text-xs text-white placeholder:text-text-muted focus:outline-none focus:border-white/20 transition-colors"
+                />
+              </div>
+
+              {/* Mobile Search Icon Button */}
+              <button
+                type="button"
+                onClick={() => setIsSearchOpen(true)}
+                className={`sm:hidden h-[26px] w-[26px] flex items-center justify-center rounded-md border border-white/[0.08] transition-colors ${
+                  searchQuery
+                    ? "bg-white/[0.1] text-white border-white/20"
+                    : "bg-white/[0.03] text-[#8a8f98] hover:text-white hover:bg-white/[0.06]"
+                }`}
+                aria-label="Search members"
+                title="Search members"
+              >
+                <Search size={14} />
+              </button>
+            </div>
+          </>
+        )}
       </div>
 
       {actionError && (
@@ -222,19 +311,116 @@ export default function Team() {
             No members found
           </div>
         ) : (
-          <table className="w-full min-w-[550px] text-left border-collapse">
-            <thead>
-              <tr className="border-b border-white/[0.06]">
-                <th className="font-normal text-text-muted text-[13px] px-4 py-3">
+          <>
+            {/* Mobile Card List (< sm) */}
+            <div className="sm:hidden flex flex-col divide-y divide-white/[0.04]">
+              {filteredMembers.map((member) => (
+                <div key={member.id} className="p-3.5 flex flex-col gap-2.5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div
+                        className={`w-7 h-7 rounded-full ${member.avatar_url ? "bg-white/10" : getAvatarColor(member.name, member.email)} flex items-center justify-center text-[11px] font-medium text-white overflow-hidden shrink-0`}
+                      >
+                        {member.avatar_url ? (
+                          <img
+                            src={member.avatar_url}
+                            alt={member.name}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          getInitial(member.name, member.email)
+                        )}
+                      </div>
+                      <div className="flex flex-col min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[13px] font-medium text-[#e8e8e8] truncate">
+                            {member.name || member.email}
+                          </span>
+                          {member.email === currentUserEmail && (
+                            <span className="text-[10px] text-text-muted bg-white/[0.05] border border-white/[0.08] px-1.5 py-0.5 rounded-md shrink-0">
+                              You
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-[12px] text-text-muted truncate">
+                          {member.email}
+                        </span>
+                      </div>
+                    </div>
+
+                    {canManageRoles &&
+                    member.role !== "Owner" &&
+                    member.email !== currentUserEmail && (
+                      <div className="relative shrink-0">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveActionMenu(
+                              activeActionMenu === member.id ? null : member.id,
+                            );
+                          }}
+                          className="w-7 h-7 rounded hover:bg-white/[0.04] transition-colors flex items-center justify-center text-text-muted hover:text-white"
+                        >
+                          <MoreHorizontal size={15} />
+                        </button>
+                        {activeActionMenu === member.id && (
+                          <div
+                            className="absolute right-0 top-full mt-1 w-40 bg-[#18191b] border border-white/[0.08] rounded-lg shadow-xl overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-100"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <button
+                              onClick={() => removeMember(member.id)}
+                              className="w-full text-left px-3 py-2 text-[13px] text-danger hover:bg-white/[0.04] transition-colors flex items-center"
+                            >
+                              Remove member
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex items-center justify-between text-[12px] pt-2 border-t border-white/[0.04]">
+                    <span className="text-text-muted">
+                      Joined {member.joined_at ? new Date(member.joined_at).toLocaleDateString() : "-"}
+                    </span>
+                    <div>
+                      {canManageRoles && member.role !== "Owner" ? (
+                        <select
+                          value={member.role}
+                          onChange={(e) => updateRole(member.id, e.target.value)}
+                          disabled={member.email === currentUserEmail}
+                          className="bg-[#18191b] border border-white/[0.1] rounded px-2 py-1 text-[12px] text-white focus:outline-none focus:border-white/20 cursor-pointer disabled:opacity-50"
+                        >
+                          {ASSIGNABLE_ROLES.map((r) => (
+                            <option key={r} value={r} className="bg-[#18191b] text-white">
+                              {r}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <span className="text-[#e8e8e8] font-medium">{member.role}</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop Table (>= sm) */}
+            <table className="hidden sm:table w-full min-w-[550px] text-left border-collapse">
+              <thead>
+                <tr className="border-b border-white/[0.06]">
+                <th className="font-normal text-text-muted text-[13px] px-4 py-2.5">
                   User
                 </th>
-                <th className="font-normal text-text-muted text-[13px] px-4 py-3">
+                <th className="font-normal text-text-muted text-[13px] px-4 py-2.5">
                   Joined
                 </th>
-                <th className="font-normal text-text-muted text-[13px] px-4 py-3">
+                <th className="font-normal text-text-muted text-[13px] px-4 py-2.5">
                   Role
                 </th>
-                <th className="font-normal text-text-muted text-[13px] px-4 py-3">
+                <th className="font-normal text-text-muted text-[13px] px-4 py-2.5">
                   Actions
                 </th>
               </tr>
@@ -245,11 +431,11 @@ export default function Team() {
                   key={member.id}
                   className="border-b border-white/[0.04] last:border-0 hover:bg-white/[0.02] transition-colors group"
                 >
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-4">
+                  <td className="px-4 py-2.5">
+                    <div className="flex items-center gap-2.5">
                       {/* Avatar */}
                       <div
-                        className={`w-10 h-10 rounded-full ${member.avatar_url ? "bg-white/10" : getAvatarColor(member.name, member.email)} flex items-center justify-center text-[16px] font-normal text-white overflow-hidden shrink-0`}
+                        className={`w-7 h-7 rounded-full ${member.avatar_url ? "bg-white/10" : getAvatarColor(member.name, member.email)} flex items-center justify-center text-[11px] font-medium text-white overflow-hidden shrink-0`}
                       >
                         {member.avatar_url ? (
                           <img
@@ -262,28 +448,28 @@ export default function Team() {
                         )}
                       </div>
                       <div className="flex flex-col">
-                        <div className="flex items-center gap-2">
-                          <span className="text-[14px] font-medium text-[#e8e8e8]">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[13px] font-medium text-[#e8e8e8]">
                             {member.name || member.email}
                           </span>
                           {member.email === currentUserEmail && (
-                            <span className="text-[11px] text-text-muted bg-white/[0.05] border border-white/[0.08] px-1.5 py-0.5 rounded-md">
+                            <span className="text-[10px] text-text-muted bg-white/[0.05] border border-white/[0.08] px-1.5 py-0.5 rounded-md">
                               You
                             </span>
                           )}
                         </div>
-                        <span className="text-[13px] text-text-muted">
+                        <span className="text-[12px] text-text-muted">
                           {member.email}
                         </span>
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-[13px] text-[#e8e8e8]">
+                  <td className="px-4 py-2.5 text-[13px] text-[#e8e8e8]">
                     {member.joined_at
                       ? new Date(member.joined_at).toLocaleDateString()
                       : "-"}
                   </td>
-                  <td className="px-4 py-3 text-[13px] text-[#e8e8e8]">
+                  <td className="px-4 py-2.5 text-[13px] text-[#e8e8e8]">
                     {canManageRoles && member.role !== "Owner" ? (
                       <select
                         value={member.role}
@@ -310,7 +496,7 @@ export default function Team() {
                       <span>{member.role}</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-[13px] text-text-muted">
+                  <td className="px-4 py-2.5 text-[13px] text-text-muted">
                     {canManageRoles &&
                     member.role !== "Owner" &&
                     member.email !== currentUserEmail ? (
@@ -322,9 +508,9 @@ export default function Team() {
                               activeActionMenu === member.id ? null : member.id,
                             );
                           }}
-                          className="w-8 h-8 rounded hover:bg-white/[0.04] transition-colors flex items-center justify-center text-text-muted hover:text-white"
+                          className="w-7 h-7 rounded hover:bg-white/[0.04] transition-colors flex items-center justify-center text-text-muted hover:text-white"
                         >
-                          <MoreHorizontal size={16} />
+                          <MoreHorizontal size={15} />
                         </button>
                         {activeActionMenu === member.id && (
                           <div
@@ -348,6 +534,7 @@ export default function Team() {
               ))}
             </tbody>
           </table>
+          </>
         )}
       </div>
 

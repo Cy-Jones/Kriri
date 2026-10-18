@@ -8,7 +8,7 @@ exports.getAllTasks = async (req, res) => {
   try {
     const { rows } = await db.query(
       `
-      SELECT t.*, u.name as assignee_name, u.avatar_url as assignee_avatar_url, p.slug as project_slug 
+      SELECT t.*, u.name as assignee_name, u.avatar_url as assignee_avatar_url, p.slug as project_slug, p.identifier as project_identifier, p.name as project_name 
       FROM tasks t
       LEFT JOIN users u ON t.assignee_id = u.id
       JOIN projects p ON t.project_id = p.id
@@ -268,7 +268,7 @@ exports.getTaskById = async (req, res) => {
   try {
     const { rows } = await db.query(
       `
-      SELECT t.*, u.name as assignee_name, u.avatar_url as assignee_avatar_url
+      SELECT t.*, u.name as assignee_name, u.avatar_url as assignee_avatar_url, p.slug as project_slug, p.identifier as project_identifier, p.name as project_name
       FROM tasks t
       LEFT JOIN users u ON t.assignee_id = u.id
       JOIN projects p ON t.project_id = p.id

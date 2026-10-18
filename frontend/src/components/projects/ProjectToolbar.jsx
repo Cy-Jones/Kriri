@@ -26,6 +26,7 @@ import {
   AlignJustify,
   LayoutGrid,
   AlignLeft,
+  Menu,
 } from "lucide-react";
 import { Button } from "@/registry/components/button/button";
 import SegmentedControl from "@/registry/components/segmented-control/segmented-control";
@@ -126,19 +127,47 @@ export default function ProjectToolbar({
     });
   }
 
+  const [isMobile, setIsMobile] = React.useState(
+    () => typeof window !== "undefined" && window.innerWidth < 768
+  );
+
+  React.useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  React.useEffect(() => {
+    if (isMobile && activeView === "timeline") {
+      setActiveView("list");
+    }
+  }, [isMobile, activeView, setActiveView]);
+
   return (
     <div className="flex flex-col gap-3 mb-6 z-30 flex-shrink-0 px-2">
       {/* ROW 1: Title & New Project */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-[13.5px] font-medium tracking-tight text-[#e8e8e8]">
-          Projects
-        </h1>
-        {canManageProjects && (
+      <div className="flex items-center justify-between gap-3 min-h-[38px]">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          <button
+            type="button"
+            onClick={() => window.dispatchEvent(new CustomEvent("open-mobile-nav"))}
+            className="md:hidden p-1.5 -ml-1 text-[#8a8f98] hover:text-white rounded-md hover:bg-white/[0.06] transition-colors shrink-0"
+            aria-label="Open menu"
+          >
+            <Menu size={18} strokeWidth={1.75} />
+          </button>
+          <h1 className="text-base font-semibold tracking-tight text-white truncate">
+            Projects
+          </h1>
+        </div>
+        {canManageProjects && projects.length > 0 && (
           <button
             onClick={() => setIsCreateModalOpen(true)}
-            className="flex items-center gap-1.5 bg-white text-black hover:bg-gray-100 transition-colors text-xs font-medium px-3 py-1.5 rounded-md shadow-sm"
+            className="h-[26px] sm:h-[28px] px-3 bg-white text-black hover:bg-zinc-100 transition-all duration-300 text-[11.5px] sm:text-[12px] font-medium rounded-full shadow-[0_0_20px_rgba(255,255,255,0.14)] hover:shadow-[0_0_28px_rgba(255,255,255,0.22)] active:scale-[0.98] shrink-0 flex items-center gap-1.5"
           >
-            <Plus size={14} /> New Project
+            <Plus size={13} strokeWidth={2.2} /> New Project
           </button>
         )}
       </div>
@@ -211,7 +240,7 @@ export default function ProjectToolbar({
             {isFilterOpen && (
               <div
                 ref={filterRef}
-                className="absolute top-[calc(100%+16px)] right-0 w-[240px] bg-[#1c1c1e] border border-white/5 rounded-xl shadow-2xl py-2 z-50 animate-in fade-in zoom-in-95 duration-100 flex flex-col"
+                className="absolute top-[calc(100%+16px)] right-0 w-[240px] max-w-[calc(100vw-32px)] bg-[#1c1c1e] border border-white/5 rounded-xl shadow-2xl py-2 z-50 animate-in fade-in zoom-in-95 duration-100 flex flex-col"
               >
                 <div className="px-2 pb-2 border-b border-white/5 mb-1.5">
                   <div className="relative flex items-center">
@@ -241,7 +270,17 @@ export default function ProjectToolbar({
                   className="flex flex-col px-1 pb-1.5 border-b border-white/5 mb-1.5 gap-0.5 relative"
                   onMouseEnter={() => setActiveFilterMenu("Advanced filter")}
                 >
-                  <button className="flex items-center gap-2.5 px-2.5 py-1.5 text-[13px] text-[#e8e8e8] hover:bg-white/5 hover:text-white rounded-md w-full transition-colors group">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setActiveFilterMenu(
+                        activeFilterMenu === "Advanced filter"
+                          ? null
+                          : "Advanced filter",
+                      )
+                    }
+                    className="flex items-center gap-2.5 px-2.5 py-1.5 text-[13px] text-[#e8e8e8] hover:bg-white/5 hover:text-white rounded-md w-full transition-colors group cursor-pointer"
+                  >
                     <ListFilter
                       size={14}
                       className="text-[#8a8f98] group-hover:text-[#e8e8e8]"
@@ -249,7 +288,7 @@ export default function ProjectToolbar({
                     Advanced filter
                   </button>
                   {activeFilterMenu === "Advanced filter" && (
-                    <div className="absolute top-0 right-[calc(100%+8px)] w-[280px] bg-[#1c1c1e] border border-white/5 rounded-xl shadow-2xl p-3 z-[60] animate-in fade-in zoom-in-95 flex flex-col gap-3">
+                    <div className="absolute top-0 right-0 md:right-[calc(100%+8px)] w-[280px] max-w-[calc(100vw-32px)] bg-[#1c1c1e] border border-white/5 rounded-xl shadow-2xl p-3 z-[60] animate-in fade-in zoom-in-95 flex flex-col gap-3">
                       <div className="text-[13px] text-white font-medium">
                         Advanced filter
                       </div>
@@ -681,155 +720,147 @@ export default function ProjectToolbar({
                       });
                     }
 
-                    return allOptions.map((item) => (
-                      <div
-                        key={item.label}
-                        className="relative"
-                        onMouseEnter={() => setActiveFilterMenu(item.label)}
-                      >
-                        <button className="flex items-center justify-between px-2.5 py-1.5 text-[13px] text-[#e8e8e8] hover:bg-white/5 hover:text-white rounded-md w-full transition-colors group">
-                          <div className="flex items-center gap-2.5">
-                            <item.icon
-                              size={14}
-                              className="text-[#8a8f98] group-hover:text-[#e8e8e8]"
-                            />
-                            {item.label}
-                          </div>
-                          {item.subItems && (
-                            <ChevronRight
-                              size={12}
-                              className="text-[#8a8f98] opacity-50 group-hover:opacity-100"
-                            />
-                          )}
-                        </button>
-
-                        {activeFilterMenu === item.label && item.subItems && (
-                          <div className="absolute top-0 right-[calc(100%+8px)] min-w-[180px] w-max bg-[#1c1c1e] border border-white/5 rounded-xl shadow-2xl p-1 z-[60] animate-in fade-in zoom-in-95 flex flex-col gap-0.5 before:absolute before:-right-[8px] before:top-0 before:w-[8px] before:h-full">
-                            {item.category === "label" && (
-                              <div className="px-1 py-1 pb-1.5 border-b border-white/5 mb-1">
-                                <input
-                                  type="text"
-                                  placeholder="Search or add custom label..."
-                                  value={labelSearchTerm}
-                                  onChange={(e) =>
-                                    setLabelSearchTerm(e.target.value)
-                                  }
-                                  className="w-full bg-[#2a2a2c] text-[#e8e8e8] placeholder:text-[#8a8f98] text-[12px] rounded-md px-2 py-1 outline-none border border-transparent focus:border-white/10"
-                                  onClick={(e) => e.stopPropagation()}
-                                />
-                              </div>
+                    return allOptions.map((item) => {
+                      const isOpen = activeFilterMenu === item.label;
+                      return (
+                        <div
+                          key={item.label}
+                          className="relative"
+                          onMouseEnter={() => setActiveFilterMenu(item.label)}
+                        >
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveFilterMenu(isOpen ? null : item.label);
+                            }}
+                            className="flex items-center justify-between px-2.5 py-1.5 text-[13px] text-[#e8e8e8] hover:bg-white/5 hover:text-white rounded-md w-full transition-colors group cursor-pointer"
+                          >
+                            <div className="flex items-center gap-2.5">
+                              <item.icon
+                                size={14}
+                                className="text-[#8a8f98] group-hover:text-[#e8e8e8]"
+                              />
+                              {item.label}
+                            </div>
+                            {item.subItems && (
+                              <ChevronRight
+                                size={12}
+                                className={`text-[#8a8f98] transition-transform ${isOpen ? "rotate-90 md:rotate-0 opacity-100" : "opacity-50 group-hover:opacity-100"}`}
+                              />
                             )}
-                            {item.subItems.map((subItem) => {
-                              const valToToggle =
-                                subItem.actualValue || subItem.label;
-                              const isSelected =
-                                activeFilters[item.category]?.includes(
-                                  valToToggle,
-                                );
-                              return (
-                                <div
-                                  key={subItem.label}
-                                  className="relative"
-                                  onMouseEnter={() =>
-                                    subItem.nestedItems &&
-                                    setActiveNestedFilterMenu(subItem.label)
-                                  }
-                                >
-                                  <button
-                                    onClick={(e) => {
-                                      if (
-                                        !subItem.nestedItems &&
-                                        subItem.label !== "No leads" &&
-                                        subItem.label !== "No labels" &&
-                                        subItem.label !== "No members" &&
-                                        subItem.label !== "No creators"
-                                      ) {
-                                        e.stopPropagation();
-                                        toggleFilter(
-                                          item.category,
-                                          valToToggle,
-                                        );
+                          </button>
+
+                          {isOpen && item.subItems && (
+                            <>
+                              {/* Mobile inline accordion */}
+                              <div className="md:hidden flex flex-col py-1 pl-3 pr-1 bg-white/[0.02] border-y border-white/[0.04]">
+                                {item.category === "label" && (
+                                  <div className="px-1 py-1 pb-1.5 border-b border-white/5 mb-1">
+                                    <input
+                                      type="text"
+                                      placeholder="Search or add custom label..."
+                                      value={labelSearchTerm}
+                                      onChange={(e) =>
+                                        setLabelSearchTerm(e.target.value)
                                       }
-                                    }}
-                                    className={`flex items-center justify-between px-2.5 py-1.5 text-[13px] text-[#e8e8e8] hover:bg-white/5 rounded-md w-full transition-colors group ${
-                                      subItem.label === "No leads" ||
-                                      subItem.label === "No labels" ||
-                                      subItem.label === "No members" ||
-                                      subItem.label === "No creators"
-                                        ? "cursor-default opacity-50"
-                                        : ""
-                                    }`}
-                                  >
-                                    <div className="flex items-center gap-2.5">
-                                      <div
-                                        className={`flex-shrink-0 w-3.5 h-3.5 border rounded flex items-center justify-center transition-colors ${
-                                          isSelected
-                                            ? "bg-[#3b82f6] border-[#3b82f6]"
-                                            : "bg-transparent border-white/10 group-hover:border-white/20"
+                                      className="w-full bg-[#2a2a2c] text-[#e8e8e8] placeholder:text-[#8a8f98] text-[12px] rounded-md px-2 py-1 outline-none border border-transparent focus:border-white/10"
+                                      onClick={(e) => e.stopPropagation()}
+                                    />
+                                  </div>
+                                )}
+                                {item.subItems.map((subItem) => {
+                                  const valToToggle =
+                                    subItem.actualValue || subItem.label;
+                                  const isSelected =
+                                    activeFilters[item.category]?.includes(
+                                      valToToggle,
+                                    );
+                                  const isNestedOpen =
+                                    activeNestedFilterMenu === subItem.label;
+                                  return (
+                                    <div key={subItem.label} className="flex flex-col">
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          if (subItem.nestedItems) {
+                                            setActiveNestedFilterMenu(
+                                              isNestedOpen ? null : subItem.label,
+                                            );
+                                          } else if (
+                                            subItem.label !== "No leads" &&
+                                            subItem.label !== "No labels" &&
+                                            subItem.label !== "No members" &&
+                                            subItem.label !== "No creators"
+                                          ) {
+                                            toggleFilter(item.category, valToToggle);
+                                            setIsFilterOpen(false);
+                                          }
+                                        }}
+                                        className={`flex items-center justify-between px-2 py-1.5 text-[12.5px] text-[#e8e8e8] hover:bg-white/5 rounded-md w-full text-left ${
+                                          subItem.label === "No leads" ||
+                                          subItem.label === "No labels" ||
+                                          subItem.label === "No members" ||
+                                          subItem.label === "No creators"
+                                            ? "cursor-default opacity-50"
+                                            : ""
                                         }`}
                                       >
-                                        {isSelected && (
-                                          <Check
-                                            size={10}
-                                            className="text-white"
+                                        <div className="flex items-center gap-2 min-w-0">
+                                          {!subItem.nestedItems && (
+                                            <div
+                                              className={`flex-shrink-0 w-3.5 h-3.5 border rounded flex items-center justify-center transition-colors ${
+                                                isSelected
+                                                  ? "bg-[#3b82f6] border-[#3b82f6]"
+                                                  : "bg-transparent border-white/10"
+                                              }`}
+                                            >
+                                              {isSelected && (
+                                                <Check size={10} className="text-white" />
+                                              )}
+                                            </div>
+                                          )}
+                                          {subItem.user ? (
+                                            <div
+                                              className="w-[18px] h-[18px] rounded-full flex items-center justify-center text-[9px] font-bold text-white uppercase flex-shrink-0"
+                                              style={{
+                                                backgroundColor:
+                                                  subItem.user.color || "#f26d78",
+                                              }}
+                                            >
+                                              {subItem.user.avatar ||
+                                                subItem.user.name?.charAt(0) ||
+                                                "?"}
+                                            </div>
+                                          ) : subItem.icon ? (
+                                            <subItem.icon
+                                              size={13}
+                                              className={`${subItem.color || ""} flex-shrink-0`}
+                                            />
+                                          ) : null}
+                                          <span className="truncate">
+                                            {subItem.label}
+                                          </span>
+                                        </div>
+                                        {subItem.nestedItems && (
+                                          <ChevronRight
+                                            size={12}
+                                            className={`text-[#8a8f98] transition-transform ${isNestedOpen ? "rotate-90" : ""}`}
                                           />
                                         )}
-                                      </div>
-                                      {subItem.user ? (
-                                        <div
-                                          className="w-[18px] h-[18px] rounded-full flex items-center justify-center text-[9px] font-bold text-white uppercase flex-shrink-0"
-                                          style={{
-                                            backgroundColor:
-                                              subItem.user.color || "#f26d78",
-                                          }}
-                                        >
-                                          {subItem.user.avatar ||
-                                            subItem.user.name?.charAt(0) ||
-                                            "?"}
-                                        </div>
-                                      ) : subItem.icon ? (
-                                        <subItem.icon
-                                          size={13}
-                                          className={`${subItem.color || ""} flex-shrink-0`}
-                                        />
-                                      ) : null}
-                                      <span className="whitespace-nowrap truncate">
-                                        {subItem.label}
-                                      </span>
-                                    </div>
-                                    {subItem.count && !subItem.nestedItems && (
-                                      <span className="text-[#8a8f98] text-[11px] ml-3">
-                                        {subItem.count}
-                                      </span>
-                                    )}
-                                    {subItem.nestedItems && (
-                                      <ChevronRight
-                                        size={12}
-                                        className="text-[#8a8f98] opacity-50 group-hover:opacity-100 flex-shrink-0 ml-3"
-                                      />
-                                    )}
-                                  </button>
-
-                                  {activeNestedFilterMenu === subItem.label &&
-                                    subItem.nestedItems && (
-                                      <div className="absolute top-0 right-[calc(100%+8px)] min-w-[200px] w-max bg-[#1c1c1e] border border-white/5 rounded-xl shadow-2xl p-1 z-[70] animate-in fade-in zoom-in-95 flex flex-col gap-0.5 before:absolute before:-right-[8px] before:top-0 before:w-[8px] before:h-full">
-                                        <div className="px-2 py-1.5 border-b border-white/5 mb-0.5">
-                                          <input
-                                            type="text"
-                                            placeholder="Filter..."
-                                            className="w-full bg-transparent text-[13px] text-white placeholder-[#8a8f98] outline-none"
-                                            onClick={(e) => e.stopPropagation()}
-                                          />
-                                        </div>
-                                        {subItem.nestedItems.map(
-                                          (nestedItem) => {
+                                      </button>
+                                      {isNestedOpen && subItem.nestedItems && (
+                                        <div className="pl-5 py-1 flex flex-col gap-0.5">
+                                          {subItem.nestedItems.map((nestedItem) => {
                                             const isNestedSelected =
-                                              activeFilters[
-                                                item.category
-                                              ]?.includes(nestedItem.label);
+                                              activeFilters[item.category]?.includes(
+                                                nestedItem.label,
+                                              );
                                             return (
                                               <button
                                                 key={nestedItem.label}
+                                                type="button"
                                                 onClick={(e) => {
                                                   e.stopPropagation();
                                                   if (
@@ -839,56 +870,224 @@ export default function ProjectToolbar({
                                                     setCustomDateCategory(
                                                       subItem.label,
                                                     );
-                                                    setIsCustomDateModalOpen(
-                                                      true,
-                                                    );
+                                                    setIsCustomDateModalOpen(true);
                                                     setIsFilterOpen(false);
                                                   } else {
                                                     toggleFilter(
                                                       item.category,
                                                       nestedItem.label,
                                                     );
+                                                    setIsFilterOpen(false);
                                                   }
                                                 }}
-                                                className="flex items-center justify-between px-2.5 py-1.5 text-[13px] text-[#e8e8e8] hover:bg-white/5 rounded-md w-full transition-colors group"
+                                                className="flex items-center gap-2 px-2 py-1 text-[12px] text-[#8a8f98] hover:text-white"
                                               >
-                                                <div className="flex items-center gap-2.5">
-                                                  <div
-                                                    className={`flex-shrink-0 w-3.5 h-3.5 border rounded flex items-center justify-center transition-colors ${
-                                                      isNestedSelected
-                                                        ? "bg-[#3b82f6] border-[#3b82f6]"
-                                                        : "bg-transparent border-white/10 group-hover:border-white/20"
-                                                    }`}
-                                                  >
-                                                    {isNestedSelected && (
-                                                      <Check
-                                                        size={10}
-                                                        className="text-white"
-                                                      />
-                                                    )}
-                                                  </div>
-                                                  <span className="truncate">
-                                                    {nestedItem.label}
-                                                  </span>
+                                                <div
+                                                  className={`w-3 h-3 border rounded flex items-center justify-center shrink-0 ${isNestedSelected ? "bg-[#3b82f6] border-[#3b82f6]" : "border-white/10"}`}
+                                                >
+                                                  {isNestedSelected && (
+                                                    <Check size={8} className="text-white" />
+                                                  )}
                                                 </div>
-                                                {nestedItem.count && (
-                                                  <span className="text-[#8a8f98] text-[11px] ml-3">
-                                                    {nestedItem.count}
-                                                  </span>
-                                                )}
+                                                <span>{nestedItem.label}</span>
                                               </button>
                                             );
-                                          },
+                                          })}
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+
+                              {/* Desktop floating flyout */}
+                              <div className="hidden md:flex absolute top-0 right-[calc(100%+8px)] min-w-[180px] w-max bg-[#1c1c1e] border border-white/5 rounded-xl shadow-2xl p-1 z-[60] animate-in fade-in zoom-in-95 flex-col gap-0.5 before:absolute before:-right-[8px] before:top-0 before:w-[8px] before:h-full">
+                                {item.category === "label" && (
+                                  <div className="px-1 py-1 pb-1.5 border-b border-white/5 mb-1">
+                                    <input
+                                      type="text"
+                                      placeholder="Search or add custom label..."
+                                      value={labelSearchTerm}
+                                      onChange={(e) =>
+                                        setLabelSearchTerm(e.target.value)
+                                      }
+                                      className="w-full bg-[#2a2a2c] text-[#e8e8e8] placeholder:text-[#8a8f98] text-[12px] rounded-md px-2 py-1 outline-none border border-transparent focus:border-white/10"
+                                      onClick={(e) => e.stopPropagation()}
+                                    />
+                                  </div>
+                                )}
+                                {item.subItems.map((subItem) => {
+                                  const valToToggle =
+                                    subItem.actualValue || subItem.label;
+                                  const isSelected =
+                                    activeFilters[item.category]?.includes(
+                                      valToToggle,
+                                    );
+                                  return (
+                                    <div
+                                      key={subItem.label}
+                                      className="relative"
+                                      onMouseEnter={() =>
+                                        subItem.nestedItems &&
+                                        setActiveNestedFilterMenu(subItem.label)
+                                      }
+                                    >
+                                      <button
+                                        onClick={(e) => {
+                                          if (
+                                            !subItem.nestedItems &&
+                                            subItem.label !== "No leads" &&
+                                            subItem.label !== "No labels" &&
+                                            subItem.label !== "No members" &&
+                                            subItem.label !== "No creators"
+                                          ) {
+                                            e.stopPropagation();
+                                            toggleFilter(
+                                              item.category,
+                                              valToToggle,
+                                            );
+                                          }
+                                        }}
+                                        className={`flex items-center justify-between px-2.5 py-1.5 text-[13px] text-[#e8e8e8] hover:bg-white/5 rounded-md w-full transition-colors group ${
+                                          subItem.label === "No leads" ||
+                                          subItem.label === "No labels" ||
+                                          subItem.label === "No members" ||
+                                          subItem.label === "No creators"
+                                            ? "cursor-default opacity-50"
+                                            : ""
+                                        }`}
+                                      >
+                                        <div className="flex items-center gap-2.5">
+                                          <div
+                                            className={`flex-shrink-0 w-3.5 h-3.5 border rounded flex items-center justify-center transition-colors ${
+                                              isSelected
+                                                ? "bg-[#3b82f6] border-[#3b82f6]"
+                                                : "bg-transparent border-white/10 group-hover:border-white/20"
+                                            }`}
+                                          >
+                                            {isSelected && (
+                                              <Check
+                                                size={10}
+                                                className="text-white"
+                                              />
+                                            )}
+                                          </div>
+                                          {subItem.user ? (
+                                            <div
+                                              className="w-[18px] h-[18px] rounded-full flex items-center justify-center text-[9px] font-bold text-white uppercase flex-shrink-0"
+                                              style={{
+                                                backgroundColor:
+                                                  subItem.user.color || "#f26d78",
+                                              }}
+                                            >
+                                              {subItem.user.avatar ||
+                                                subItem.user.name?.charAt(0) ||
+                                                "?"}
+                                            </div>
+                                          ) : subItem.icon ? (
+                                            <subItem.icon
+                                              size={13}
+                                              className={`${subItem.color || ""} flex-shrink-0`}
+                                            />
+                                          ) : null}
+                                          <span className="whitespace-nowrap truncate">
+                                            {subItem.label}
+                                          </span>
+                                        </div>
+                                        {subItem.count && !subItem.nestedItems && (
+                                          <span className="text-[#8a8f98] text-[11px] ml-3">
+                                            {subItem.count}
+                                          </span>
                                         )}
-                                      </div>
-                                    )}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    ));
+                                        {subItem.nestedItems && (
+                                          <ChevronRight
+                                            size={12}
+                                            className="text-[#8a8f98] opacity-50 group-hover:opacity-100 flex-shrink-0 ml-3"
+                                          />
+                                        )}
+                                      </button>
+
+                                      {activeNestedFilterMenu === subItem.label &&
+                                        subItem.nestedItems && (
+                                          <div className="absolute top-0 right-[calc(100%+8px)] min-w-[200px] w-max bg-[#1c1c1e] border border-white/5 rounded-xl shadow-2xl p-1 z-[70] animate-in fade-in zoom-in-95 flex flex-col gap-0.5 before:absolute before:-right-[8px] before:top-0 before:w-[8px] before:h-full">
+                                            <div className="px-2 py-1.5 border-b border-white/5 mb-0.5">
+                                              <input
+                                                type="text"
+                                                placeholder="Filter..."
+                                                className="w-full bg-transparent text-[13px] text-white placeholder-[#8a8f98] outline-none"
+                                                onClick={(e) => e.stopPropagation()}
+                                              />
+                                            </div>
+                                            {subItem.nestedItems.map(
+                                              (nestedItem) => {
+                                                const isNestedSelected =
+                                                  activeFilters[
+                                                    item.category
+                                                  ]?.includes(nestedItem.label);
+                                                return (
+                                                  <button
+                                                    key={nestedItem.label}
+                                                    onClick={(e) => {
+                                                      e.stopPropagation();
+                                                      if (
+                                                        nestedItem.label ===
+                                                        "Specific date..."
+                                                      ) {
+                                                        setCustomDateCategory(
+                                                          subItem.label,
+                                                        );
+                                                        setIsCustomDateModalOpen(
+                                                          true,
+                                                        );
+                                                        setIsFilterOpen(false);
+                                                      } else {
+                                                        toggleFilter(
+                                                          item.category,
+                                                          nestedItem.label,
+                                                        );
+                                                      }
+                                                    }}
+                                                    className="flex items-center justify-between px-2.5 py-1.5 text-[13px] text-[#e8e8e8] hover:bg-white/5 rounded-md w-full transition-colors group"
+                                                  >
+                                                    <div className="flex items-center gap-2.5">
+                                                      <div
+                                                        className={`flex-shrink-0 w-3.5 h-3.5 border rounded flex items-center justify-center transition-colors ${
+                                                          isNestedSelected
+                                                            ? "bg-[#3b82f6] border-[#3b82f6]"
+                                                            : "bg-transparent border-white/10 group-hover:border-white/20"
+                                                        }`}
+                                                      >
+                                                        {isNestedSelected && (
+                                                          <Check
+                                                            size={10}
+                                                            className="text-white"
+                                                          />
+                                                        )}
+                                                      </div>
+                                                      <span className="truncate">
+                                                        {nestedItem.label}
+                                                      </span>
+                                                    </div>
+                                                    {nestedItem.count && (
+                                                      <span className="text-[#8a8f98] text-[11px] ml-3">
+                                                        {nestedItem.count}
+                                                      </span>
+                                                    )}
+                                                  </button>
+                                                );
+                                              },
+                                            )}
+                                          </div>
+                                        )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      );
+                    });
                   })()}
                 </div>
 
@@ -901,25 +1100,34 @@ export default function ProjectToolbar({
                       isCustomInput: true,
                       placeholder: "Filter by title & summary...",
                     },
-                  ].map((item) => (
-                    <div
-                      key={item.label}
-                      className="relative"
-                      onMouseEnter={() => setActiveFilterMenu(item.label)}
-                    >
-                      <button className="flex items-center justify-between px-2.5 py-1.5 text-[13px] text-[#e8e8e8] hover:bg-white/5 hover:text-white rounded-md w-full transition-colors group">
-                        <div className="flex items-center gap-2.5">
-                          <item.icon
-                            size={14}
-                            className="text-[#8a8f98] group-hover:text-[#e8e8e8]"
-                          />
-                          {item.label}
-                        </div>
-                      </button>
+                  ].map((item) => {
+                    const isOpen = activeFilterMenu === item.label;
+                    return (
+                      <div
+                        key={item.label}
+                        className="relative"
+                        onMouseEnter={() => setActiveFilterMenu(item.label)}
+                      >
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveFilterMenu(isOpen ? null : item.label);
+                          }}
+                          className="flex items-center justify-between px-2.5 py-1.5 text-[13px] text-[#e8e8e8] hover:bg-white/5 hover:text-white rounded-md w-full transition-colors group cursor-pointer"
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <item.icon
+                              size={14}
+                              className="text-[#8a8f98] group-hover:text-[#e8e8e8]"
+                            />
+                            {item.label}
+                          </div>
+                        </button>
 
-                      {activeFilterMenu === item.label &&
-                        item.isCustomInput && (
-                          <div className="absolute top-0 right-[calc(100%+8px)] w-[280px] bg-[#1c1c1e] border border-white/5 rounded-xl shadow-2xl p-3 z-[60] animate-in fade-in zoom-in-95 flex flex-col gap-3">
+                        {isOpen &&
+                          item.isCustomInput && (
+                            <div className="absolute top-0 right-0 md:right-[calc(100%+8px)] w-[280px] max-w-[calc(100vw-32px)] bg-[#1c1c1e] border border-white/5 rounded-xl shadow-2xl p-3 z-[60] animate-in fade-in zoom-in-95 flex flex-col gap-3">
                             <div className="text-[13px] text-white font-medium">
                               {item.placeholder}
                             </div>
@@ -973,8 +1181,9 @@ export default function ProjectToolbar({
                             </div>
                           </div>
                         )}
-                    </div>
-                  ))}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -983,7 +1192,7 @@ export default function ProjectToolbar({
             {isDisplayOptionsOpen && (
               <div
                 ref={displayOptionsRef}
-                className="absolute top-[calc(100%+16px)] right-0 w-[310px] bg-[#1c1c1e] border border-white/5 rounded-xl shadow-2xl p-3 z-50 animate-in fade-in zoom-in-95 duration-100 flex flex-col gap-3"
+                className="absolute top-[calc(100%+16px)] right-0 w-[310px] max-w-[calc(100vw-32px)] bg-[#1c1c1e] border border-white/5 rounded-xl shadow-2xl p-3 z-50 animate-in fade-in zoom-in-95 duration-100 flex flex-col gap-3"
               >
                 <SegmentedControl
                   value={activeView}
@@ -1007,13 +1216,20 @@ export default function ProjectToolbar({
                         <LayoutGrid size={14} className="ml-1 text-[#8a8f98]" />
                       ),
                     },
-                    {
-                      value: "timeline",
-                      label: "Timeline",
-                      accessory: (
-                        <AlignLeft size={14} className="ml-1 text-[#8a8f98]" />
-                      ),
-                    },
+                    ...(!isMobile
+                      ? [
+                          {
+                            value: "timeline",
+                            label: "Timeline",
+                            accessory: (
+                              <AlignLeft
+                                size={14}
+                                className="ml-1 text-[#8a8f98]"
+                              />
+                            ),
+                          },
+                        ]
+                      : []),
                   ]}
                 />
 

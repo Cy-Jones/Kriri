@@ -79,7 +79,8 @@ import {
   closestCorners,
   closestCenter,
   KeyboardSensor,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
@@ -581,8 +582,14 @@ export default function BoardViewRenderer({
   }, [projects, rowDimension, groupProjects]);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, {
+    useSensor(MouseSensor, {
       activationConstraint: { distance: 5 },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 200,
+        tolerance: 6,
+      },
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
@@ -727,8 +734,8 @@ export default function BoardViewRenderer({
                             <div
                               className={`flex items-center justify-between py-1 mb-3 sticky top-0 z-10 transition-colors ${
                                 config.showColumnBackgrounds
-                                  ? "bg-transparent"
-                                  : "bg-transparent"
+                                  ? "bg-[#18191c]"
+                                  : "bg-black md:bg-[#131416]"
                               }`}
                             >
                               <div className="flex items-center gap-2 text-[13px] font-medium text-[#e8e8e8]">

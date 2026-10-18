@@ -165,12 +165,26 @@ export default function LinearLabelPicker({
   const showCreateOption =
     cleanSearch.length > 0 && cleanSearch.length <= 30 && !exactMatchExists;
 
-  return (
+  const [isMobile, setIsMobile] = useState(
+    typeof window !== "undefined" ? window.innerWidth < 640 : false
+  );
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 640);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  const content = (
     <div
       ref={popoverRef}
-      className="absolute top-full right-0 mt-2 bg-[#202225] border border-[#333538] rounded-xl shadow-2xl w-[320px] max-w-[90vw] z-50 text-white overflow-hidden text-[13px] flex flex-col"
+      className={`${
+        isMobile
+          ? "bg-[#202225] border border-[#333538] rounded-2xl shadow-2xl w-[320px] max-w-[calc(100vw-32px)] z-[100] text-white overflow-hidden text-[12.5px] flex flex-col"
+          : "absolute top-full left-0 mt-2 bg-[#202225] border border-[#333538] rounded-xl shadow-2xl w-[320px] max-w-[90vw] z-50 text-white overflow-hidden text-[13px] flex flex-col"
+      }`}
     >
-      <div className="p-3 border-b border-[#333538] flex items-center justify-between">
+      <div className="p-3 border-b border-[#333538] flex items-center justify-between gap-2">
         <input
           autoFocus
           placeholder="Search or add a label..."
@@ -178,13 +192,34 @@ export default function LinearLabelPicker({
           onChange={(e) => setSearch(e.target.value)}
           onKeyDown={handleKeyDown}
           maxLength={30}
-          className="w-full bg-transparent border-none text-[13px] text-white focus:outline-none placeholder:text-[#85868a]"
+          className="w-full bg-transparent border-none text-[12.5px] sm:text-[13px] text-white focus:outline-none placeholder:text-[#85868a]"
         />
+        {isMobile && (
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-[#8a8f98] hover:text-white p-0.5 rounded transition-colors shrink-0"
+          >
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        )}
       </div>
 
-      <div className="flex-1 overflow-y-auto max-h-[300px] custom-scrollbar p-2">
+      <div className="flex-1 overflow-y-auto max-h-[260px] custom-scrollbar p-2.5">
         {filteredCategories.map((cat) => (
-          <div key={cat.name} className="mb-4 last:mb-1">
+          <div key={cat.name} className="mb-3.5 last:mb-1">
             <div className="text-[11px] font-semibold text-[#85868a] tracking-wider mb-2 px-1">
               {cat.name}
             </div>
@@ -196,7 +231,7 @@ export default function LinearLabelPicker({
                     type="button"
                     key={`${cat.name}-${label}`}
                     onClick={() => toggleLabel(label)}
-                    className={`px-2.5 py-1 rounded-full text-[12px] font-medium transition-colors border ${
+                    className={`px-2.5 py-0.5 sm:py-1 rounded-full text-[11.5px] sm:text-[12px] font-medium transition-colors border ${
                       isSelected
                         ? "bg-white/10 border-white/20 text-white"
                         : "bg-transparent border-[#333538] text-[#d1d2d5] hover:bg-white/5 hover:border-[#4d4f54]"
@@ -211,7 +246,7 @@ export default function LinearLabelPicker({
         ))}
 
         {filteredCustom.length > 0 && (
-          <div className="mb-4 last:mb-1">
+          <div className="mb-3.5 last:mb-1">
             <div className="text-[11px] font-semibold text-[#85868a] tracking-wider mb-2 px-1">
               CUSTOM LABELS
             </div>
@@ -223,7 +258,7 @@ export default function LinearLabelPicker({
                     type="button"
                     key={`custom-${label}`}
                     onClick={() => toggleLabel(label)}
-                    className={`px-2.5 py-1 rounded-full text-[12px] font-medium transition-colors border ${
+                    className={`px-2.5 py-0.5 sm:py-1 rounded-full text-[11.5px] sm:text-[12px] font-medium transition-colors border ${
                       isSelected
                         ? "bg-white/10 border-white/20 text-white"
                         : "bg-transparent border-[#333538] text-[#d1d2d5] hover:bg-white/5 hover:border-[#4d4f54]"
@@ -262,4 +297,14 @@ export default function LinearLabelPicker({
       </div>
     </div>
   );
+
+  if (isMobile) {
+    return (
+      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in-0 duration-150">
+        {content}
+      </div>
+    );
+  }
+
+  return content;
 }

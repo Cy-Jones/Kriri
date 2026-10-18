@@ -17,6 +17,8 @@ const requireAuth = (req, res, next) => {
 
 exports.requireAuth = requireAuth;
 
+const jitProvisioningPromises = new Map();
+
 exports.verifyToken = async (req, res, next) => {
   try {
     const auth = getAuth(req);
@@ -40,22 +42,31 @@ exports.verifyToken = async (req, res, next) => {
       if (userRes.rows.length === 0) {
         // JIT User Provisioning to handle race condition with /auth/sync
         try {
-          const { clerkClient } = require("@clerk/express");
-          const clerkUser = await clerkClient.users.getUser(clerkUserId);
-          const primaryEmailObj = clerkUser.emailAddresses.find(
-            (e) => e.id === clerkUser.primaryEmailAddressId,
-          );
-          const email = primaryEmailObj ? primaryEmailObj.emailAddress : "";
-          const name =
-            [clerkUser.firstName, clerkUser.lastName]
-              .filter(Boolean)
-              .join(" ") || "Unknown User";
-          const avatarUrl = clerkUser.imageUrl || null;
+          if (!jitProvisioningPromises.has(clerkUserId)) {
+            const p = (async () => {
+              const { clerkClient } = require("@clerk/express");
+              const clerkUser = await clerkClient.users.getUser(clerkUserId);
+              const primaryEmailObj = clerkUser.emailAddresses.find(
+                (e) => e.id === clerkUser.primaryEmailAddressId,
+              );
+              const email = primaryEmailObj ? primaryEmailObj.emailAddress : "";
+              const name =
+                [clerkUser.firstName, clerkUser.lastName]
+                  .filter(Boolean)
+                  .join(" ") || "Unknown User";
+              const avatarUrl = clerkUser.imageUrl || null;
 
-          await db.query(
-            "INSERT INTO users (clerk_user_id, name, email, avatar_url) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING",
-            [clerkUserId, name, email, avatarUrl],
-          );
+              await db.query(
+                "INSERT INTO users (clerk_user_id, name, email, avatar_url) VALUES ($1, $2, $3, $4) ON CONFLICT (clerk_user_id) DO UPDATE SET name = $2, email = $3, avatar_url = $4",
+                [clerkUserId, name, email, avatarUrl],
+              );
+            })();
+            jitProvisioningPromises.set(clerkUserId, p);
+            p.finally(() => jitProvisioningPromises.delete(clerkUserId));
+          }
+
+          await jitProvisioningPromises.get(clerkUserId);
+
           userRes = await db.query(
             "SELECT * FROM users WHERE clerk_user_id = $1",
             [clerkUserId],

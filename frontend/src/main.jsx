@@ -32,7 +32,7 @@ createRoot(document.getElementById("root")).render(
           colorInputText: "#f2f2f2",
           colorText: "#f2f2f2",
           colorTextSecondary: "#8a8a93",
-          fontFamily: '"Geist Variable", "Inter", sans-serif',
+          fontFamily: '"Plus Jakarta Sans", "Plus Jakarta Sans Variable", sans-serif',
           borderRadius: "0.5rem",
         },
         elements: {

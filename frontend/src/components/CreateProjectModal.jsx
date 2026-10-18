@@ -207,8 +207,8 @@ export default function CreateProjectModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-      <div className="bg-[#1a1a1a] w-full max-w-4xl h-[85vh] rounded-xl flex flex-col shadow-2xl overflow-hidden border border-[#2a2a2a]">
+    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-3 sm:p-4 md:p-6">
+      <div className="bg-[#1a1a1a] w-full max-w-[95vw] md:max-w-3xl lg:max-w-4xl max-h-[90vh] md:h-[85vh] rounded-2xl flex flex-col shadow-2xl overflow-hidden border border-[#2a2a2a]">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 shrink-0">
           <div className="flex items-center gap-2">
@@ -243,7 +243,7 @@ export default function CreateProjectModal({
               <button
                 type="button"
                 onClick={onClose}
-                className="px-3 py-1 bg-white/5 hover:bg-white/10 text-[#d1d2d5] hover:text-white text-[12px] font-medium rounded-full transition-colors border border-white/5"
+                className="h-7 px-3 bg-white/5 hover:bg-white/10 text-[#d1d2d5] hover:text-white text-[12px] font-medium rounded-full transition-all active:scale-[0.98] border border-white/5 flex items-center"
               >
                 Save as draft
               </button>
@@ -308,7 +308,7 @@ export default function CreateProjectModal({
                         activePicker === "status" ? null : "status",
                       )
                     }
-                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-transparent bg-white/[0.04] hover:bg-white/[0.08] cursor-pointer transition-colors text-[#d1d2d5] text-[13px] font-medium"
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-transparent bg-white/[0.04] hover:bg-white/[0.08] cursor-pointer transition-colors text-[#d1d2d5] text-[13px] font-medium"
                   >
                     {getStatusIcon(status)}
                     <span>{status}</span>
@@ -335,7 +335,7 @@ export default function CreateProjectModal({
                         activePicker === "priority" ? null : "priority",
                       )
                     }
-                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-transparent bg-white/[0.04] hover:bg-white/[0.08] cursor-pointer transition-colors text-[#d1d2d5] text-[13px] font-medium"
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-transparent bg-white/[0.04] hover:bg-white/[0.08] cursor-pointer transition-colors text-[#d1d2d5] text-[13px] font-medium"
                   >
                     {getPriorityIcon(priority)}
                     <span>
@@ -362,7 +362,7 @@ export default function CreateProjectModal({
                     onClick={() =>
                       setActivePicker(activePicker === "lead" ? null : "lead")
                     }
-                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-transparent bg-white/[0.04] hover:bg-white/[0.08] cursor-pointer transition-colors text-[#d1d2d5] text-[13px] font-medium"
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-transparent bg-white/[0.04] hover:bg-white/[0.08] cursor-pointer transition-colors text-[#d1d2d5] text-[13px] font-medium"
                   >
                     {lead ? (
                       <>
@@ -458,7 +458,7 @@ export default function CreateProjectModal({
                         activePicker === "members" ? null : "members",
                       )
                     }
-                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-transparent bg-white/[0.04] hover:bg-white/[0.08] cursor-pointer transition-colors text-[#d1d2d5] text-[13px] font-medium"
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-transparent bg-white/[0.04] hover:bg-white/[0.08] cursor-pointer transition-colors text-[#d1d2d5] text-[13px] font-medium"
                   >
                     {members.length > 0 ? (
                       <>
@@ -542,7 +542,7 @@ export default function CreateProjectModal({
                     onClick={() =>
                       setActivePicker(activePicker === "start" ? null : "start")
                     }
-                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-transparent bg-white/[0.04] hover:bg-white/[0.08] cursor-pointer transition-colors text-[#d1d2d5] text-[13px] font-medium"
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-transparent bg-white/[0.04] hover:bg-white/[0.08] cursor-pointer transition-colors text-[#d1d2d5] text-[13px] font-medium"
                   >
                     <svg
                       width="14"
@@ -599,7 +599,7 @@ export default function CreateProjectModal({
                         activePicker === "target" ? null : "target",
                       )
                     }
-                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-transparent bg-white/[0.04] hover:bg-white/[0.08] cursor-pointer transition-colors text-[#d1d2d5] text-[13px] font-medium"
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-transparent bg-white/[0.04] hover:bg-white/[0.08] cursor-pointer transition-colors text-[#d1d2d5] text-[13px] font-medium"
                   >
                     <svg
                       width="14"
@@ -641,7 +641,7 @@ export default function CreateProjectModal({
                         activePicker === "labels" ? null : "labels",
                       )
                     }
-                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-transparent bg-white/[0.04] hover:bg-white/[0.08] cursor-pointer transition-colors text-[#d1d2d5] text-[13px] font-medium"
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-transparent bg-white/[0.04] hover:bg-white/[0.08] cursor-pointer transition-colors text-[#d1d2d5] text-[13px] font-medium"
                   >
                     <svg
                       width="14"
@@ -689,7 +689,7 @@ export default function CreateProjectModal({
                         activePicker === "health" ? null : "health",
                       )
                     }
-                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-transparent bg-white/[0.04] hover:bg-white/[0.08] cursor-pointer transition-colors text-[#d1d2d5] text-[13px] font-medium"
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-transparent bg-white/[0.04] hover:bg-white/[0.08] cursor-pointer transition-colors text-[#d1d2d5] text-[13px] font-medium"
                   >
                     <svg
                       width="14"
@@ -891,14 +891,14 @@ export default function CreateProjectModal({
                 <button
                   type="button"
                   onClick={() => setIsCreatingMilestone(false)}
-                  className="px-4 py-1.5 bg-white/[0.04] hover:bg-white/[0.08] text-white text-[13px] font-medium rounded-full transition-colors"
+                  className="h-7 px-3 bg-white/[0.04] hover:bg-white/[0.08] text-white text-[12px] font-medium rounded-full transition-all active:scale-[0.98] flex items-center"
                 >
                   Cancel
                 </button>
                 <button
                   type="button"
                   onClick={handleAddMilestone}
-                  className="px-4 py-1.5 bg-white hover:bg-[#e8e8e8] text-black text-[13px] font-medium rounded-full transition-colors"
+                  className="h-7 px-3.5 bg-white hover:bg-zinc-100 text-black text-[12px] font-medium rounded-full transition-all active:scale-[0.98] shadow-[0_0_16px_rgba(255,255,255,0.14)] flex items-center"
                 >
                   Add milestone
                 </button>
@@ -935,12 +935,12 @@ export default function CreateProjectModal({
             </div>
           )}
 
-          <div className="flex items-center justify-end gap-3 border-t border-[#2a2a2a] pt-4">
+          <div className="flex items-center justify-end gap-2.5 border-t border-[#2a2a2a] pt-4">
             {(name.trim() || description.trim() || shortSummary.trim()) && (
               <button
                 type="button"
                 onClick={onClose}
-                className="px-5 py-2 bg-[#25272a] hover:bg-[#333538] text-white text-[13px] font-medium rounded-full transition-colors border border-[#333538]"
+                className="h-8 px-4 bg-[#25272a] hover:bg-[#333538] text-white text-[12.5px] font-medium rounded-full transition-all active:scale-[0.98] border border-[#333538] flex items-center"
               >
                 Save as draft
               </button>
@@ -948,7 +948,7 @@ export default function CreateProjectModal({
             <button
               type="button"
               onClick={handleSubmit}
-              className="px-5 py-2 bg-white hover:bg-[#e8e8e8] text-black text-[13px] font-medium rounded-full transition-colors shadow-lg shadow-white/10"
+              className="h-8 px-5 bg-white hover:bg-zinc-100 text-black text-[12.5px] font-medium rounded-full transition-all duration-300 shadow-[0_0_20px_rgba(255,255,255,0.14)] hover:shadow-[0_0_28px_rgba(255,255,255,0.22)] active:scale-[0.98] flex items-center"
             >
               Create project
             </button>

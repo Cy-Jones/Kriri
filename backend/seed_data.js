@@ -33,9 +33,10 @@ async function seed() {
 
   const memberIds = teamRes.rows.map((u) => u.id);
 
-  // 2. Identify all workspaces
+  // 2. Identify Software Development demo workspace belonging to smartjones07@gmail.com
   const wsRes = await db.query(
-    `SELECT id, name, slug FROM workspaces ORDER BY id ASC`,
+    `SELECT id, name, slug FROM workspaces WHERE owner_id = $1 AND name = 'Software Development' LIMIT 1`,
+    [cyrus.id],
   );
   let targetWorkspaces = wsRes.rows;
 
@@ -377,8 +378,19 @@ async function seed() {
         `INSERT INTO projects (
            workspace_id, owner_id, name, slug, identifier, description, short_summary,
            status, health, priority, progress, position, lead_id, labels,
-           created_at, updated_at
-         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NOW() - ($15 || ' days')::interval, NOW() - ($15 || ' days')::interval)
+           start_date, due_date, created_at, updated_at
+         ) VALUES (
+           $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14,
+           NOW() - ($15 || ' days')::interval,
+           CASE 
+             WHEN $8 = 'Done' THEN NOW() - ($15 || ' days')::interval
+             WHEN $9 = 'At Risk' THEN NOW() - INTERVAL '3 days'
+             WHEN $9 = 'Off Track' THEN NOW() - INTERVAL '5 days'
+             ELSE NOW() + INTERVAL '30 days'
+           END,
+           NOW() - ($15 || ' days')::interval, 
+           NOW() - ($15 || ' days')::interval
+         )
          ON CONFLICT (workspace_id, slug) 
          DO UPDATE SET
            name = EXCLUDED.name,
@@ -391,6 +403,8 @@ async function seed() {
            progress = EXCLUDED.progress,
            lead_id = EXCLUDED.lead_id,
            labels = EXCLUDED.labels,
+           start_date = COALESCE(projects.start_date, EXCLUDED.start_date),
+           due_date = COALESCE(projects.due_date, EXCLUDED.due_date),
            updated_at = NOW()
          RETURNING id`,
         [
@@ -443,6 +457,7 @@ async function seed() {
           priority: "High",
           assignee: cyrus.id,
           daysAgo: Math.max(1, p.daysAgo - 3),
+          dueOffsetDays: 3,
         },
         {
           title: `Write unit test coverage and integration mocks`,
@@ -450,6 +465,7 @@ async function seed() {
           priority: "Medium",
           assignee: userMap["alex@acme.com"] || cyrus.id,
           daysAgo: Math.max(1, p.daysAgo - 6),
+          dueOffsetDays: 2,
         },
         {
           title: `Implement core handler and API endpoints`,
@@ -457,6 +473,7 @@ async function seed() {
           priority: "High",
           assignee: cyrus.id,
           daysAgo: Math.max(1, p.daysAgo - 8),
+          dueOffsetDays: p.health === "At Risk" ? -3 : 8,
         },
         {
           title: `Review security boundaries and audit events`,
@@ -464,6 +481,7 @@ async function seed() {
           priority: "High",
           assignee: userMap["sarah@acme.com"] || cyrus.id,
           daysAgo: Math.max(1, p.daysAgo - 12),
+          dueOffsetDays: p.health === "At Risk" ? -2 : 12,
         },
         {
           title: `Benchmark load and latency thresholds`,
@@ -471,6 +489,7 @@ async function seed() {
           priority: "Low",
           assignee: userMap["david@acme.com"] || cyrus.id,
           daysAgo: 2,
+          dueOffsetDays: 14,
         },
       ];
 
@@ -478,9 +497,14 @@ async function seed() {
         await db.query(
           `INSERT INTO tasks (
              project_id, title, status, priority, assignee_id, reporter_id,
-             progress, created_at, updated_at
+             progress, due_date, completed_at, created_at, updated_at
            ) VALUES (
              $1, $2, $3, $4, $5, $6, $7,
+             CASE 
+               WHEN $3 = 'Done' THEN NOW() - ($8 || ' days')::interval + ($9 || ' days')::interval
+               ELSE NOW() + ($9 || ' days')::interval
+             END,
+             CASE WHEN $3 = 'Done' THEN NOW() - ($8 || ' days')::interval ELSE NULL END,
              NOW() - ($8 || ' days')::interval,
              NOW() - ($8 || ' days')::interval
            )`,
@@ -493,6 +517,7 @@ async function seed() {
             cyrus.id,
             t.status === "Done" ? 100 : 40,
             t.daysAgo,
+            t.dueOffsetDays || 3,
           ],
         );
       }

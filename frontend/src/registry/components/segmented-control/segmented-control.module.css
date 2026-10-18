@@ -15,6 +15,7 @@
   isolation: isolate;
   display: flex;
   min-width: 0;
+  width: 100%;
   gap: 2px;
   overflow-x: auto;
   overscroll-behavior-x: contain;

@@ -26,17 +26,16 @@ import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
 import NotFound from "./pages/NotFound";
 
-// Keep authenticated heavy application routes code-split
-const Dashboard = lazy(() => import("./pages/Dashboard"));
-const Tasks = lazy(() => import("./pages/Tasks"));
-const Kanban = lazy(() => import("./pages/Kanban"));
-const Projects = lazy(() => import("./pages/Projects"));
-const Onboarding = lazy(() => import("./pages/Onboarding"));
-const Team = lazy(() => import("./pages/Team"));
-const Settings = lazy(() => import("./pages/Settings"));
-const ProjectDetails = lazy(() => import("./pages/ProjectDetails"));
-const Analytics = lazy(() => import("./pages/Analytics"));
-const Inbox = lazy(() => import("./pages/Inbox"));
+import Dashboard from "./pages/Dashboard";
+import Tasks from "./pages/Tasks";
+import Kanban from "./pages/Kanban";
+import Projects from "./pages/Projects";
+import Onboarding from "./pages/Onboarding";
+import Team from "./pages/Team";
+import Settings from "./pages/Settings";
+import ProjectDetails from "./pages/ProjectDetails";
+import Analytics from "./pages/Analytics";
+import Inbox from "./pages/Inbox";
 
 function App() {
   return (
