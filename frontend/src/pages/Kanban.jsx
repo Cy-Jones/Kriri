@@ -28,8 +28,6 @@ import {
   MoreHorizontal,
   Clock,
   Menu,
-  CheckCircle2,
-  AlertCircle,
 } from "lucide-react";
 import { getPriorityIcon } from "../components/PriorityPicker";
 import { api } from "../lib/api";
@@ -42,7 +40,6 @@ import { useSocket } from "../contexts/SocketContext";
 
 // Arc Components
 import { Button } from "../registry/components/button/button";
-import { Badge } from "../registry/components/badge/badge";
 import { Avatar } from "../registry/components/avatar/avatar";
 import { motion, LayoutGroup } from "motion/react";
 

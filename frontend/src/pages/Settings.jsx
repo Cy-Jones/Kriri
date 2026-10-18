@@ -5,18 +5,13 @@ import {
   Menu,
   User,
   Mail,
-  Shield,
   Building,
   Check,
   LogOut,
-  Moon,
-  Bell,
-  Sparkles,
   ExternalLink,
   Users,
   Copy,
   AlertTriangle,
-  Camera,
 } from "lucide-react";
 import PageLoading from "../components/PageLoading";
 
@@ -274,8 +269,12 @@ export default function Settings() {
                     }
                     className="text-[#8a8f98] hover:text-white transition-colors text-[11.5px] flex items-center gap-1 pl-2"
                   >
-                    <Copy size={12} />
-                    <span>Copy</span>
+                    {copiedId ? (
+                      <Check size={12} className="text-emerald-400" />
+                    ) : (
+                      <Copy size={12} />
+                    )}
+                    <span>{copiedId ? "Copied" : "Copy"}</span>
                   </button>
                 </div>
               </div>

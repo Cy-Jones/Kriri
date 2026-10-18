@@ -3,12 +3,9 @@ import { useOutletContext, useLocation, useSearchParams, useNavigate } from "rea
 import {
   Plus,
   Search,
-  MoreHorizontal,
-  AlertCircle,
   Compass,
   CheckSquare,
   FileText,
-  CircleDot,
   Menu,
   X,
 } from "lucide-react";

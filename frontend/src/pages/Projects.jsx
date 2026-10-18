@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useUser, useOrganization } from "@clerk/clerk-react";
-import { Plus, Settings2, X, FolderKanban } from "lucide-react";
+import { Plus, Settings2, X } from "lucide-react";
 import { Loupe } from "@lucasmarkes/hairline/react";
 
 import CreateProjectModal from "../components/CreateProjectModal";

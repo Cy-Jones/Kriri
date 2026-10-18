@@ -37,7 +37,6 @@ import {
 } from "lucide-react";
 import TaskDetailsModal from "../components/TaskDetailsModal";
 import CreateTaskModal from "../components/CreateTaskModal";
-import { IssuesEmptyIcon } from "../components/EmptyStateIcons";
 import { useListShortcuts } from "../hooks/useListShortcuts";
 import { Format as Checklist } from "@lucasmarkes/hairline/react";
 

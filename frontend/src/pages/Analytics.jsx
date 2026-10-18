@@ -17,11 +17,9 @@ import {
   ArrowDown,
   ArrowUpRight,
   ChevronDown,
-  ChevronRight,
   Layers,
   Cpu,
   Smartphone,
-  Folder,
   X,
   CheckCircle2,
   Menu,
@@ -93,7 +91,6 @@ export default function Analytics() {
   const atRiskProjectsCount = data?.projectHealth?.atRisk ?? 0;
   const offTrackProjectsCount = data?.projectHealth?.offTrack ?? 0;
   const completedProjectsCount = data?.projectHealth?.completed ?? 0;
-  const inProgressProjectsCount = data?.projectHealth?.inProgress ?? 0;
   const overallCompletionRate = data?.projectHealth?.overallCompletion ?? 0;
   const newProjectsCount = data?.stats?.newProjectsThisPeriod ?? 0;
 

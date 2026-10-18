@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Plus,
   ArrowUpRight,
@@ -101,8 +101,8 @@ export default function Dashboard() {
       try {
         if (!summary && !analytics) setLoading(true);
         const [sumRes, anaRes] = await Promise.all([
-          api.get("/workspaces/current/summary").catch((e) => null),
-          api.get("/workspaces/current/analytics").catch((e) => null),
+          api.get("/workspaces/current/summary").catch(() => null),
+          api.get("/workspaces/current/analytics").catch(() => null),
         ]);
         if (sumRes) {
           setSummary(sumRes);
@@ -304,25 +304,10 @@ export default function Dashboard() {
     0;
   const inProgressProjects =
     analytics?.stats?.inProgressProjects ?? summary?.stats?.inProgressProjects ?? summary?.stats?.inProgress ?? 0;
-  const pendingProjects =
-    analytics?.stats?.pendingProjects ??
-    summary?.stats?.pendingProjects ??
-    Math.max(0, totalProjects - completedProjects - inProgressProjects);
   const overdueCount = summary?.stats?.overdue ?? 0;
   const dueTodayCount = summary?.stats?.dueToday ?? 0;
   const pendingAttentionCount = overdueCount + dueTodayCount;
 
-  // Gauge completion calculation
-  const totalIssues = analytics?.stats?.totalIssues || 0;
-  const completedIssues = analytics?.stats?.completedIssues || 0;
-  const activeIssues = analytics?.stats?.activeIssues || 0;
-  const overallCompletion =
-    analytics?.stats?.overallCompletion ??
-    (totalProjects > 0
-      ? Math.round((completedProjects / totalProjects) * 100)
-      : totalIssues > 0
-        ? Math.round((completedIssues / totalIssues) * 100)
-        : 0);
 
 
 

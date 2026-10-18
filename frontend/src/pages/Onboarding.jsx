@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
 import { Input } from "../registry/components/input/input";
 import { Button } from "../registry/components/button/button";
@@ -9,7 +9,6 @@ import { AnimatedCounter } from "../registry/components/animated-counter/animate
 import { motionTokens } from "../lib/motion-tokens";
 
 export default function Onboarding() {
-  const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
 

@@ -104,7 +104,7 @@ export default function Register() {
   const handleOAuth = (strategy) => {
     if (!isLoaded || oauthLoading) return;
     setOauthLoading(strategy);
-    try { posthog.capture("account registration", { method: strategy }); } catch (e) {}
+    try { posthog.capture("account registration", { method: strategy }); } catch {}
     signUp
       .authenticateWithRedirect({
         strategy,

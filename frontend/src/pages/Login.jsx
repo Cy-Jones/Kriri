@@ -32,7 +32,7 @@ export default function Login() {
       });
 
       if (result.status === "complete") {
-        try { posthog.capture("login", { method: "email" }); } catch (e) {}
+        try { posthog.capture("login", { method: "email" }); } catch {}
         await setActive({ session: result.createdSessionId });
         navigate("/dashboard");
       } else {
@@ -52,7 +52,7 @@ export default function Login() {
   const handleOAuth = (strategy) => {
     if (!isLoaded || oauthLoading) return;
     setOauthLoading(strategy);
-    try { posthog.capture("login", { method: strategy }); } catch (e) {}
+    try { posthog.capture("login", { method: strategy }); } catch {}
     signIn
       .authenticateWithRedirect({
         strategy,

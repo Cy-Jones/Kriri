@@ -16,13 +16,11 @@ import {
   User,
   Box,
   Signal,
-  Circle,
   Inbox as InboxIconLucide,
   Menu,
   ArrowLeft,
   MessageSquare,
   FolderKanban,
-  BellOff,
   Send,
   AtSign,
   RotateCw,
@@ -51,9 +49,6 @@ const formatDetailDate = (dateStr) => {
   });
 };
 
-const IssueIcon = ({ size = 16, className = "" }) => (
-  <CircleDot size={size} className={className} strokeWidth={1.75} />
-);
 
 const NotificationIcon = ({ notif, type, title = "", size = 14, className = "" }) => {
   const notifType = (notif?.type || type || "").toLowerCase();
@@ -197,23 +192,6 @@ const SelectDropdown = ({ value, options = [], onChange }) => {
 
 
 
-const EmptyInboxIcon = ({ size = 24 }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M21 8v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8" />
-    <path d="M3 8l6.5-6h5l6.5 6" />
-    <path d="M12 11v6" />
-    <path d="M9 14h6" />
-  </svg>
-);
 
 export default function Inbox() {
   const [notifications, setNotifications] = useState([]);
@@ -236,15 +214,6 @@ export default function Inbox() {
   const [allTeammates, setAllTeammates] = useState([]);
   const [allProjects, setAllProjects] = useState([]);
 
-  const uniqueTeammates = useMemo(() => {
-    const teammates = notifications.map((n) => n.actor_name).filter(Boolean);
-    return [...new Set(teammates)].sort();
-  }, [notifications]);
-
-  const uniqueProjects = useMemo(() => {
-    const projects = notifications.map((n) => n.project_name).filter(Boolean);
-    return [...new Set(projects)].sort();
-  }, [notifications]);
 
   const [displayOptions, setDisplayOptions] = useState({
     priorityInbox: true,
@@ -324,14 +293,6 @@ export default function Inbox() {
     }
   };
 
-  const markAllRead = async () => {
-    try {
-      await api.post("/workspaces/current/notifications/mark-all-read");
-      setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
-    } catch (err) {
-      console.error("Failed to mark all read", err);
-    }
-  };
 
   const handleSelect = (notif, idx) => {
     if (!notif) return;
@@ -529,7 +490,7 @@ export default function Inbox() {
         if (commentsRes.status === "fulfilled" && Array.isArray(commentsRes.value)) {
           setComments(commentsRes.value);
         }
-      } catch (e) {
+      } catch {
         // ignore
       }
     };
