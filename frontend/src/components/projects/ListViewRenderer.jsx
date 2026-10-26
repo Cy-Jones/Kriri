@@ -53,7 +53,6 @@ import { ProjectsEmptyIcon } from "../../components/EmptyStateIcons";
 import CreateProjectModal from "../../components/CreateProjectModal";
 import { ErrorBoundary } from "../../components/ErrorBoundary";
 import { Button } from "@/registry/components/button/button";
-import { Tabs, TabsList, TabsTrigger } from "@/registry/components/tabs/tabs";
 import * as DropdownPrimitive from "@radix-ui/react-dropdown-menu";
 import DropdownMenu from "@/registry/components/dropdown-menu/dropdown-menu";
 import { Progress } from "@/registry/components/progress/progress";
@@ -70,7 +69,6 @@ import ProgressPicker from "../../components/ProgressPicker";
 import LabelPicker from "../../components/LabelPicker";
 import MemberPicker from "../../components/MemberPicker";
 import PickerWrapper from "../../components/PickerWrapper";
-import SegmentedControl from "@/registry/components/segmented-control/segmented-control";
 
 // ============================================================================
 // LIST VIEW COMPONENT
@@ -89,7 +87,10 @@ export default function ListViewRenderer({
   setActivePicker,
   canManageProjects,
 }) {
-  const grouped = groupProjects(projects, config.grouping);
+  const grouped = useMemo(
+    () => groupProjects(projects, config.grouping),
+    [projects, config.grouping, groupProjects],
+  );
   const properties = config.properties || {};
 
   const handleDragStart = (e, project) => {
@@ -132,7 +133,7 @@ export default function ListViewRenderer({
     <div className="w-full flex flex-col h-full overflow-auto">
       <div className="min-w-max flex flex-col min-h-full">
         <div
-          className="grid gap-8 items-center px-6 py-2.5 text-[12px] font-medium text-[#8a8f98] sticky top-0 z-20 border-b border-white/[0.05] bg-black md:bg-[#131416]"
+          className="grid gap-8 items-center px-6 py-2.5 text-[12px] font-medium text-zinc-500 dark:text-[#8a8f98] sticky top-0 z-20 border-b border-black/[0.06] dark:border-white/[0.05] bg-white md:bg-white dark:bg-black md:dark:bg-[#131416]"
           style={{ gridTemplateColumns: gridCols }}
         >
           <div>Name</div>
@@ -164,15 +165,15 @@ export default function ListViewRenderer({
                 {config.grouping !== "none" && (
                   <div
                     onClick={() => toggleGroupCollapse(`list_${groupTitle}`)}
-                    className="flex items-center gap-2 px-6 py-2 bg-[#151618] md:bg-[#18191c] hover:bg-white/[0.02] cursor-pointer text-[13px] font-medium text-[#e8e8e8] transition-colors"
+                    className="flex items-center gap-2 px-6 py-2 bg-zinc-50 md:bg-zinc-100/70 dark:bg-[#151618] md:dark:bg-[#18191c] hover:bg-black/[0.02] dark:hover:bg-white/[0.02] cursor-pointer text-[13px] font-medium text-zinc-900 dark:text-[#e8e8e8] transition-colors"
                   >
                     {isCollapsed ? (
-                      <ChevronRight size={14} className="text-[#8a8f98]" />
+                      <ChevronRight size={14} className="text-zinc-500 dark:text-[#8a8f98]" />
                     ) : (
-                      <ChevronDown size={14} className="text-[#8a8f98]" />
+                      <ChevronDown size={14} className="text-zinc-500 dark:text-[#8a8f98]" />
                     )}
                     <span>{groupTitle}</span>
-                    <span className="text-[#8a8f98] text-[12px] ml-1">
+                    <span className="text-zinc-500 dark:text-[#8a8f98] text-[12px] ml-1">
                       {groupItems.length}
                     </span>
                   </div>
@@ -194,7 +195,7 @@ export default function ListViewRenderer({
                           },
                         })
                       }
-                      className="grid gap-8 items-center px-6 py-2 hover:bg-white/[0.02] rounded-xl transition-colors cursor-pointer text-[13px] group mx-2"
+                      className="grid gap-8 items-center px-6 py-2 hover:bg-black/[0.03] dark:hover:bg-white/[0.02] rounded-xl transition-colors cursor-pointer text-[13px] group mx-2 text-zinc-900 dark:text-zinc-200"
                       style={{ gridTemplateColumns: gridCols }}
                     >
                       <div className="flex items-center gap-2.5 min-w-0 pr-2">
@@ -223,17 +224,17 @@ export default function ListViewRenderer({
                         </div>
                         <div className="flex flex-col min-w-0 max-w-[280px] sm:max-w-[350px] lg:max-w-[450px]">
                           <div className="flex items-center gap-2">
-                            <span className="font-medium text-[#e8e8e8] truncate group-hover:text-white transition-colors">
+                            <span className="font-medium text-zinc-900 dark:text-white truncate group-hover:text-black dark:group-hover:text-white transition-colors">
                               {project.name}
                             </span>
                             {properties.id && (
-                              <span className="text-[12px] text-[#8a8f98] font-mono whitespace-nowrap flex-shrink-0">
+                              <span className="text-[12px] text-zinc-500 dark:text-[#8a8f98] font-mono whitespace-nowrap flex-shrink-0">
                                 {project.identifier || project.id}
                               </span>
                             )}
                           </div>
                           {properties.summary && project.description && (
-                            <span className="text-[12px] text-[#8a8f98] line-clamp-2 leading-tight mt-[1px] whitespace-normal break-words">
+                            <span className="text-[12px] text-zinc-600 dark:text-[#8a8f98] line-clamp-2 leading-tight mt-[1px] whitespace-normal break-words">
                               {project.description.split("\n\n")[0]}
                             </span>
                           )}
@@ -244,7 +245,7 @@ export default function ListViewRenderer({
                         <div className="relative">
                           <ActionTooltip label="Update health status">
                             <div
-                              className={`text-[12px] text-[#8a8f98] flex items-center gap-1.5 px-2 py-1 -ml-2 rounded-full transition-colors ${canManageProjects ? "cursor-pointer hover:bg-white/[0.04]" : "cursor-default"}`}
+                              className={`text-[12px] text-zinc-600 dark:text-[#8a8f98] flex items-center gap-1.5 px-2 py-1 -ml-2 rounded-full transition-colors ${canManageProjects ? "cursor-pointer hover:bg-black/[0.04] dark:hover:bg-white/[0.04]" : "cursor-default"}`}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setActivePicker({
@@ -277,7 +278,7 @@ export default function ListViewRenderer({
 
                       {properties.priority && (
                         <div
-                          className={`relative flex items-center p-1 -ml-1 rounded-full transition-colors ${canManageProjects ? "cursor-pointer hover:bg-white/[0.04]" : "cursor-default"}`}
+                          className={`relative flex items-center p-1 -ml-1 rounded-full transition-colors ${canManageProjects ? "cursor-pointer hover:bg-black/[0.04] dark:hover:bg-white/[0.04]" : "cursor-default"}`}
                           onClick={(e) => {
                             e.stopPropagation();
                             setActivePicker({
@@ -307,7 +308,7 @@ export default function ListViewRenderer({
 
                       {properties.lead && (
                         <div
-                          className={`relative flex items-center p-1 -ml-1 rounded-full transition-colors ${canManageProjects ? "cursor-pointer hover:bg-white/[0.04]" : "cursor-default"}`}
+                          className={`relative flex items-center p-1 -ml-1 rounded-full transition-colors ${canManageProjects ? "cursor-pointer hover:bg-black/[0.04] dark:hover:bg-white/[0.04]" : "cursor-default"}`}
                           onClick={(e) => {
                             e.stopPropagation();
                             setActivePicker({
@@ -334,7 +335,7 @@ export default function ListViewRenderer({
                               )}
                             </div>
                           ) : (
-                            <div className="flex items-center justify-center w-6 h-6 rounded-full border border-white/[0.1] border-dashed text-white/[0.3]">
+                            <div className="flex items-center justify-center w-6 h-6 rounded-full border border-black/[0.15] dark:border-white/[0.1] border-dashed text-zinc-400 dark:text-white/[0.3]">
                               <svg
                                 width="12"
                                 height="12"
@@ -368,7 +369,7 @@ export default function ListViewRenderer({
 
                       {properties.due_date && (
                         <div
-                          className={`relative text-[12px] text-[#8a8f98] flex items-center gap-1.5 px-2 py-1 -ml-2 rounded-full transition-colors ${canManageProjects ? "cursor-pointer hover:bg-white/[0.04]" : "cursor-default"}`}
+                          className={`relative text-[12px] text-zinc-600 dark:text-[#8a8f98] flex items-center gap-1.5 px-2 py-1 -ml-2 rounded-full transition-colors ${canManageProjects ? "cursor-pointer hover:bg-black/[0.04] dark:hover:bg-white/[0.04]" : "cursor-default"}`}
                           onClick={(e) => {
                             e.stopPropagation();
                             setActivePicker({
@@ -424,7 +425,7 @@ export default function ListViewRenderer({
 
                       {properties.issues && (
                         <div
-                          className={`flex items-center gap-1.5 text-[12px] text-[#8a8f98] px-2 py-1 -ml-2 rounded-full transition-colors ${canManageProjects ? "cursor-pointer hover:bg-white/[0.04]" : "cursor-default"}`}
+                          className={`flex items-center gap-1.5 text-[12px] text-zinc-600 dark:text-[#8a8f98] px-2 py-1 -ml-2 rounded-full transition-colors ${canManageProjects ? "cursor-pointer hover:bg-black/[0.04] dark:hover:bg-white/[0.04]" : "cursor-default"}`}
                           onClick={(e) => {
                             e.stopPropagation();
                             navigate(`/projects/${project.id}?tab=issues`, {
@@ -444,7 +445,7 @@ export default function ListViewRenderer({
                         <div className="relative">
                           <ActionTooltip label="Update progress">
                             <div
-                              className={`flex items-center gap-1.5 text-[12px] text-[#8a8f98] px-2 py-1 -ml-2 rounded-full transition-colors ${canManageProjects ? "cursor-pointer hover:bg-white/[0.04]" : "cursor-default"}`}
+                              className={`flex items-center gap-1.5 text-[12px] text-zinc-600 dark:text-[#8a8f98] px-2 py-1 -ml-2 rounded-full transition-colors ${canManageProjects ? "cursor-pointer hover:bg-black/[0.04] dark:hover:bg-white/[0.04]" : "cursor-default"}`}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setActivePicker({
@@ -493,7 +494,7 @@ export default function ListViewRenderer({
                             shortcut="P then S"
                           >
                             <div
-                              className={`text-[12px] text-[#8a8f98] whitespace-nowrap px-2 py-1 -ml-2 rounded-full transition-colors flex items-center gap-1.5 ${canManageProjects ? "cursor-pointer hover:bg-white/[0.04]" : "cursor-default"}`}
+                              className={`text-[12px] text-zinc-600 dark:text-[#8a8f98] whitespace-nowrap px-2 py-1 -ml-2 rounded-full transition-colors flex items-center gap-1.5 ${canManageProjects ? "cursor-pointer hover:bg-black/[0.04] dark:hover:bg-white/[0.04]" : "cursor-default"}`}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setActivePicker({
@@ -526,7 +527,7 @@ export default function ListViewRenderer({
 
                       {properties.members && (
                         <div
-                          className={`relative flex items-center px-2 py-1 -ml-2 rounded-full transition-colors ${canManageProjects ? "cursor-pointer hover:bg-white/[0.04]" : "cursor-default"}`}
+                          className={`relative flex items-center px-2 py-1 -ml-2 rounded-full transition-colors ${canManageProjects ? "cursor-pointer hover:bg-black/[0.04] dark:hover:bg-white/[0.04]" : "cursor-default"}`}
                           onClick={(e) => {
                             e.stopPropagation();
                             setActivePicker({
@@ -542,7 +543,7 @@ export default function ListViewRenderer({
                             />
                           )}
                           {!project.members?.length && (
-                            <User size={12} className="text-[#8a8f98]" />
+                            <User size={12} className="text-zinc-500 dark:text-[#8a8f98]" />
                           )}
                           {activePicker.type === "members" &&
                             activePicker.projectId === project.id && (
@@ -564,7 +565,7 @@ export default function ListViewRenderer({
 
                       {properties.start_date && (
                         <div
-                          className={`relative text-[12px] text-[#8a8f98] flex items-center gap-1.5 px-2 py-1 -ml-2 rounded-full transition-colors ${canManageProjects ? "cursor-pointer hover:bg-white/[0.04]" : "cursor-default"}`}
+                          className={`relative text-[12px] text-zinc-600 dark:text-[#8a8f98] flex items-center gap-1.5 px-2 py-1 -ml-2 rounded-full transition-colors ${canManageProjects ? "cursor-pointer hover:bg-black/[0.04] dark:hover:bg-white/[0.04]" : "cursor-default"}`}
                           onClick={(e) => {
                             e.stopPropagation();
                             setActivePicker({
@@ -603,7 +604,7 @@ export default function ListViewRenderer({
 
                       {properties.labels && (
                         <div
-                          className={`relative flex items-center gap-1 overflow-hidden px-2 py-1 -ml-2 rounded-full transition-colors ${canManageProjects ? "cursor-pointer hover:bg-white/[0.04]" : "cursor-default"}`}
+                          className={`relative flex items-center gap-1 overflow-hidden px-2 py-1 -ml-2 rounded-full transition-colors ${canManageProjects ? "cursor-pointer hover:bg-black/[0.04] dark:hover:bg-white/[0.04]" : "cursor-default"}`}
                           onClick={(e) => {
                             e.stopPropagation();
                             setActivePicker({
@@ -615,18 +616,18 @@ export default function ListViewRenderer({
                           {project.labels?.slice(0, 2).map((label, i) => (
                             <div
                               key={i}
-                              className="px-1.5 py-0.5 bg-white/[0.04] rounded-sm text-[10px] text-[#8a8f98] whitespace-nowrap"
+                              className="px-1.5 py-0.5 bg-black/[0.04] dark:bg-white/[0.04] rounded-sm text-[10px] text-zinc-600 dark:text-[#8a8f98] whitespace-nowrap"
                             >
                               {label}
                             </div>
                           ))}
                           {project.labels?.length > 2 && (
-                            <span className="text-[10px] text-[#8a8f98]">
+                            <span className="text-[10px] text-zinc-500 dark:text-[#8a8f98]">
                               +{project.labels.length - 2}
                             </span>
                           )}
                           {!project.labels?.length && (
-                            <Tag size={12} className="text-[#8a8f98]" />
+                            <Tag size={12} className="text-zinc-500 dark:text-[#8a8f98]" />
                           )}
                           {activePicker.type === "labels" &&
                             activePicker.projectId === project.id && (
@@ -647,13 +648,13 @@ export default function ListViewRenderer({
                       )}
 
                       {properties.milestones && (
-                        <div className="text-[11px] text-[#8a8f98]">
+                        <div className="text-[11px] text-zinc-500 dark:text-[#8a8f98]">
                           {project.milestones?.length || 0}
                         </div>
                       )}
 
                       {properties.dependencies && (
-                        <div className="text-[11px] text-[#8a8f98]">
+                        <div className="text-[11px] text-zinc-500 dark:text-[#8a8f98]">
                           {project.dependencies?.length || 0}
                         </div>
                       )}

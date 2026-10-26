@@ -396,8 +396,8 @@ export default function KeyboardShortcutsHelp({ isOpen, onOpenChange }) {
             : "min-w-[26px] h-[26px] px-2 rounded-[7px] text-[12px]"
         } ${
           isLit
-            ? "bg-white/20 border border-white/30 text-white translate-y-[1px] shadow-sm"
-            : "bg-[#222428] border border-white/10 text-[#d4d4d8] shadow-[0_1px_2px_rgba(0,0,0,0.5)]"
+            ? "bg-zinc-900 text-white dark:bg-white/20 dark:border-white/30 dark:text-white translate-y-[1px] shadow-sm"
+            : "bg-black/[0.05] dark:bg-[#222428] border border-black/10 dark:border-white/10 text-zinc-800 dark:text-[#d4d4d8] shadow-[0_1px_2px_rgba(0,0,0,0.05)] dark:shadow-[0_1px_2px_rgba(0,0,0,0.5)]"
         }`}
       >
         {displayLabel}
@@ -421,7 +421,7 @@ export default function KeyboardShortcutsHelp({ isOpen, onOpenChange }) {
 
     return (
       <div key={fieldKey} className="space-y-1.5">
-        <label className="text-[13px] font-medium text-[#d1d2d5] block select-none">
+        <label className="text-[13px] font-medium text-zinc-800 dark:text-[#d1d2d5] block select-none">
           {label}
         </label>
         <div
@@ -431,17 +431,17 @@ export default function KeyboardShortcutsHelp({ isOpen, onOpenChange }) {
           }}
           className={`h-[42px] px-3 rounded-xl border flex items-center justify-between cursor-pointer transition-all ${
             isRecording
-              ? "bg-[#1f2026] border-white/40 ring-1 ring-white/20"
-              : "bg-[#18191c] border-white/[0.08] hover:border-white/20"
+              ? "bg-black/[0.04] dark:bg-[#1f2026] border-zinc-900/40 dark:border-white/40 ring-1 ring-zinc-900/20 dark:ring-white/20"
+              : "bg-white dark:bg-[#18191c] border-black/10 dark:border-white/[0.08] hover:border-black/20 dark:hover:border-white/20"
           }`}
         >
           <div className="flex items-center gap-1.5 min-w-0 flex-1">
             {isRecording && (
-              <span className="w-1.5 h-1.5 rounded-full bg-white/80 mr-1 flex-none" />
+              <span className="w-1.5 h-1.5 rounded-full bg-zinc-900 dark:bg-white/80 mr-1 flex-none" />
             )}
 
             {isRecording && tokens.length === 0 ? (
-              <span className="text-[13px] text-zinc-400 font-normal">
+              <span className="text-[13px] text-zinc-500 dark:text-zinc-400 font-normal">
                 Press keys...
               </span>
             ) : tokens.length > 0 ? (
@@ -451,7 +451,7 @@ export default function KeyboardShortcutsHelp({ isOpen, onOpenChange }) {
                 )}
               </div>
             ) : (
-              <span className="text-[13px] text-zinc-500 font-normal">
+              <span className="text-[13px] text-zinc-400 dark:text-zinc-500 font-normal">
                 No shortcut
               </span>
             )}
@@ -465,7 +465,7 @@ export default function KeyboardShortcutsHelp({ isOpen, onOpenChange }) {
                   e.stopPropagation();
                   handleSaveShortcut(fieldKey, null);
                 }}
-                className="p-1 text-zinc-400 hover:text-white hover:bg-white/[0.08] rounded-md transition-colors"
+                className="p-1 text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-black/[0.06] dark:hover:bg-white/[0.08] rounded-md transition-colors"
                 title="Clear shortcut"
               >
                 <X className="w-3.5 h-3.5" />
@@ -503,7 +503,7 @@ export default function KeyboardShortcutsHelp({ isOpen, onOpenChange }) {
             exit={{ opacity: 0, scale: 0.96, y: 8 }}
             transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
             onClick={(e) => e.stopPropagation()}
-            className="relative w-full max-w-[860px] bg-[#141517] border border-white/[0.08] rounded-[28px] shadow-[0_24px_64px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col md:flex-row p-7 sm:p-8 gap-8 sm:gap-10 max-h-[90vh]"
+            className="relative w-full max-w-[860px] bg-white dark:bg-[#141517] border border-black/10 dark:border-white/[0.08] rounded-[28px] shadow-2xl dark:shadow-[0_24px_64px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col md:flex-row p-7 sm:p-8 gap-8 sm:gap-10 max-h-[90vh]"
           >
             {/* LEFT COLUMN: Core Rebindable Commands */}
             <div className="w-full md:w-[310px] flex-none flex flex-col justify-between space-y-6">
@@ -512,20 +512,20 @@ export default function KeyboardShortcutsHelp({ isOpen, onOpenChange }) {
                 <div className="flex items-center justify-between">
                   <h2
                     id="shortcuts-dialog-title"
-                    className="text-lg font-semibold text-white tracking-tight"
+                    className="text-lg font-semibold text-zinc-900 dark:text-white tracking-tight"
                   >
                     Shortcuts
                   </h2>
 
                   {/* Segmented Pill Switcher */}
-                  <div className="bg-[#1f2024] p-1 rounded-full border border-white/[0.06] flex items-center gap-0.5">
+                  <div className="bg-black/[0.04] dark:bg-[#1f2024] p-1 rounded-full border border-black/10 dark:border-white/[0.06] flex items-center gap-0.5">
                     <button
                       type="button"
                       onClick={() => handleTogglePlatform("mac")}
                       className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
                         platform === "mac"
-                          ? "bg-[#2c2d33] text-white shadow-sm"
-                          : "text-zinc-400 hover:text-zinc-200"
+                          ? "bg-white text-zinc-900 dark:bg-[#2c2d33] dark:text-white shadow-sm"
+                          : "text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200"
                       }`}
                     >
                       Mac
@@ -535,8 +535,8 @@ export default function KeyboardShortcutsHelp({ isOpen, onOpenChange }) {
                       onClick={() => handleTogglePlatform("other")}
                       className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
                         platform === "other"
-                          ? "bg-[#2c2d33] text-white shadow-sm"
-                          : "text-zinc-400 hover:text-zinc-200"
+                          ? "bg-white text-zinc-900 dark:bg-[#2c2d33] dark:text-white shadow-sm"
+                          : "text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200"
                       }`}
                     >
                       Windows
@@ -555,9 +555,9 @@ export default function KeyboardShortcutsHelp({ isOpen, onOpenChange }) {
               {/* Bottom Test Link / Interactive Hint */}
               <div
                 onClick={handleTestCommand}
-                className="pt-4 border-t border-white/[0.06] group cursor-pointer"
+                className="pt-4 border-t border-black/[0.08] dark:border-white/[0.06] group cursor-pointer"
               >
-                <div className="flex items-center gap-1.5 text-[13px] text-zinc-400 group-hover:text-zinc-200 transition-colors">
+                <div className="flex items-center gap-1.5 text-[13px] text-zinc-600 group-hover:text-zinc-900 dark:text-zinc-400 dark:group-hover:text-zinc-200 transition-colors">
                   <span>Press</span>
                   <div className="inline-flex items-center gap-1">
                     {shortcutTokens(
@@ -566,7 +566,7 @@ export default function KeyboardShortcutsHelp({ isOpen, onOpenChange }) {
                     ).map((token) => renderKeyCap(token.label, false, true, token.id))}
                   </div>
                 </div>
-                <div className="text-[12px] text-zinc-500 group-hover:text-zinc-300 transition-colors mt-0.5">
+                <div className="text-[12px] text-zinc-500 group-hover:text-zinc-700 dark:group-hover:text-zinc-300 transition-colors mt-0.5">
                   here to open the command menu
                 </div>
               </div>
@@ -575,7 +575,7 @@ export default function KeyboardShortcutsHelp({ isOpen, onOpenChange }) {
             {/* RIGHT COLUMN: Searchable Cheatsheet */}
             <div className="flex-1 min-w-0 flex flex-col space-y-3">
               {/* Search Bar */}
-              <div className="relative flex items-center h-[42px] px-3.5 rounded-xl bg-[#18191c] border border-white/[0.08] focus-within:border-white/20 transition-colors flex-none">
+              <div className="relative flex items-center h-[42px] px-3.5 rounded-xl bg-black/[0.03] dark:bg-[#18191c] border border-black/10 dark:border-white/[0.08] focus-within:border-black/20 dark:focus-within:border-white/20 transition-colors flex-none">
                 <Search className="w-4 h-4 text-zinc-400 flex-none mr-2.5" />
                 <input
                   ref={searchInputRef}
@@ -583,7 +583,7 @@ export default function KeyboardShortcutsHelp({ isOpen, onOpenChange }) {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search shortcuts"
-                  className="w-full bg-transparent text-[13px] text-white placeholder-zinc-500 outline-none"
+                  className="w-full bg-transparent text-[13px] text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-zinc-500 outline-none"
                   spellCheck={false}
                   autoComplete="off"
                 />
@@ -594,7 +594,7 @@ export default function KeyboardShortcutsHelp({ isOpen, onOpenChange }) {
                       setSearchQuery("");
                       searchInputRef.current?.focus();
                     }}
-                    className="p-1 rounded text-zinc-400 hover:text-white transition-colors flex-none"
+                    className="p-1 rounded text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors flex-none"
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
@@ -602,15 +602,15 @@ export default function KeyboardShortcutsHelp({ isOpen, onOpenChange }) {
               </div>
 
               {/* Grouped Shortcuts List */}
-              <div className="flex-1 overflow-y-auto pr-1 space-y-5 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+              <div className="flex-1 overflow-y-auto pr-1 space-y-5 scrollbar-thin scrollbar-thumb-zinc-300 dark:scrollbar-thumb-white/10 scrollbar-track-transparent">
                 {filteredGroups.length === 0 ? (
-                  <div className="py-12 text-center text-xs text-zinc-500">
+                  <div className="py-12 text-center text-xs text-zinc-400 dark:text-zinc-500">
                     No shortcuts match “{searchQuery}”
                   </div>
                 ) : (
                   filteredGroups.map((group) => (
                     <div key={group.label} className="space-y-1.5">
-                      <div className="text-[12px] font-medium text-zinc-400 select-none">
+                      <div className="text-[12px] font-medium text-zinc-600 dark:text-zinc-400 select-none">
                         {group.label}
                       </div>
                       <div className="space-y-0.5">
@@ -631,13 +631,13 @@ export default function KeyboardShortcutsHelp({ isOpen, onOpenChange }) {
                               key={item.label}
                               className={`flex items-center justify-between py-2 px-2.5 -mx-2.5 rounded-lg transition-all ${
                                 matchesHeld
-                                  ? "bg-white/[0.06] text-white"
+                                  ? "bg-black/[0.05] text-zinc-900 dark:bg-white/[0.06] dark:text-white"
                                   : isDimmed
                                   ? "opacity-35"
-                                  : "hover:bg-white/[0.03]"
+                                  : "hover:bg-black/[0.03] dark:hover:bg-white/[0.03]"
                               }`}
                             >
-                              <span className="text-[13px] text-zinc-300 truncate pr-3 select-none">
+                              <span className="text-[13px] text-zinc-700 dark:text-zinc-300 truncate pr-3 select-none">
                                 {item.label}
                               </span>
 

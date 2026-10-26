@@ -155,7 +155,7 @@ export default function TaskDetailsModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/50 backdrop-blur-sm">
       <div className="w-full max-w-3xl bg-surface border border-border rounded-xl shadow-xl overflow-hidden flex flex-col max-h-[90vh]">
         {/* Header */}
-        <div className="px-6 py-4 flex items-center justify-between border-b border-border bg-surface-elevated">
+        <div className="px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between border-b border-border bg-surface-elevated">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center text-accent">
               <FileText size={20} />
@@ -177,9 +177,9 @@ export default function TaskDetailsModal({
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-white/5 rounded-lg text-text-secondary hover:text-text-primary transition-colors"
+            className="p-2 hover:bg-black/5 dark:hover:bg-white/5 rounded-lg text-text-secondary hover:text-text-primary transition-colors"
           >
-            <XSquare size="medium" />
+            <XSquare size={20} />
           </button>
         </div>
 
@@ -189,10 +189,10 @@ export default function TaskDetailsModal({
             Loading details...
           </div>
         ) : (
-          <div className="flex flex-col md:flex-row flex-1 overflow-y-auto md:overflow-hidden">
+          <div className="flex flex-col md:flex-row flex-1 overflow-y-auto md:overflow-hidden relative">
             {/* Left side: Main Content */}
             <div className="flex-1 md:border-r border-b md:border-b-0 border-border flex flex-col overflow-y-visible md:overflow-y-auto">
-              <div className="p-6">
+              <div className="p-4 sm:p-6 pb-24">
                 <h1 className="text-xl font-semibold text-text-primary mb-4">
                   {task?.title}
                 </h1>
@@ -244,7 +244,7 @@ export default function TaskDetailsModal({
 
             {/* Right side: Properties */}
             <div className="w-full md:w-[280px] bg-surface-elevated flex-shrink-0 flex flex-col">
-              <div className="p-6 space-y-6 flex-1 overflow-y-auto">
+              <div className="p-4 sm:p-6 space-y-5 sm:space-y-6 flex-1 overflow-y-auto">
                 <div>
                   <label className="text-xs text-text-muted uppercase tracking-wider font-semibold mb-2 block">
                     Status
@@ -296,19 +296,17 @@ export default function TaskDetailsModal({
                     Due Date
                   </label>
                   <div className="flex items-center gap-2 p-2 rounded bg-surface border border-border text-text-primary text-[13px]">
-                    <Calendar size="small" />
+                    <Calendar size={14} />
                     {task?.due_date
                       ? new Date(task.due_date).toLocaleDateString()
                       : "No due date"}
                   </div>
                 </div>
               </div>
-
-              {/* Comment Input Sticky at Bottom of Right Sidebar or Main Area - putting it in main area bottom is better, but this layout has split. We'll stick it to the bottom of the left pane. */}
             </div>
 
-            {/* Fix Comment Input to left pane */}
-            <div className="absolute bottom-0 left-0 w-[calc(100%-280px)] border-t border-border bg-surface p-4">
+            {/* Comment Input Sticky at Bottom of Left Area */}
+            <div className="md:absolute md:bottom-0 md:left-0 md:w-[calc(100%-280px)] border-t border-border bg-surface p-4">
               <form onSubmit={handlePostComment} className="flex gap-2">
                 <input
                   ref={commentInputRef}
@@ -323,7 +321,7 @@ export default function TaskDetailsModal({
                   disabled={!newComment.trim()}
                   className="bg-accent hover:bg-accent-hover text-white px-3.5 h-8 rounded-full transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-1.5 shadow-sm"
                 >
-                  <Send size="small" />
+                  <Send size={14} />
                 </button>
               </form>
             </div>

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 
 export const DEFAULT_VIEW_CONFIG = {
   activeView: "list",
@@ -293,9 +293,14 @@ export function useProjectFilters(projects) {
 
       return true;
     });
-  }, [projects, searchQuery, activeFilters, viewConfig]);
+  }, [
+    projects,
+    searchQuery,
+    activeFilters,
+    viewConfig[viewConfig.activeView]?.showClosedProjects,
+  ]);
 
-  const groupProjects = (items, groupingDimension) => {
+  const groupProjects = useCallback((items, groupingDimension) => {
     if (!groupingDimension || groupingDimension === "none") {
       return { "All Projects": items };
     }
@@ -321,9 +326,9 @@ export function useProjectFilters(projects) {
     });
 
     return groups;
-  };
+  }, []);
 
-  const sortProjects = (items, orderingKey, orderDir = "asc") => {
+  const sortProjects = useCallback((items, orderingKey, orderDir = "asc") => {
     return [...items].sort((a, b) => {
       let valA = a[orderingKey] ?? a.position ?? 0;
       let valB = b[orderingKey] ?? b.position ?? 0;
@@ -350,7 +355,7 @@ export function useProjectFilters(projects) {
       if (valA > valB) return orderDir === "asc" ? 1 : -1;
       return 0;
     });
-  };
+  }, []);
 
   const setActiveView = (view) => {
     setViewConfig((prev) => ({ ...prev, activeView: view }));

@@ -1,14 +1,11 @@
 const db = require("../config/database");
+const { generateWorkspaceSlug } = require("../utils/slug");
 
 exports.createWorkspace = async (req, res) => {
   const { name } = req.body;
   if (!name)
     return res.status(400).json({ error: "Workspace name is required" });
 
-  const slug = name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)+/g, "");
   const owner_id = req.user.id;
 
   const { getAuth } = require("@clerk/express");
@@ -20,14 +17,28 @@ exports.createWorkspace = async (req, res) => {
 
     let workspace;
     if (clerkOrgId) {
-      // Upsert by clerk_org_id
-      const workspaceRes = await client.query(
-        "INSERT INTO workspaces (clerk_org_id, name, slug, owner_id) VALUES ($1, $2, $3, $4) ON CONFLICT (slug) DO UPDATE SET clerk_org_id = $1, name = $2 RETURNING *",
-        [clerkOrgId, name, slug, owner_id],
+      // Check if this clerk_org_id already has a workspace
+      const existingWs = await client.query(
+        "SELECT * FROM workspaces WHERE clerk_org_id = $1",
+        [clerkOrgId],
       );
-      workspace = workspaceRes.rows[0];
+
+      if (existingWs.rows.length > 0) {
+        const updateRes = await client.query(
+          "UPDATE workspaces SET name = $1 WHERE id = $2 RETURNING *",
+          [name, existingWs.rows[0].id],
+        );
+        workspace = updateRes.rows[0];
+      } else {
+        const slug = await generateWorkspaceSlug(name, client);
+        const workspaceRes = await client.query(
+          "INSERT INTO workspaces (clerk_org_id, name, slug, owner_id) VALUES ($1, $2, $3, $4) RETURNING *",
+          [clerkOrgId, name, slug, owner_id],
+        );
+        workspace = workspaceRes.rows[0];
+      }
     } else {
-      // Create without clerk_org_id
+      const slug = await generateWorkspaceSlug(name, client);
       const workspaceRes = await client.query(
         "INSERT INTO workspaces (name, slug, owner_id) VALUES ($1, $2, $3) RETURNING *",
         [name, slug, owner_id],
@@ -82,7 +93,7 @@ exports.getUserWorkspaces = async (req, res) => {
 exports.getCurrentWorkspace = async (req, res) => {
   if (!req.workspace)
     return res.status(404).json({ error: "No active workspace context" });
-  res.json(req.workspace);
+  res.json({ ...req.workspace, role: req.workspaceRole });
 };
 
 exports.updateCurrentWorkspace = async (req, res) => {
@@ -163,7 +174,7 @@ exports.getCurrentWorkspaceSummary = async (req, res) => {
           FROM tasks t
           JOIN projects p ON t.project_id = p.id
           WHERE p.workspace_id = $1 AND t.assignee_id = $2 AND t.status != 'Done'
-          ORDER BY t.priority DESC, t.due_date ASC NULLS LAST
+          ORDER BY (CASE t.priority WHEN 'Urgent' THEN 1 WHEN 'High' THEN 2 WHEN 'Medium' THEN 3 WHEN 'Low' THEN 4 ELSE 5 END) ASC, t.due_date ASC NULLS LAST
           LIMIT 10`,
         [wsId, userId],
       ),
@@ -921,3 +932,29 @@ exports.removeWorkspaceMember = async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 };
+
+exports.deleteCurrentWorkspace = async (req, res) => {
+  if (!req.workspace) {
+    return res.status(404).json({ error: "No active workspace context" });
+  }
+
+  // Personal workspaces cannot be deleted
+  if (!req.workspace.clerk_org_id) {
+    return res
+      .status(400)
+      .json({ error: "Personal workspaces cannot be deleted" });
+  }
+
+  try {
+    await db.query("DELETE FROM workspaces WHERE id = $1", [req.workspace.id]);
+    res.json({
+      success: true,
+      message: "Workspace deleted successfully",
+      deletedId: req.workspace.id,
+    });
+  } catch (error) {
+    console.error("Error deleting workspace:", error);
+    res.status(500).json({ error: "Server error deleting workspace" });
+  }
+};
+

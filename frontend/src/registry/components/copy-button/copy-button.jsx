@@ -150,7 +150,8 @@ export function CopyButton({
   const text =
     state === "copied" ? "Copied" : state === "error" ? "Failed" : label;
 
-  async function handleCopy() {
+  async function handleCopy(e) {
+    e?.stopPropagation?.();
     if (await copy(value)) onCopied?.();
   }
 
@@ -166,7 +167,7 @@ export function CopyButton({
         ]
           .filter(Boolean)
           .join(" ")}
-        onClick={() => void handleCopy()}
+        onClick={(e) => void handleCopy(e)}
         aria-label={label}
         data-copy-state={state}
         disabled={disabled}

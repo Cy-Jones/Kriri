@@ -4,7 +4,7 @@ import { Signal } from "lucide-react";
 const PRIORITY_OPTIONS = [
   { value: "No priority", number: 0, color: "text-[#8a8f98]/30" },
   { value: "Urgent", number: 1, color: "text-[#e27a4a]" },
-  { value: "High", number: 2, color: "text-[#e8e8e8]" },
+  { value: "High", number: 2, color: "text-zinc-900 dark:text-[#e8e8e8]" },
   { value: "Medium", number: 3, color: "text-[#8a8f98]" },
   { value: "Low", number: 4, color: "text-[#8a8f98]/50" },
 ];
@@ -14,7 +14,7 @@ export function getPriorityIcon(priority) {
     priority === "Urgent"
       ? "text-[#e27a4a]"
       : priority === "High"
-        ? "text-[#e8e8e8]"
+        ? "text-zinc-900 dark:text-[#e8e8e8]"
         : priority === "Medium"
           ? "text-[#8a8f98]"
           : priority === "Low"
@@ -142,17 +142,17 @@ export default function PriorityPicker({ value, onChange, onClose }) {
       ref={popoverRef}
       className={`${
         isMobile
-          ? "bg-[#1e1f21] border border-[#333538] rounded-2xl shadow-2xl w-[260px] max-w-[calc(100vw-32px)] text-white p-1.5 flex flex-col"
-          : "absolute top-full left-0 mt-2 bg-[#1e1f21] border border-[#333538] rounded-xl shadow-2xl w-[240px] z-50 text-white py-1"
+          ? "bg-white dark:bg-[#1e1f21] border border-black/10 dark:border-[#333538] rounded-2xl shadow-2xl w-[260px] max-w-[calc(100vw-32px)] text-zinc-900 dark:text-white p-1.5 flex flex-col"
+          : "absolute top-full left-0 mt-2 bg-white dark:bg-[#1e1f21] border border-black/10 dark:border-[#333538] rounded-xl shadow-2xl w-[240px] z-50 text-zinc-900 dark:text-white py-1"
       }`}
     >
-      <div className="flex items-center justify-between px-3 py-2 border-b border-[#333538] mb-1">
-        <span className="text-[12px] text-[#8a8f98]">Change priority...</span>
+      <div className="flex items-center justify-between px-3 py-2 border-b border-black/[0.06] dark:border-[#333538] mb-1">
+        <span className="text-[12px] text-zinc-500 dark:text-[#8a8f98]">Change priority...</span>
         {isMobile && (
           <button
             type="button"
             onClick={onClose}
-            className="text-[#8a8f98] hover:text-white p-0.5 rounded transition-colors"
+            className="text-zinc-400 dark:text-[#8a8f98] hover:text-zinc-900 dark:hover:text-white p-0.5 rounded transition-colors"
           >
             <svg
               width="13"
@@ -177,13 +177,13 @@ export default function PriorityPicker({ value, onChange, onClose }) {
             onChange(option.value);
             onClose();
           }}
-          className={`flex items-center justify-between px-3 py-2 cursor-pointer hover:bg-white/[0.06] rounded-md transition-colors m-1 ${
-            value === option.value ? "bg-white/[0.04]" : ""
+          className={`flex items-center justify-between px-3 py-2 cursor-pointer hover:bg-black/[0.04] dark:hover:bg-white/[0.06] rounded-md transition-colors m-1 ${
+            value === option.value ? "bg-black/[0.04] dark:bg-white/[0.04]" : ""
           }`}
         >
           <div className="flex items-center gap-2.5">
             {getPriorityIcon(option.value)}
-            <span className="text-[13px] text-[#d1d2d5]">{option.value}</span>
+            <span className="text-[13px] text-zinc-800 dark:text-[#d1d2d5]">{option.value}</span>
           </div>
           <div className="flex items-center gap-2">
             {value === option.value && (
@@ -196,7 +196,7 @@ export default function PriorityPicker({ value, onChange, onClose }) {
                 strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                className="text-[#d1d2d5]"
+                className="text-zinc-900 dark:text-[#d1d2d5]"
               >
                 <polyline points="20 6 9 17 4 12" />
               </svg>

@@ -54,6 +54,11 @@ router.patch(
   requireMinimumRole("Admin"),
   workspaceController.updateCurrentWorkspace,
 );
+router.delete(
+  "/current",
+  requireMinimumRole("Admin"),
+  workspaceController.deleteCurrentWorkspace,
+);
 router.get(
   "/:id",
   requireMinimumRole("Viewer"),

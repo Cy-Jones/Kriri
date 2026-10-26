@@ -77,3 +77,85 @@ exports.me = async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 };
+
+exports.deleteAccount = async (req, res) => {
+  const userId = req.user?.id;
+  const clerkUserId = req.user?.clerk_user_id || req.clerkAuth?.userId;
+
+  if (!userId) {
+    return res
+      .status(401)
+      .json({ error: "Unauthorized: user context required" });
+  }
+
+  const client = await db.pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    // 1. Delete personal workspaces owned by this user (where clerk_org_id IS NULL)
+    // Deleting workspaces cascades to projects, tasks, comments, and milestones
+    await client.query(
+      "DELETE FROM workspaces WHERE owner_id = $1 AND clerk_org_id IS NULL",
+      [userId],
+    );
+
+    // 2. Remove memberships from any shared workspaces & projects
+    await client.query("DELETE FROM workspace_members WHERE user_id = $1", [
+      userId,
+    ]);
+    await client.query("DELETE FROM project_members WHERE user_id = $1", [
+      userId,
+    ]);
+
+    // 3. Delete comments posted by user
+    await client.query("DELETE FROM comments WHERE user_id = $1", [userId]);
+
+    // 4. Delete notifications involving the user
+    if (clerkUserId) {
+      await client.query(
+        "DELETE FROM notifications WHERE user_id = $1 OR actor_id = $1",
+        [clerkUserId],
+      );
+    }
+
+    // 5. Unassign from tasks in remaining team projects
+    await client.query(
+      "UPDATE tasks SET assignee_id = NULL WHERE assignee_id = $1",
+      [userId],
+    );
+    await client.query(
+      "UPDATE tasks SET reporter_id = NULL WHERE reporter_id = $1",
+      [userId],
+    );
+
+    // 6. Delete user record from database
+    await client.query("DELETE FROM users WHERE id = $1", [userId]);
+
+    await client.query("COMMIT");
+
+    // 7. Remove user from Clerk if available
+    if (clerkUserId) {
+      try {
+        await clerkClient.users.deleteUser(clerkUserId);
+      } catch (clerkErr) {
+        console.warn("Clerk deleteUser warning:", clerkErr.message);
+      }
+    }
+
+    res.json({
+      success: true,
+      message: "Account and data deleted permanently",
+    });
+  } catch (error) {
+    try {
+      await client.query("ROLLBACK");
+    } catch (rbErr) {
+      console.error("Rollback error:", rbErr);
+    }
+    console.error("Error deleting user account:", error);
+    res.status(500).json({ error: "Failed to delete user account" });
+  } finally {
+    client.release();
+  }
+};
+

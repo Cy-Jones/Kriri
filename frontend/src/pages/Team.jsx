@@ -160,19 +160,19 @@ export default function Team() {
   }
 
   return (
-    <div className="w-full flex flex-col h-full animate-in fade-in duration-300 relative">
+    <div className="w-full flex flex-col min-h-full md:h-full animate-in fade-in duration-300 relative">
       {/* Top Header Row with Title and Invite Member button */}
       <div className="flex items-center justify-between gap-2 sm:gap-3 min-h-[38px] mb-2 sm:mb-2.5">
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           <button
             type="button"
             onClick={() => window.dispatchEvent(new CustomEvent("open-mobile-nav"))}
-            className="md:hidden p-1.5 -ml-1 text-[#8a8f98] hover:text-white rounded-md hover:bg-white/[0.06] transition-colors shrink-0"
+            className="md:hidden p-1.5 -ml-1 text-zinc-500 dark:text-[#8a8f98] hover:text-zinc-900 dark:hover:text-white rounded-md hover:bg-black/[0.05] dark:hover:bg-white/[0.06] transition-colors shrink-0"
             aria-label="Open menu"
           >
             <Menu size={18} strokeWidth={1.75} />
           </button>
-          <h1 className="text-[13.5px] sm:text-base font-semibold tracking-tight text-white truncate">
+          <h1 className="text-[13.5px] sm:text-base font-semibold tracking-tight text-zinc-900 dark:text-white truncate">
             <span className="sm:hidden">
               {formatWorkspaceName(organization?.name, true)}
             </span>
@@ -188,8 +188,8 @@ export default function Team() {
             disabled={!organization} // Cannot invite to personal workspace
             className={`h-[26px] sm:h-[28px] px-3 rounded-full text-[11px] sm:text-[12px] font-medium transition-all duration-300 flex items-center gap-1.5 shrink-0 active:scale-[0.98] ${
               organization
-                ? "bg-white text-black hover:bg-zinc-100 shadow-[0_0_20px_rgba(255,255,255,0.14)] hover:shadow-[0_0_28px_rgba(255,255,255,0.22)]"
-                : "bg-white/10 text-white/50 cursor-not-allowed"
+                ? "bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-100 shadow-sm dark:shadow-[0_0_20px_rgba(255,255,255,0.14)] dark:hover:shadow-[0_0_28px_rgba(255,255,255,0.22)]"
+                : "bg-black/5 dark:bg-white/10 text-zinc-400 dark:text-white/50 cursor-not-allowed"
             }`}
             title={
               !organization
@@ -210,7 +210,7 @@ export default function Team() {
             <div className="relative flex-1">
               <Search
                 size={14}
-                className="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted"
+                className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-400 dark:text-text-muted"
               />
               <input
                 type="text"
@@ -218,13 +218,13 @@ export default function Team() {
                 placeholder="Filter by name or email..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-[#1b1c1e] border border-[#333538] focus:border-[#5e6ad2] rounded-md pl-8 pr-7 py-1 text-xs text-white placeholder:text-text-muted focus:outline-none transition-colors"
+                className="w-full bg-white dark:bg-[#1b1c1e] border border-black/10 dark:border-[#333538] focus:border-zinc-900 dark:focus:border-[#5e6ad2] rounded-md pl-8 pr-7 py-1 text-xs text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-text-muted focus:outline-none transition-colors"
               />
               {searchQuery && (
                 <button
                   type="button"
                   onClick={() => setSearchQuery("")}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted hover:text-white"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400 dark:text-text-muted hover:text-zinc-900 dark:hover:text-white"
                 >
                   <X size={12} />
                 </button>
@@ -236,7 +236,7 @@ export default function Team() {
                 setIsSearchOpen(false);
                 setSearchQuery("");
               }}
-              className="text-[11.5px] text-text-muted hover:text-white shrink-0 px-1 py-1"
+              className="text-[11.5px] text-zinc-500 dark:text-text-muted hover:text-zinc-900 dark:hover:text-white shrink-0 px-1 py-1"
             >
               Cancel
             </button>
@@ -244,10 +244,10 @@ export default function Team() {
         ) : (
           <>
             <div className="flex items-center gap-2 min-w-0">
-              <span className="px-2 py-0.5 rounded-full bg-white/[0.06] border border-white/[0.08] text-[11px] text-[#8a8f98] font-medium shrink-0">
+              <span className="px-2 py-0.5 rounded-full bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.08] dark:border-white/[0.08] text-[11px] text-zinc-600 dark:text-[#8a8f98] font-medium shrink-0">
                 {members.length} {members.length === 1 ? "member" : "members"}
               </span>
-              <p className="text-[12px] sm:text-[13px] text-text-muted truncate">
+              <p className="text-[12px] sm:text-[13px] text-zinc-500 dark:text-text-muted truncate">
                 Manage your workspace members and their roles.
               </p>
             </div>
@@ -257,14 +257,14 @@ export default function Team() {
               <div className="hidden sm:block relative">
                 <Search
                   size={14}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted"
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 dark:text-text-muted"
                 />
                 <input
                   type="text"
                   placeholder="Filter by name or email..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-[200px] bg-surface-elevated border border-border rounded-md pl-9 pr-3 py-1 text-xs text-white placeholder:text-text-muted focus:outline-none focus:border-white/20 transition-colors"
+                  className="w-[200px] bg-white dark:bg-surface-elevated border border-black/10 dark:border-border rounded-md pl-9 pr-3 py-1 text-xs text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-text-muted focus:outline-none focus:border-black/20 dark:focus:border-white/20 transition-colors"
                 />
               </div>
 
@@ -272,10 +272,10 @@ export default function Team() {
               <button
                 type="button"
                 onClick={() => setIsSearchOpen(true)}
-                className={`sm:hidden h-[26px] w-[26px] flex items-center justify-center rounded-md border border-white/[0.08] transition-colors ${
+                className={`sm:hidden h-[26px] w-[26px] flex items-center justify-center rounded-md border border-black/10 dark:border-white/[0.08] transition-colors ${
                   searchQuery
-                    ? "bg-white/[0.1] text-white border-white/20"
-                    : "bg-white/[0.03] text-[#8a8f98] hover:text-white hover:bg-white/[0.06]"
+                    ? "bg-black/[0.08] dark:bg-white/[0.1] text-zinc-900 dark:text-white border-black/20 dark:border-white/20"
+                    : "bg-black/[0.03] dark:bg-white/[0.03] text-zinc-500 dark:text-[#8a8f98] hover:text-zinc-900 dark:hover:text-white hover:bg-black/[0.06] dark:hover:bg-white/[0.06]"
                 }`}
                 aria-label="Search members"
                 title="Search members"
@@ -292,34 +292,34 @@ export default function Team() {
           <span>{actionError}</span>
           <button
             onClick={() => setActionError(null)}
-            className="ml-auto hover:text-white"
+            className="ml-auto hover:text-zinc-900 dark:hover:text-white"
           >
             <X size={14} />
           </button>
         </div>
       )}
 
-      <div className="flex flex-col border border-white/[0.06] rounded-xl bg-transparent overflow-x-auto">
+      <div className="flex flex-col border border-black/[0.08] dark:border-white/[0.06] rounded-xl bg-white dark:bg-[#141517] overflow-x-auto shadow-xs">
         {loading ? (
-          <div className="p-8 text-center text-text-muted text-[13px]">
+          <div className="p-8 text-center text-zinc-400 dark:text-text-muted text-[13px]">
             Loading members...
           </div>
         ) : error ? (
           <div className="p-8 text-center text-danger text-[13px]">{error}</div>
         ) : members.length === 0 ? (
-          <div className="p-8 text-center text-text-muted text-[13px]">
+          <div className="p-8 text-center text-zinc-400 dark:text-text-muted text-[13px]">
             No members found
           </div>
         ) : (
           <>
             {/* Mobile Card List (< sm) */}
-            <div className="sm:hidden flex flex-col divide-y divide-white/[0.04]">
+            <div className="sm:hidden flex flex-col divide-y divide-black/[0.05] dark:divide-white/[0.04]">
               {filteredMembers.map((member) => (
                 <div key={member.id} className="p-3.5 flex flex-col gap-2.5">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2.5 min-w-0">
                       <div
-                        className={`w-7 h-7 rounded-full ${member.avatar_url ? "bg-white/10" : getAvatarColor(member.name, member.email)} flex items-center justify-center text-[11px] font-medium text-white overflow-hidden shrink-0`}
+                        className={`w-7 h-7 rounded-full ${member.avatar_url ? "bg-black/5 dark:bg-white/10" : getAvatarColor(member.name, member.email)} flex items-center justify-center text-[11px] font-medium text-white overflow-hidden shrink-0`}
                       >
                         {member.avatar_url ? (
                           <img
@@ -333,16 +333,16 @@ export default function Team() {
                       </div>
                       <div className="flex flex-col min-w-0">
                         <div className="flex items-center gap-1.5">
-                          <span className="text-[13px] font-medium text-[#e8e8e8] truncate">
+                          <span className="text-[13px] font-medium text-zinc-900 dark:text-[#e8e8e8] truncate">
                             {member.name || member.email}
                           </span>
                           {member.email === currentUserEmail && (
-                            <span className="text-[10px] text-text-muted bg-white/[0.05] border border-white/[0.08] px-1.5 py-0.5 rounded-md shrink-0">
+                            <span className="text-[10px] text-zinc-500 dark:text-text-muted bg-black/[0.04] dark:bg-white/[0.05] border border-black/[0.08] dark:border-white/[0.08] px-1.5 py-0.5 rounded-md shrink-0">
                               You
                             </span>
                           )}
                         </div>
-                        <span className="text-[12px] text-text-muted truncate">
+                        <span className="text-[12px] text-zinc-500 dark:text-text-muted truncate">
                           {member.email}
                         </span>
                       </div>
@@ -359,18 +359,18 @@ export default function Team() {
                               activeActionMenu === member.id ? null : member.id,
                             );
                           }}
-                          className="w-7 h-7 rounded hover:bg-white/[0.04] transition-colors flex items-center justify-center text-text-muted hover:text-white"
+                          className="w-7 h-7 rounded hover:bg-black/[0.05] dark:hover:bg-white/[0.04] transition-colors flex items-center justify-center text-zinc-400 dark:text-text-muted hover:text-zinc-900 dark:hover:text-white"
                         >
                           <MoreHorizontal size={15} />
                         </button>
                         {activeActionMenu === member.id && (
                           <div
-                            className="absolute right-0 top-full mt-1 w-40 bg-[#18191b] border border-white/[0.08] rounded-lg shadow-xl overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-100"
+                            className="absolute right-0 top-full mt-1 w-40 bg-white dark:bg-[#18191b] border border-black/10 dark:border-white/[0.08] rounded-lg shadow-xl overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-100"
                             onClick={(e) => e.stopPropagation()}
                           >
                             <button
                               onClick={() => removeMember(member.id)}
-                              className="w-full text-left px-3 py-2 text-[13px] text-danger hover:bg-white/[0.04] transition-colors flex items-center"
+                              className="w-full text-left px-3 py-2 text-[13px] text-danger hover:bg-black/[0.04] dark:hover:bg-white/[0.04] transition-colors flex items-center"
                             >
                               Remove member
                             </button>
@@ -380,8 +380,8 @@ export default function Team() {
                     )}
                   </div>
 
-                  <div className="flex items-center justify-between text-[12px] pt-2 border-t border-white/[0.04]">
-                    <span className="text-text-muted">
+                  <div className="flex items-center justify-between text-[12px] pt-2 border-t border-black/[0.05] dark:border-white/[0.04]">
+                    <span className="text-zinc-500 dark:text-text-muted">
                       Joined {member.joined_at ? new Date(member.joined_at).toLocaleDateString() : "-"}
                     </span>
                     <div>
@@ -390,16 +390,16 @@ export default function Team() {
                           value={member.role}
                           onChange={(e) => updateRole(member.id, e.target.value)}
                           disabled={member.email === currentUserEmail}
-                          className="bg-[#18191b] border border-white/[0.1] rounded px-2 py-1 text-[12px] text-white focus:outline-none focus:border-white/20 cursor-pointer disabled:opacity-50"
+                          className="bg-white dark:bg-[#18191b] border border-black/10 dark:border-white/[0.1] rounded px-2 py-1 text-[12px] text-zinc-900 dark:text-white focus:outline-none focus:border-black/20 dark:focus:border-white/20 cursor-pointer disabled:opacity-50"
                         >
                           {ASSIGNABLE_ROLES.map((r) => (
-                            <option key={r} value={r} className="bg-[#18191b] text-white">
+                            <option key={r} value={r} className="bg-white dark:bg-[#18191b] text-zinc-900 dark:text-white">
                               {r}
                             </option>
                           ))}
                         </select>
                       ) : (
-                        <span className="text-[#e8e8e8] font-medium">{member.role}</span>
+                        <span className="text-zinc-900 dark:text-[#e8e8e8] font-medium">{member.role}</span>
                       )}
                     </div>
                   </div>
@@ -410,17 +410,17 @@ export default function Team() {
             {/* Desktop Table (>= sm) */}
             <table className="hidden sm:table w-full min-w-[550px] text-left border-collapse">
               <thead>
-                <tr className="border-b border-white/[0.06]">
-                <th className="font-normal text-text-muted text-[13px] px-4 py-2.5">
+                <tr className="border-b border-black/[0.08] dark:border-white/[0.06]">
+                <th className="font-normal text-zinc-500 dark:text-text-muted text-[13px] px-4 py-2.5">
                   User
                 </th>
-                <th className="font-normal text-text-muted text-[13px] px-4 py-2.5">
+                <th className="font-normal text-zinc-500 dark:text-text-muted text-[13px] px-4 py-2.5">
                   Joined
                 </th>
-                <th className="font-normal text-text-muted text-[13px] px-4 py-2.5">
+                <th className="font-normal text-zinc-500 dark:text-text-muted text-[13px] px-4 py-2.5">
                   Role
                 </th>
-                <th className="font-normal text-text-muted text-[13px] px-4 py-2.5">
+                <th className="font-normal text-zinc-500 dark:text-text-muted text-[13px] px-4 py-2.5">
                   Actions
                 </th>
               </tr>
@@ -429,13 +429,13 @@ export default function Team() {
               {filteredMembers.map((member) => (
                 <tr
                   key={member.id}
-                  className="border-b border-white/[0.04] last:border-0 hover:bg-white/[0.02] transition-colors group"
+                  className="border-b border-black/[0.05] dark:border-white/[0.04] last:border-0 hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-colors group"
                 >
                   <td className="px-4 py-2.5">
                     <div className="flex items-center gap-2.5">
                       {/* Avatar */}
                       <div
-                        className={`w-7 h-7 rounded-full ${member.avatar_url ? "bg-white/10" : getAvatarColor(member.name, member.email)} flex items-center justify-center text-[11px] font-medium text-white overflow-hidden shrink-0`}
+                        className={`w-7 h-7 rounded-full ${member.avatar_url ? "bg-black/5 dark:bg-white/10" : getAvatarColor(member.name, member.email)} flex items-center justify-center text-[11px] font-medium text-white overflow-hidden shrink-0`}
                       >
                         {member.avatar_url ? (
                           <img
@@ -449,33 +449,33 @@ export default function Team() {
                       </div>
                       <div className="flex flex-col">
                         <div className="flex items-center gap-1.5">
-                          <span className="text-[13px] font-medium text-[#e8e8e8]">
+                          <span className="text-[13px] font-medium text-zinc-900 dark:text-[#e8e8e8]">
                             {member.name || member.email}
                           </span>
                           {member.email === currentUserEmail && (
-                            <span className="text-[10px] text-text-muted bg-white/[0.05] border border-white/[0.08] px-1.5 py-0.5 rounded-md">
+                            <span className="text-[10px] text-zinc-500 dark:text-text-muted bg-black/[0.04] dark:bg-white/[0.05] border border-black/[0.08] dark:border-white/[0.08] px-1.5 py-0.5 rounded-md">
                               You
                             </span>
                           )}
                         </div>
-                        <span className="text-[12px] text-text-muted">
+                        <span className="text-[12px] text-zinc-500 dark:text-text-muted">
                           {member.email}
                         </span>
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-2.5 text-[13px] text-[#e8e8e8]">
+                  <td className="px-4 py-2.5 text-[13px] text-zinc-700 dark:text-[#e8e8e8]">
                     {member.joined_at
                       ? new Date(member.joined_at).toLocaleDateString()
                       : "-"}
                   </td>
-                  <td className="px-4 py-2.5 text-[13px] text-[#e8e8e8]">
+                  <td className="px-4 py-2.5 text-[13px] text-zinc-700 dark:text-[#e8e8e8]">
                     {canManageRoles && member.role !== "Owner" ? (
                       <select
                         value={member.role}
                         onChange={(e) => updateRole(member.id, e.target.value)}
                         disabled={member.email === currentUserEmail}
-                        className="bg-transparent border border-white/[0.1] rounded px-2 py-1 text-[13px] text-white focus:outline-none focus:border-white/20 cursor-pointer disabled:opacity-50"
+                        className="bg-white dark:bg-transparent border border-black/10 dark:border-white/[0.1] rounded px-2 py-1 text-[13px] text-zinc-900 dark:text-white focus:outline-none focus:border-black/20 dark:focus:border-white/20 cursor-pointer disabled:opacity-50"
                         title={
                           member.email === currentUserEmail
                             ? "You cannot change your own role"
@@ -486,7 +486,7 @@ export default function Team() {
                           <option
                             key={r}
                             value={r}
-                            className="bg-[#18191b] text-white"
+                            className="bg-white dark:bg-[#18191b] text-zinc-900 dark:text-white"
                           >
                             {r}
                           </option>
@@ -496,7 +496,7 @@ export default function Team() {
                       <span>{member.role}</span>
                     )}
                   </td>
-                  <td className="px-4 py-2.5 text-[13px] text-text-muted">
+                  <td className="px-4 py-2.5 text-[13px] text-zinc-500 dark:text-text-muted">
                     {canManageRoles &&
                     member.role !== "Owner" &&
                     member.email !== currentUserEmail ? (
@@ -508,18 +508,18 @@ export default function Team() {
                               activeActionMenu === member.id ? null : member.id,
                             );
                           }}
-                          className="w-7 h-7 rounded hover:bg-white/[0.04] transition-colors flex items-center justify-center text-text-muted hover:text-white"
+                          className="w-7 h-7 rounded hover:bg-black/[0.05] dark:hover:bg-white/[0.04] transition-colors flex items-center justify-center text-zinc-400 dark:text-text-muted hover:text-zinc-900 dark:hover:text-white"
                         >
                           <MoreHorizontal size={15} />
                         </button>
                         {activeActionMenu === member.id && (
                           <div
-                            className="absolute right-0 top-full mt-1 w-40 bg-[#18191b] border border-white/[0.08] rounded-lg shadow-xl overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-100"
+                            className="absolute right-0 top-full mt-1 w-40 bg-white dark:bg-[#18191b] border border-black/10 dark:border-white/[0.08] rounded-lg shadow-xl overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-100"
                             onClick={(e) => e.stopPropagation()}
                           >
                             <button
                               onClick={() => removeMember(member.id)}
-                              className="w-full text-left px-3 py-2 text-[13px] text-danger hover:bg-white/[0.04] transition-colors flex items-center"
+                              className="w-full text-left px-3 py-2 text-[13px] text-danger hover:bg-black/[0.04] dark:hover:bg-white/[0.04] transition-colors flex items-center"
                             >
                               Remove member
                             </button>
@@ -546,7 +546,7 @@ export default function Team() {
                 setShowInviteModal(false);
                 fetchMembers(); // refresh in case someone was added
               }}
-              className="absolute top-4 right-4 z-10 p-2 rounded-sm text-white/50 hover:bg-white/10 hover:text-white transition-colors flex items-center justify-center"
+              className="absolute top-4 right-4 z-10 p-2 rounded-sm text-zinc-500 hover:text-zinc-900 hover:bg-black/10 dark:text-white/50 dark:hover:bg-white/10 dark:hover:text-white transition-colors flex items-center justify-center"
             >
               <X size={16} strokeWidth={2} />
             </button>

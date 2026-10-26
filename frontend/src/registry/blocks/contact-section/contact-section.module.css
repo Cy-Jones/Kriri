@@ -282,13 +282,21 @@
   min-width: 0;
 }
 
-.channelText > span:first-child {
+.channelLabelFull {
+  display: block;
   font-size: var(--text-sm, 0.875rem);
   font-weight: 500;
   color: var(--foreground);
 }
 
-.channelText > span:last-child {
+.channelLabelShort {
+  display: none;
+  font-size: var(--text-sm, 0.875rem);
+  font-weight: 500;
+  color: var(--foreground);
+}
+
+.channelMeta {
   overflow: hidden;
   color: var(--text-muted);
   font-size: var(--text-xs, 0.75rem);
@@ -339,6 +347,8 @@
 .copyRow {
   display: flex;
   width: min(100%, 380px);
+  max-width: 100%;
+  box-sizing: border-box;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3, 0.75rem);
@@ -351,6 +361,8 @@
 }
 
 .copyRow > span {
+  min-width: 0;
+  flex: 1 1 auto;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -632,20 +644,45 @@
   }
   .channels {
     grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-4, 1rem);
   }
   .channelList {
-    display: flex;
-    overflow-x: auto;
-    scrollbar-width: none;
-  }
-  .channelList::-webkit-scrollbar {
-    display: none;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    width: 100%;
+    overflow-x: visible;
   }
   .channel {
     flex: none;
+    width: 100%;
+    justify-content: center;
+    padding: var(--space-3, 0.75rem) var(--space-2, 0.5rem);
+    border-radius: 14px;
+    gap: var(--space-2, 0.5rem);
   }
-  .channelText > span:last-child {
+  .channelMeta {
     display: none;
+  }
+}
+
+@container contact (max-width: 620px) {
+  .channelList {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+  .channel {
+    justify-content: flex-start;
+    padding: 10px 12px;
+  }
+  .channelLabelFull {
+    display: none;
+  }
+  .channelLabelShort {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }
 

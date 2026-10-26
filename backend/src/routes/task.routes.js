@@ -20,4 +20,7 @@ router.put("/:id", requireMinimumRole("Member"), taskController.updateTask);
 // Members and above can create tasks
 router.post("/", requireMinimumRole("Member"), taskController.createTask);
 
+// Members and above can delete tasks
+router.delete("/:id", requireMinimumRole("Member"), taskController.deleteTask);
+
 module.exports = router;

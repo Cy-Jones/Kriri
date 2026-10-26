@@ -52,7 +52,6 @@ import { ProjectsEmptyIcon } from "../../components/EmptyStateIcons";
 import CreateProjectModal from "../../components/CreateProjectModal";
 import { ErrorBoundary } from "../../components/ErrorBoundary";
 import { Button } from "@/registry/components/button/button";
-import { Tabs, TabsList, TabsTrigger } from "@/registry/components/tabs/tabs";
 import * as DropdownPrimitive from "@radix-ui/react-dropdown-menu";
 import DropdownMenu from "@/registry/components/dropdown-menu/dropdown-menu";
 import { Progress } from "@/registry/components/progress/progress";
@@ -71,7 +70,6 @@ import ProgressPicker from "../../components/ProgressPicker";
 import LabelPicker from "../../components/LabelPicker";
 import MemberPicker from "../../components/MemberPicker";
 import PickerWrapper from "../../components/PickerWrapper";
-import SegmentedControl from "@/registry/components/segmented-control/segmented-control";
 
 import {
   DndContext,
@@ -132,14 +130,14 @@ function SortableProjectItem({
       onClick={onClick}
       className={`group rounded-xl p-3.5 flex flex-col gap-3 transition-all ${
         isDragging
-          ? "opacity-40 border-2 border-dashed border-white/20 bg-transparent scale-[1.02] shadow-2xl"
+          ? "opacity-40 border-2 border-dashed border-black/20 dark:border-white/20 bg-transparent scale-[1.02] shadow-2xl"
           : isSelected
             ? "bg-[#3b82f6]/10 border border-[#3b82f6]/40 shadow-sm cursor-grab active:cursor-grabbing"
-            : "bg-[#18191c] hover:bg-[#1c1d21] border border-white/[0.05] shadow-sm hover:shadow-md cursor-grab active:cursor-grabbing"
+            : "bg-white dark:bg-[#18191c] hover:bg-zinc-50 dark:hover:bg-[#1c1d21] border border-black/[0.08] dark:border-white/[0.05] shadow-xs hover:shadow-md cursor-grab active:cursor-grabbing text-zinc-900 dark:text-zinc-100"
       }`}
     >
       <div className="flex items-start justify-between">
-        <div className="font-mono text-[11px] text-[#8a8f98] font-medium tracking-wider pt-0.5">
+        <div className="font-mono text-[11px] text-zinc-400 dark:text-[#8a8f98] font-medium tracking-wider pt-0.5">
           {config.properties.id ? (project.identifier || project.id) : ""}
         </div>
 
@@ -162,7 +160,7 @@ function SortableProjectItem({
                     shortcut="P then S"
                   >
                     <div
-                      className={`relative text-[#8a8f98] transition-colors flex items-center justify-center w-5 h-5 rounded ${canManageProjects ? "cursor-pointer hover:bg-white/[0.04] hover:text-[#e8e8e8]" : "cursor-default"}`}
+                      className={`relative text-zinc-600 dark:text-[#8a8f98] transition-colors flex items-center justify-center w-5 h-5 rounded ${canManageProjects ? "cursor-pointer hover:bg-black/[0.04] dark:hover:bg-white/[0.04] hover:text-zinc-900 dark:hover:text-[#e8e8e8]" : "cursor-default"}`}
                       onPointerDown={(e) => e.stopPropagation()}
                       onClick={(e) => {
                         e.stopPropagation();
@@ -204,7 +202,7 @@ function SortableProjectItem({
                     shortcut="P then P"
                   >
                     <div
-                      className={`relative text-[#8a8f98] transition-colors flex items-center justify-center w-5 h-5 rounded ${canManageProjects ? "cursor-pointer hover:bg-white/[0.04] hover:text-[#e8e8e8]" : "cursor-default"}`}
+                      className={`relative text-zinc-600 dark:text-[#8a8f98] transition-colors flex items-center justify-center w-5 h-5 rounded ${canManageProjects ? "cursor-pointer hover:bg-black/[0.04] dark:hover:bg-white/[0.04] hover:text-zinc-900 dark:hover:text-[#e8e8e8]" : "cursor-default"}`}
                       onPointerDown={(e) => e.stopPropagation()}
                       onClick={(e) => {
                         e.stopPropagation();
@@ -268,7 +266,7 @@ function SortableProjectItem({
                       )}
                     </div>
                   ) : (
-                    <div className="flex items-center justify-center w-6 h-6 rounded-full border border-white/[0.1] border-dashed text-white/[0.3]">
+                    <div className="flex items-center justify-center w-6 h-6 rounded-full border border-black/[0.15] dark:border-white/[0.1] border-dashed text-zinc-400 dark:text-white/[0.3]">
                       <svg
                         width="12"
                         height="12"
@@ -300,7 +298,7 @@ function SortableProjectItem({
             <ActionMenu
               trigger={
                 <ActionTooltip label="Project actions">
-                  <button className="text-[#8a8f98] hover:text-[#e8e8e8] opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center h-5 w-5 rounded-md hover:bg-white/[0.04] outline-none ml-1">
+                  <button className="text-zinc-500 hover:text-zinc-900 dark:text-[#8a8f98] dark:hover:text-[#e8e8e8] opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center h-5 w-5 rounded-md hover:bg-black/[0.04] dark:hover:bg-white/[0.04] outline-none ml-1">
                     <MoreHorizontal size={13} />
                   </button>
                 </ActionTooltip>
@@ -330,19 +328,19 @@ function SortableProjectItem({
       <div className="flex items-center gap-2 -mt-1">
         <Box size={16} className="text-[#f87171] min-w-[16px]" />
         <span
-          className="text-[14px] font-medium text-[#e8e8e8] truncate"
+          className="text-[14px] font-medium text-zinc-900 dark:text-[#e8e8e8] truncate"
           title={project.name}
         >
           {project.name || "Untitled"}
         </span>
       </div>
 
-      <div className="text-[13px] text-[#8a8f98] leading-relaxed line-clamp-2 pr-2">
+      <div className="text-[13px] text-zinc-500 dark:text-[#8a8f98] leading-relaxed line-clamp-2 pr-2">
         {project.description || "No description provided."}
       </div>
 
       {config.properties.due_date && (
-        <div className="flex flex-wrap items-center gap-3 text-[12px] text-[#8a8f98] mt-1">
+        <div className="flex flex-wrap items-center gap-3 text-[12px] text-zinc-600 dark:text-[#8a8f98] mt-1">
           <span className="relative flex items-center gap-1.5 rounded px-1 py-0.5 -ml-1">
             <PickerWrapper
               open={
@@ -358,7 +356,7 @@ function SortableProjectItem({
                 <span>
                   <ActionTooltip label="Set start date" shortcut="Ctrl S">
                     <span
-                      className={`transition-colors rounded px-1 py-0.5 ${canManageProjects ? "cursor-pointer hover:bg-white/[0.04] hover:text-[#e8e8e8]" : "cursor-default"}`}
+                      className={`transition-colors rounded px-1 py-0.5 ${canManageProjects ? "cursor-pointer hover:bg-black/[0.04] dark:hover:bg-white/[0.04] hover:text-zinc-900 dark:hover:text-[#e8e8e8]" : "cursor-default"}`}
                       onPointerDown={(e) => e.stopPropagation()}
                       onClick={(e) => {
                         e.stopPropagation();
@@ -405,7 +403,7 @@ function SortableProjectItem({
                 <span>
                   <ActionTooltip label="Set target date" shortcut="Ctrl D">
                     <span
-                      className={`transition-colors rounded px-1 py-0.5 ${canManageProjects ? "cursor-pointer hover:bg-white/[0.04] hover:text-[#e8e8e8]" : "cursor-default"}`}
+                      className={`transition-colors rounded px-1 py-0.5 ${canManageProjects ? "cursor-pointer hover:bg-black/[0.04] dark:hover:bg-white/[0.04] hover:text-zinc-900 dark:hover:text-[#e8e8e8]" : "cursor-default"}`}
                       onPointerDown={(e) => e.stopPropagation()}
                       onClick={(e) => {
                         e.stopPropagation();
@@ -437,12 +435,12 @@ function SortableProjectItem({
             </PickerWrapper>
           </span>
           <ActionTooltip label="Created date">
-            <span className="flex items-center gap-1.5 cursor-default hover:text-[#e8e8e8] transition-colors rounded hover:bg-white/[0.04] px-1 py-0.5">
+            <span className="flex items-center gap-1.5 cursor-default hover:text-zinc-900 dark:hover:text-[#e8e8e8] transition-colors rounded hover:bg-black/[0.04] dark:hover:bg-white/[0.04] px-1 py-0.5">
               <Calendar size={13} className="text-[#5e636e]" /> Sep 29
             </span>
           </ActionTooltip>
           <ActionTooltip label="Last updated">
-            <span className="flex items-center gap-1.5 cursor-default hover:text-[#e8e8e8] transition-colors rounded hover:bg-white/[0.04] px-1 py-0.5">
+            <span className="flex items-center gap-1.5 cursor-default hover:text-zinc-900 dark:hover:text-[#e8e8e8] transition-colors rounded hover:bg-black/[0.04] dark:hover:bg-white/[0.04] px-1 py-0.5">
               <svg
                 width="13"
                 height="13"
@@ -467,7 +465,7 @@ function SortableProjectItem({
         <div className="relative">
           <ActionTooltip label="Change project lead" shortcut="P then A">
             <div
-              className={`flex items-center gap-2 mt-1 text-[13px] text-[#8a8f98]  px-1 py-0.5 -ml-1 rounded transition-colors w-fit ${canManageProjects ? "cursor-pointer hover:bg-white/[0.04] hover:text-[#e8e8e8]" : "cursor-default"}`}
+              className={`flex items-center gap-2 mt-1 text-[13px] text-zinc-600 dark:text-[#8a8f98] px-1 py-0.5 -ml-1 rounded transition-colors w-fit ${canManageProjects ? "cursor-pointer hover:bg-black/[0.04] dark:hover:bg-white/[0.04] hover:text-zinc-900 dark:hover:text-[#e8e8e8]" : "cursor-default"}`}
               onPointerDown={(e) => e.stopPropagation()}
               onClick={(e) => {
                 e.stopPropagation();
@@ -507,7 +505,7 @@ function SortableProjectItem({
         </div>
       )}
 
-      <div className="mt-1 text-[13px] text-[#8a8f98]">0 issues</div>
+      <div className="mt-1 text-[13px] text-zinc-500 dark:text-[#8a8f98]">0 issues</div>
     </div>
   );
 }
@@ -664,9 +662,9 @@ export default function BoardViewRenderer({
               className={`flex flex-col mb-8 last:mb-0 ${rowDimension === "none" ? "h-full min-h-0" : ""}`}
             >
               {rowDimension !== "none" && (
-                <div className="text-[13px] font-bold text-white mb-3 pb-1 border-b border-white/10 flex items-center gap-2 sticky left-0 z-20 bg-[#0e0f11]">
+                <div className="text-[13px] font-bold text-zinc-900 dark:text-white mb-3 pb-1 border-b border-black/[0.08] dark:border-white/10 flex items-center gap-2 sticky left-0 z-20 bg-white/95 dark:bg-black/95 md:dark:bg-[#0e0f11] backdrop-blur-sm">
                   <span>{rowTitle}</span>
-                  <span className="text-[#8a8f98] text-[11px] font-normal">
+                  <span className="text-zinc-500 dark:text-[#8a8f98] text-[11px] font-normal">
                     ({rowProjects.length} projects)
                   </span>
                 </div>
@@ -727,18 +725,18 @@ export default function BoardViewRenderer({
                             key={colKey}
                             className={`flex flex-col flex-1 w-[320px] min-w-[320px] max-w-[320px] group transition-all duration-300 ${
                               config.showColumnBackgrounds
-                                ? "bg-white/[0.02] border border-white/[0.05] rounded-2xl p-3"
+                                ? "bg-black/[0.02] dark:bg-white/[0.02] border border-black/[0.06] dark:border-white/[0.05] rounded-2xl p-3"
                                 : ""
                             }`}
                           >
                             <div
                               className={`flex items-center justify-between py-1 mb-3 sticky top-0 z-10 transition-colors ${
                                 config.showColumnBackgrounds
-                                  ? "bg-[#18191c]"
-                                  : "bg-black md:bg-[#131416]"
+                                  ? "bg-zinc-50 dark:bg-[#18191c]"
+                                  : "bg-white md:bg-white dark:bg-black md:dark:bg-[#131416]"
                               }`}
                             >
-                              <div className="flex items-center gap-2 text-[13px] font-medium text-[#e8e8e8]">
+                              <div className="flex items-center gap-2 text-[13px] font-medium text-zinc-900 dark:text-[#e8e8e8]">
                                 {colKey === "Completed" ? (
                                   <CheckSquare
                                     size={14}
@@ -757,11 +755,11 @@ export default function BoardViewRenderer({
                                 ) : (
                                   <Compass
                                     size={14}
-                                    className="text-[#8a8f98]"
+                                    className="text-zinc-500 dark:text-[#8a8f98]"
                                   />
                                 )}
                                 <span>{colKey}</span>
-                                <span className="text-[#8a8f98] font-normal">
+                                <span className="text-zinc-500 dark:text-[#8a8f98] font-normal">
                                   {colProjects.length}
                                 </span>
                               </div>
@@ -770,7 +768,7 @@ export default function BoardViewRenderer({
                                   trigger={
                                     <Button
                                       variant="ghost"
-                                      className="h-6 w-6 p-0 text-[#8a8f98] hover:text-[#e8e8e8]"
+                                      className="h-6 w-6 p-0 text-zinc-500 hover:text-zinc-900 dark:text-[#8a8f98] dark:hover:text-[#e8e8e8]"
                                     >
                                       <MoreHorizontal size={14} />
                                     </Button>
@@ -800,7 +798,7 @@ export default function BoardViewRenderer({
                                 </ActionMenu>
                                 <Button
                                   variant="ghost"
-                                  className="h-6 w-6 p-0 text-[#8a8f98] hover:text-[#e8e8e8]"
+                                  className="h-6 w-6 p-0 text-zinc-500 hover:text-zinc-900 dark:text-[#8a8f98] dark:hover:text-[#e8e8e8]"
                                   onClick={() => setIsCreateModalOpen(true)}
                                 >
                                   <Plus size={14} />
@@ -818,7 +816,7 @@ export default function BoardViewRenderer({
                                     e.stopPropagation();
                                     setIsCreateModalOpen(true);
                                   }}
-                                  className="flex items-center gap-2 px-2 py-1.5 mt-1 bg-transparent hover:bg-white/[0.04] rounded-lg text-[#8a8f98] hover:text-[#e8e8e8] cursor-pointer transition-colors opacity-0 group-hover:opacity-100 flex-shrink-0"
+                                  className="flex items-center gap-2 px-2 py-1.5 mt-1 bg-transparent hover:bg-black/[0.04] dark:hover:bg-white/[0.04] rounded-lg text-zinc-600 hover:text-zinc-900 dark:text-[#8a8f98] dark:hover:text-[#e8e8e8] cursor-pointer transition-colors opacity-0 group-hover:opacity-100 flex-shrink-0"
                                 >
                                   <Plus size={14} />
                                   <span className="text-[13px] font-medium">
@@ -875,7 +873,7 @@ export default function BoardViewRenderer({
                           {!expandedHiddenRows[rowTitle] ? (
                             <button
                               onClick={() => toggleHiddenRow(rowTitle)}
-                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-white/[0.05] bg-white/[0.02] text-[#8a8f98] text-[12px] font-medium hover:text-[#e8e8e8] hover:bg-white/[0.04] self-start transition-colors"
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-black/[0.08] dark:border-white/[0.05] bg-black/[0.02] dark:bg-white/[0.02] text-zinc-600 dark:text-[#8a8f98] text-[12px] font-medium hover:text-zinc-900 dark:hover:text-[#e8e8e8] hover:bg-black/[0.04] dark:hover:bg-white/[0.04] self-start transition-colors"
                             >
                               <svg
                                 width="10"
@@ -895,7 +893,7 @@ export default function BoardViewRenderer({
                             <div className="flex flex-col">
                               <button
                                 onClick={() => toggleHiddenRow(rowTitle)}
-                                className="flex items-center gap-1.5 mb-3 text-[12px] font-medium text-[#8a8f98] hover:text-[#e8e8e8] self-start transition-colors"
+                                className="flex items-center gap-1.5 mb-3 text-[12px] font-medium text-zinc-600 dark:text-[#8a8f98] hover:text-zinc-900 dark:hover:text-[#e8e8e8] self-start transition-colors"
                               >
                                 <svg
                                   width="10"
@@ -915,9 +913,9 @@ export default function BoardViewRenderer({
                                 {hiddenColumns.map((col) => (
                                   <div
                                     key={col.colKey}
-                                    className="flex items-center justify-between px-3 py-2.5 rounded-lg bg-white/[0.01] border border-white/[0.02]"
+                                    className="flex items-center justify-between px-3 py-2.5 rounded-lg bg-black/[0.01] dark:bg-white/[0.01] border border-black/[0.06] dark:border-white/[0.02]"
                                   >
-                                    <div className="flex items-center gap-2 text-[12px] text-[#e8e8e8] font-medium">
+                                    <div className="flex items-center gap-2 text-[12px] text-zinc-900 dark:text-[#e8e8e8] font-medium">
                                       {col.colKey === "Completed" ? (
                                         <CheckSquare
                                           size={13}
@@ -936,18 +934,18 @@ export default function BoardViewRenderer({
                                       ) : (
                                         <Compass
                                           size={13}
-                                          className="text-[#8a8f98]"
+                                          className="text-zinc-500 dark:text-[#8a8f98]"
                                         />
                                       )}
                                       {col.colKey}
                                     </div>
                                     <div className="flex items-center gap-1.5">
-                                      <span className="text-[#8a8f98] text-[11px] font-medium px-1.5 bg-white/[0.04] rounded-md">
+                                      <span className="text-zinc-600 dark:text-[#8a8f98] text-[11px] font-medium px-1.5 bg-black/[0.04] dark:bg-white/[0.04] rounded-md">
                                         {col.colProjects.length}
                                       </span>
                                       <Button
                                         variant="ghost"
-                                        className="h-6 px-2 text-[#8a8f98] hover:text-[#e8e8e8] text-[11px]"
+                                        className="h-6 px-2 text-zinc-500 hover:text-zinc-900 dark:text-[#8a8f98] dark:hover:text-[#e8e8e8] text-[11px]"
                                         onClick={() => {
                                           if (
                                             hiddenColumnKeys.includes(

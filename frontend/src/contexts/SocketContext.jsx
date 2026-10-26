@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect } from "react";
 import { io } from "socket.io-client";
 import { useOrganization, useAuth } from "@clerk/clerk-react";
+import { getActiveWorkspaceId } from "../lib/api";
 
 const backendUrl = import.meta.env.VITE_API_URL || "http://localhost:5001";
 
@@ -21,6 +22,7 @@ export const useSocket = () => {
 export const SocketProvider = ({ children }) => {
   const { organization } = useOrganization();
   const { getToken, isSignedIn, isLoaded } = useAuth();
+  const targetWorkspace = organization?.id || getActiveWorkspaceId();
 
   useEffect(() => {
     let active = true;
@@ -49,26 +51,26 @@ export const SocketProvider = ({ children }) => {
   }, [isLoaded, isSignedIn, getToken]);
 
   useEffect(() => {
-    if (globalSocket && organization?.id && isSignedIn) {
+    if (globalSocket && targetWorkspace && isSignedIn) {
       const join = async () => {
         try {
           const token = await getToken();
           globalSocket.emit("join_workspace", {
-            workspaceId: organization.id,
+            workspaceId: targetWorkspace,
             token,
           });
         } catch (e) {
-          globalSocket.emit("join_workspace", organization.id);
+          globalSocket.emit("join_workspace", targetWorkspace);
         }
       };
 
       join();
 
       return () => {
-        globalSocket.emit("leave_workspace", organization.id);
+        globalSocket.emit("leave_workspace", targetWorkspace);
       };
     }
-  }, [organization?.id, isSignedIn, getToken]);
+  }, [targetWorkspace, isSignedIn, getToken]);
 
   return (
     <SocketContext.Provider value={globalSocket}>

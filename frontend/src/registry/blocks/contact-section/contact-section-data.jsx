@@ -203,6 +203,7 @@ export const contactExampleChannels = [
   {
     value: "chat",
     label: "Chat with developer",
+    shortLabel: "Chat with dev",
     meta: "Replies in ~4 mins · IST",
     icon: <MessageCircle {...ICON} />,
     detail: (
@@ -218,6 +219,7 @@ export const contactExampleChannels = [
   {
     value: "email",
     label: "Email direct",
+    shortLabel: "Email direct",
     meta: "support@kriri.app",
     icon: <Mail {...ICON} />,
     detail: (
@@ -236,6 +238,7 @@ export const contactExampleChannels = [
   {
     value: "feedback",
     label: "Feature requests",
+    shortLabel: "Feedback",
     meta: "Shaping the roadmap",
     icon: <Sparkles {...ICON} />,
     detail: (
@@ -246,7 +249,7 @@ export const contactExampleChannels = [
         </p>
         <div className={styles.copyRow}>
           <span>feedback@kriri.app</span>
-          <CopyButton value="feedback@kriri.app" label="Copy feedback email" />
+          <CopyButton value="feedback@kriri.app" label="Copy email" />
         </div>
       </>
     ),
@@ -254,6 +257,7 @@ export const contactExampleChannels = [
   {
     value: "community",
     label: "Community",
+    shortLabel: "Community",
     meta: "Discord & GitHub",
     icon: <Users {...ICON} />,
     detail: (

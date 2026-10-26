@@ -162,23 +162,24 @@
   --duration-spring: 580ms;
 }
 
-:root[data-theme="dark"] {
+:root[data-theme="dark"],
+:root.dark {
   color-scheme: dark;
   --background: #000000;
-  --surface: oklch(21.5% 0 0);
-  --surface-raised: oklch(24% 0 0);
-  /* Keep muted surfaces and hover states distinct from the base surface in dark mode. */
-  --surface-muted: oklch(26% 0 0);
-  --foreground: oklch(96% 0 0);
-  --text-secondary: oklch(77% 0 0);
-  --text-muted: oklch(64% 0 0);
-  --border: oklch(29% 0 0);
-  --border-subtle: oklch(25% 0 0);
-  --border-strong: oklch(40% 0 0);
+  --surface: #131416;
+  --surface-raised: #1e1f21;
+  --surface-muted: #161719;
+  --foreground: #f4f4f5;
+  --text-secondary: #8a8a93;
+  --text-muted: #5f6066;
+  --border: rgba(255, 255, 255, 0.08);
+  --border-subtle: rgba(255, 255, 255, 0.04);
+  --border-strong: rgba(255, 255, 255, 0.20);
   --focus-ring: transparent;
-  --accent: oklch(80% 0 0);
-  --accent-strong: oklch(91% 0 0);
-  --accent-subtle: oklch(80% 0 0 / 0.13);
+  --accent: #ffffff;
+  --accent-strong: #f2f2f2;
+  --accent-subtle: rgba(255, 255, 255, 0.08);
+  --accent-foreground: #000000;
   /* Neutral dark inverts: a near-white track carries a dark thumb, so on and off never read alike. */
   --control-on: oklch(93% 0 0);
   --control-glyph: oklch(19% 0 0);

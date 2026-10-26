@@ -167,8 +167,8 @@ export const lumenKpis = [
 
 export const lumenMovers = [
   {
-    name: "Linear",
-    logo: "/block-logos/linear-color.svg",
+    name: "GitHub",
+    logo: "/block-logos/github.svg",
     change: "Moved to Enterprise",
     amount: 4_200,
   },
@@ -209,7 +209,7 @@ export const lumenMovers = [
 export const lumenInsight = {
   "30d": {
     lead: "MRR grew $36.4K this month.",
-    rest: "62% came from 14 expansions on the Scale plan, led by Linear.",
+    rest: "62% came from 14 expansions on the Scale plan, led by GitHub.",
   },
   "90d": {
     lead: "MRR grew $80.6K this quarter.",

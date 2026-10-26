@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { motion } from "motion/react";
 
 export default function DatePicker({
   value,
@@ -103,22 +104,22 @@ export default function DatePicker({
   const pickerContent = (
     <div
       ref={popoverRef}
-      className={`bg-[#1e1f21] border border-[#333538] rounded-xl shadow-2xl ${
+      className={`bg-white dark:bg-[#1e1f21] border border-black/10 dark:border-[#333538] rounded-xl shadow-2xl ${
         isMobile
           ? "w-[300px] max-w-[calc(100vw-32px)] z-[100]"
           : `absolute ${positionClass} ${alignClass} w-[270px] z-[70]`
-      } text-white overflow-hidden text-[12px] sm:text-[12.5px] flex flex-col`}
+      } text-zinc-900 dark:text-white overflow-hidden text-[12px] sm:text-[12.5px] flex flex-col`}
     >
-      <div className="p-2.5 sm:p-3 pb-2 border-b border-[#333538]">
+      <div className="p-2.5 sm:p-3 pb-2 border-b border-black/10 dark:border-[#333538]">
         <div className="flex items-center justify-between mb-1.5">
-          <span className="text-[#8a8f98] font-medium text-[11.5px] sm:text-[12px]">
+          <span className="text-zinc-500 dark:text-[#8a8f98] font-medium text-[11.5px] sm:text-[12px]">
             {placeholder}
           </span>
           {isMobile && (
             <button
               type="button"
               onClick={onClose}
-              className="text-[#8a8f98] hover:text-white p-0.5 rounded transition-colors"
+              className="text-zinc-500 hover:text-zinc-900 dark:text-[#8a8f98] dark:hover:text-white p-0.5 rounded transition-colors"
             >
               <svg
                 width="13"
@@ -136,10 +137,10 @@ export default function DatePicker({
             </button>
           )}
         </div>
-        <div className="relative flex items-center w-full bg-[#1b1c1e] border border-[#333538] focus-within:border-[#5e6ad2] rounded-md px-2 py-0.5 min-h-[30px] transition-colors">
+        <div className="relative flex items-center w-full bg-zinc-50 dark:bg-[#1b1c1e] border border-black/10 dark:border-[#333538] focus-within:border-[#5e6ad2] rounded-md px-2 py-0.5 min-h-[30px] transition-colors">
           {value ? (
             <div className="flex items-center justify-between w-full">
-              <span className="bg-[#5e6ad2]/20 text-[#aebdf8] px-1.5 py-0.5 rounded text-[12px]">
+              <span className="bg-indigo-50 dark:bg-[#5e6ad2]/20 text-indigo-600 dark:text-[#aebdf8] px-1.5 py-0.5 rounded text-[12px]">
                 {value}
               </span>
               <button
@@ -148,7 +149,7 @@ export default function DatePicker({
                   e.stopPropagation();
                   onChange(null);
                 }}
-                className="text-[#85868a] hover:text-[#d1d2d5] bg-[#333538] hover:bg-[#3f4145] rounded-full p-[3px] transition-colors flex items-center justify-center"
+                className="text-zinc-500 hover:text-zinc-800 dark:text-[#85868a] dark:hover:text-[#d1d2d5] bg-zinc-200 hover:bg-zinc-300 dark:bg-[#333538] dark:hover:bg-[#3f4145] rounded-full p-[3px] transition-colors flex items-center justify-center"
               >
                 <svg
                   width="8"
@@ -170,26 +171,40 @@ export default function DatePicker({
               onKeyDown={(e) => {
                 if (e.key === "Enter") e.preventDefault();
               }}
-              className="w-full bg-transparent border-none text-[12px] text-white focus:outline-none placeholder:text-[#55565a]"
+              className="w-full bg-transparent border-none text-[12px] text-zinc-900 dark:text-white focus:outline-none placeholder:text-zinc-400 dark:placeholder:text-[#55565a]"
             />
           )}
         </div>
 
-        <div className="flex items-center justify-between gap-1 mt-2.5">
-          {tabs.map((tab) => (
-            <button
-              type="button"
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`px-1.5 sm:px-2 py-0.5 rounded-full text-[11px] font-medium transition-colors whitespace-nowrap ${
-                activeTab === tab
-                  ? "bg-white/10 text-white"
-                  : "text-[#8a8f98] hover:text-white hover:bg-white/[0.03]"
-              }`}
-            >
-              {tab}
-            </button>
-          ))}
+        <div className="flex items-center p-0.5 rounded-full bg-black/[0.04] dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/[0.06] mt-2.5">
+          {tabs.map((tab) => {
+            const isActive = activeTab === tab;
+            return (
+              <button
+                type="button"
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`relative flex-1 py-1 text-center rounded-full text-[11px] font-medium transition-colors whitespace-nowrap cursor-pointer select-none ${
+                  isActive
+                    ? "text-zinc-900 dark:text-white"
+                    : "text-zinc-600 hover:text-zinc-900 dark:text-[#8a8f98] dark:hover:text-white"
+                }`}
+              >
+                {isActive && (
+                  <motion.div
+                    layoutId="datePickerActiveTab"
+                    className="absolute inset-0 bg-white dark:bg-white/[0.12] border border-black/10 dark:border-white/10 rounded-full shadow-xs pointer-events-none"
+                    transition={{
+                      type: "spring",
+                      stiffness: 450,
+                      damping: 35,
+                    }}
+                  />
+                )}
+                <span className="relative z-10">{tab}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -197,14 +212,14 @@ export default function DatePicker({
         {activeTab === "Day" && (
           <div>
             <div className="flex items-center justify-between mb-3 text-[13px]">
-              <span className="font-medium">
+              <span className="font-medium text-zinc-900 dark:text-white">
                 {monthName} {year}
               </span>
-              <div className="flex items-center gap-3 text-[#85868a]">
+              <div className="flex items-center gap-3 text-zinc-500 dark:text-[#85868a]">
                 <button
                   type="button"
                   onClick={returnToToday}
-                  className="hover:text-white mt-0.5"
+                  className="hover:text-zinc-900 dark:hover:text-white mt-0.5"
                   title="Return to today"
                 >
                   <svg
@@ -222,14 +237,14 @@ export default function DatePicker({
                 <button
                   type="button"
                   onClick={() => changeMonth(-1)}
-                  className="hover:text-white"
+                  className="hover:text-zinc-900 dark:hover:text-white"
                 >
                   &lt;
                 </button>
                 <button
                   type="button"
                   onClick={() => changeMonth(1)}
-                  className="hover:text-white"
+                  className="hover:text-zinc-900 dark:hover:text-white"
                 >
                   &gt;
                 </button>
@@ -237,7 +252,7 @@ export default function DatePicker({
             </div>
             <div className="grid grid-cols-7 gap-y-1.5 text-center text-[11px] sm:text-[12px]">
               {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((d) => (
-                <div key={d} className="text-[#55565a] font-medium mb-0.5">
+                <div key={d} className="text-zinc-400 dark:text-[#55565a] font-medium mb-0.5">
                   {d}
                 </div>
               ))}
@@ -252,12 +267,12 @@ export default function DatePicker({
                     onClick={() => handleSelect(dayObj.formatted)}
                     className={`w-6.5 h-6.5 mx-auto rounded-full flex items-center justify-center transition-colors text-[11px] sm:text-[11.5px] ${
                       isSelected
-                        ? "bg-white/10 text-white border border-[#55565a]"
+                        ? "bg-zinc-900 text-white dark:bg-white/10 dark:text-white border border-zinc-900 dark:border-[#55565a]"
                         : dayObj.isCurrentMonth
-                          ? "text-[#d1d2d5] hover:bg-white/10 hover:text-white"
-                          : "text-[#55565a] hover:bg-white/5 hover:text-[#85868a]"
+                          ? "text-zinc-800 hover:bg-black/5 hover:text-zinc-900 dark:text-[#d1d2d5] dark:hover:bg-white/10 dark:hover:text-white"
+                          : "text-zinc-400 hover:bg-black/[0.03] hover:text-zinc-600 dark:text-[#55565a] dark:hover:bg-white/5 dark:hover:text-[#85868a]"
                     } ${
-                      isToday && !isSelected ? "border border-[#55565a]" : ""
+                      isToday && !isSelected ? "border border-zinc-300 dark:border-[#55565a]" : ""
                     }`}
                   >
                     {dayObj.dayNumber}
@@ -272,7 +287,7 @@ export default function DatePicker({
           <div className="flex flex-col gap-6">
             {[2024, 2025, 2026, 2027, 2028, 2029, 2030].map((year) => (
               <div key={year} className="flex flex-col gap-4">
-                <div className="text-[12px] font-medium text-[#85868a]">
+                <div className="text-[12px] font-medium text-zinc-500 dark:text-[#85868a]">
                   {year}
                 </div>
                 <div className="grid grid-cols-3 gap-2">
@@ -294,7 +309,7 @@ export default function DatePicker({
                       type="button"
                       key={m}
                       onClick={() => handleSelect(`${m} ${year}`)}
-                      className="px-2 py-1 rounded-full border border-[#333538] hover:bg-white/5 text-[#85868a] hover:text-white transition-colors"
+                      className="px-2 py-1 rounded-full border border-black/10 dark:border-[#333538] hover:bg-black/5 dark:hover:bg-white/5 text-zinc-700 hover:text-zinc-900 dark:text-[#85868a] dark:hover:text-white transition-colors"
                     >
                       {m}
                     </button>
@@ -309,7 +324,7 @@ export default function DatePicker({
           <div className="flex flex-col gap-6">
             {[2024, 2025, 2026, 2027, 2028, 2029, 2030].map((year) => (
               <div key={year}>
-                <div className="text-[12px] font-medium text-[#85868a] mb-2">
+                <div className="text-[12px] font-medium text-zinc-500 dark:text-[#85868a] mb-2">
                   {year}
                 </div>
                 <div className="grid grid-cols-4 gap-2">
@@ -318,7 +333,7 @@ export default function DatePicker({
                       type="button"
                       key={q}
                       onClick={() => handleSelect(`${q} ${year}`)}
-                      className="px-2 py-1 rounded-full border border-[#333538] hover:bg-white/5 text-[#85868a] hover:text-white transition-colors text-center"
+                      className="px-2 py-1 rounded-full border border-black/10 dark:border-[#333538] hover:bg-black/5 dark:hover:bg-white/5 text-zinc-700 hover:text-zinc-900 dark:text-[#85868a] dark:hover:text-white transition-colors text-center"
                     >
                       {q}
                     </button>
@@ -333,7 +348,7 @@ export default function DatePicker({
           <div className="flex flex-col gap-6">
             {[2024, 2025, 2026, 2027, 2028, 2029, 2030].map((year) => (
               <div key={year}>
-                <div className="text-[12px] font-medium text-[#85868a] mb-2">
+                <div className="text-[12px] font-medium text-zinc-500 dark:text-[#85868a] mb-2">
                   {year}
                 </div>
                 <div className="grid grid-cols-2 gap-2">
@@ -342,7 +357,7 @@ export default function DatePicker({
                       type="button"
                       key={h}
                       onClick={() => handleSelect(`${h} ${year}`)}
-                      className="px-2 py-1 rounded-full border border-[#333538] hover:bg-white/5 text-[#85868a] hover:text-white transition-colors text-center"
+                      className="px-2 py-1 rounded-full border border-black/10 dark:border-[#333538] hover:bg-black/5 dark:hover:bg-white/5 text-zinc-700 hover:text-zinc-900 dark:text-[#85868a] dark:hover:text-white transition-colors text-center"
                     >
                       {h}
                     </button>
@@ -361,7 +376,7 @@ export default function DatePicker({
                   type="button"
                   key={year}
                   onClick={() => handleSelect(`${year}`)}
-                  className="px-2 py-1.5 rounded-full border border-[#333538] hover:bg-white/5 text-[#85868a] hover:text-white transition-colors text-center font-medium"
+                  className="px-2 py-1.5 rounded-full border border-black/10 dark:border-[#333538] hover:bg-black/5 dark:hover:bg-white/5 text-zinc-700 hover:text-zinc-900 dark:text-[#85868a] dark:hover:text-white transition-colors text-center font-medium"
                 >
                   {year}
                 </button>

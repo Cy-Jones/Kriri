@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { motion } from "motion/react";
 import { Search } from "lucide-react";
 import { releases } from "../data/changelogData";
 
@@ -49,7 +50,7 @@ export default function Changelog() {
   return (
     <div className="py-10 sm:py-16 relative">
       <div className="mx-auto max-w-[1040px] px-4 sm:px-6 lg:px-8">
-        {/* Top Header matching Linear */}
+        {/* Top Header matching Kriri */}
         <header className="mb-14 pb-4 border-b border-border">
           <div className="flex items-center justify-between gap-4 mb-6">
             <h1 className="text-3xl sm:text-4xl font-normal tracking-tight text-foreground font-display">
@@ -67,13 +68,21 @@ export default function Changelog() {
                     key={tab.id}
                     type="button"
                     onClick={() => setActiveTab(tab.id)}
-                    className={`relative py-1 font-medium transition-colors ${
+                    className={`relative py-1 font-medium transition-colors cursor-pointer ${
                       isActive ? "text-foreground" : "text-muted-foreground hover:text-foreground"
                     }`}
                   >
                     {tab.label}
                     {isActive && (
-                      <span className="absolute bottom-[-17px] left-0 right-0 h-[2px] bg-foreground rounded-full" />
+                      <motion.span
+                        layoutId="changelogTabUnderline"
+                        className="absolute bottom-[-17px] left-0 right-0 h-[2px] bg-foreground rounded-full pointer-events-none"
+                        transition={{
+                          type: "spring",
+                          stiffness: 450,
+                          damping: 35,
+                        }}
+                      />
                     )}
                   </button>
                 );

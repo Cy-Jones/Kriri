@@ -1,5 +1,6 @@
 const { Webhook } = require("svix");
 const db = require("../config/database");
+const { generateWorkspaceSlug } = require("../utils/slug");
 
 exports.handleClerkWebhook = async (req, res) => {
   const WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET;
@@ -52,10 +53,23 @@ exports.handleClerkWebhook = async (req, res) => {
         if (ownerRes.rows.length > 0) ownerId = ownerRes.rows[0].id;
       }
 
-      await db.query(
-        "INSERT INTO workspaces (clerk_org_id, name, slug, owner_id) VALUES ($1, $2, $3, $4) ON CONFLICT (slug) DO UPDATE SET clerk_org_id = $1, name = $2",
-        [clerkOrgId, name, slug, ownerId],
+      const existingWs = await db.query(
+        "SELECT id FROM workspaces WHERE clerk_org_id = $1",
+        [clerkOrgId],
       );
+
+      if (existingWs.rows.length > 0) {
+        await db.query(
+          "UPDATE workspaces SET name = $1 WHERE clerk_org_id = $2",
+          [name, clerkOrgId],
+        );
+      } else {
+        const finalSlug = await generateWorkspaceSlug(slug || name, db);
+        await db.query(
+          "INSERT INTO workspaces (clerk_org_id, name, slug, owner_id) VALUES ($1, $2, $3, $4)",
+          [clerkOrgId, name, finalSlug, ownerId],
+        );
+      }
     } else if (eventType === "organization.updated") {
       const { id: clerkOrgId, name, slug } = evt.data;
       await db.query(

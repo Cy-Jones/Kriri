@@ -66,7 +66,7 @@ export default function ContactModal({ isOpen, onOpenChange }) {
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
           {/* Backdrop */}
           <motion.div
-            key="linear-contact-backdrop"
+            key="kriri-contact-backdrop"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -81,15 +81,15 @@ export default function ContactModal({ isOpen, onOpenChange }) {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: 6 }}
             transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-            className="relative z-[101] w-full max-w-[620px] rounded-2xl border border-white/10 bg-[#1b1c20] p-6 sm:p-7 shadow-[0_24px_64px_rgba(0,0,0,0.8)] text-white"
+            className="relative z-[101] w-full max-w-[620px] rounded-2xl border border-black/10 dark:border-white/10 bg-white dark:bg-[#1b1c20] p-6 sm:p-7 shadow-[0_24px_64px_rgba(0,0,0,0.18)] dark:shadow-[0_24px_64px_rgba(0,0,0,0.8)] text-zinc-900 dark:text-white"
           >
             {status === "success" ? (
               <div className="py-10 flex flex-col items-center text-center">
-                <CheckCircle2 className="w-9 h-9 text-white mb-3" />
-                <h4 className="text-[15px] font-semibold text-white">Message sent</h4>
-                <p className="text-xs text-[#8a8f98] mt-1.5 max-w-sm leading-relaxed">
+                <CheckCircle2 className="w-9 h-9 text-zinc-900 dark:text-white mb-3" />
+                <h4 className="text-[15px] font-semibold text-zinc-900 dark:text-white">Message sent</h4>
+                <p className="text-xs text-zinc-500 dark:text-[#8a8f98] mt-1.5 max-w-sm leading-relaxed">
                   Thanks for reaching out! We will reply to{" "}
-                  <span className="text-white font-medium">{userEmail}</span> shortly.
+                  <span className="text-zinc-900 dark:text-white font-medium">{userEmail}</span> shortly.
                 </p>
               </div>
             ) : (
@@ -97,14 +97,14 @@ export default function ContactModal({ isOpen, onOpenChange }) {
                 {/* Header */}
                 <div className="flex items-start justify-between mb-5">
                   <div>
-                    <h3 className="text-[15px] font-semibold text-white tracking-tight">
+                    <h3 className="text-[15px] font-semibold text-zinc-900 dark:text-white tracking-tight">
                       Contact us
                     </h3>
-                    <p className="text-[13px] text-[#8a8f98] mt-1 leading-normal">
+                    <p className="text-[13px] text-zinc-500 dark:text-[#8a8f98] mt-1 leading-normal">
                       Include any relevant details, or email us directly at{" "}
                       <a
                         href="mailto:support@kriri.app"
-                        className="text-white hover:underline inline-flex items-center gap-0.5"
+                        className="text-zinc-900 dark:text-white hover:underline inline-flex items-center gap-0.5"
                       >
                         support@kriri.app
                         <ArrowUpRight className="w-3.5 h-3.5 flex-none" />
@@ -114,7 +114,7 @@ export default function ContactModal({ isOpen, onOpenChange }) {
                   <button
                     type="button"
                     onClick={() => onOpenChange(false)}
-                    className="text-[#8a8f98] hover:text-white p-1.5 -mr-1 -mt-1 rounded-md hover:bg-white/[0.06] transition-colors"
+                    className="text-zinc-500 hover:text-zinc-900 dark:text-[#8a8f98] dark:hover:text-white p-1.5 -mr-1 -mt-1 rounded-md hover:bg-black/5 dark:hover:bg-white/[0.06] transition-colors"
                     aria-label="Close"
                   >
                     <X className="w-4 h-4" />
@@ -122,35 +122,35 @@ export default function ContactModal({ isOpen, onOpenChange }) {
                 </div>
 
                 {/* Textarea container */}
-                <div className="rounded-xl border border-white/[0.08] bg-[#141518] p-3.5 focus-within:border-white/20 transition-colors">
+                <div className="rounded-xl border border-black/10 dark:border-white/[0.08] bg-zinc-50 dark:bg-[#141518] p-3.5 focus-within:border-black/20 dark:focus-within:border-white/20 transition-colors">
                   <textarea
                     ref={textareaRef}
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
                     rows={7}
                     placeholder="Tell us what's on your mind, describe a bug, or share your feedback..."
-                    className="w-full min-h-[160px] bg-transparent border-0 outline-none resize-none text-[13px] text-[#f4f4f5] placeholder-[#5f6066] leading-relaxed focus:ring-0"
+                    className="w-full min-h-[160px] bg-transparent border-0 outline-none resize-none text-[13px] text-zinc-900 dark:text-[#f4f4f5] placeholder-zinc-400 dark:placeholder-[#5f6066] leading-relaxed focus:ring-0"
                   />
 
                   {/* Actions inside box */}
-                  <div className="flex items-center justify-between pt-2.5 border-t border-white/[0.04] mt-2">
+                  <div className="flex items-center justify-between pt-2.5 border-t border-black/[0.06] dark:border-white/[0.04] mt-2">
                     <button
                       type="button"
-                      className="text-[#8a8f98] hover:text-white p-1.5 rounded-md hover:bg-white/[0.06] transition-colors"
+                      className="text-zinc-500 hover:text-zinc-900 dark:text-[#8a8f98] dark:hover:text-white p-1.5 rounded-md hover:bg-black/5 dark:hover:bg-white/[0.06] transition-colors"
                       title="Attach file (optional)"
                     >
                       <Paperclip className="w-4 h-4" />
                     </button>
 
                     <div className="flex items-center gap-2.5">
-                      <span className="hidden sm:inline-block text-[11px] text-[#5f6066]">
+                      <span className="hidden sm:inline-block text-[11px] text-zinc-400 dark:text-[#5f6066]">
                         ⌘ + Enter
                       </span>
                       <button
                         type="button"
                         onClick={handleSend}
                         disabled={!message.trim() || status === "submitting"}
-                        className="px-4 py-2 rounded-lg bg-white hover:bg-[#e8e8e8] text-black font-semibold text-xs transition-colors shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
+                        className="px-4 py-2 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-white dark:hover:bg-[#e8e8e8] dark:text-black font-semibold text-xs transition-colors shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
                       >
                         {status === "submitting" ? "Sending..." : "Send"}
                       </button>

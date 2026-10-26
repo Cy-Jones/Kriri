@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useOutletContext, useLocation, useSearchParams, useNavigate } from "react-router-dom";
 import {
   Plus,
@@ -16,17 +16,11 @@ import PageLoading from "../components/PageLoading";
 import { useUser, useOrganization } from "@clerk/clerk-react";
 import { useSocket } from "../contexts/SocketContext";
 import { useListShortcuts } from "../hooks/useListShortcuts";
+import { useTheme } from "../contexts/ThemeContext";
 import { Format as Checklist } from "@lucasmarkes/hairline/react";
 
 export default function Tasks() {
-  const [tasks, setTasks] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedTaskId, setSelectedTaskId] = useState(null);
-  const [highlightedTaskId, setHighlightedTaskId] = useState(null);
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [activeIndex, setActiveIndex] = useState(null);
+  const { effectiveTheme } = useTheme();
   const outletCtx = useOutletContext();
   const location = useLocation();
   const [searchParams] = useSearchParams();
@@ -34,6 +28,24 @@ export default function Tasks() {
   const { user } = useUser();
   const { organization } = useOrganization();
   const socket = useSocket();
+
+  const [tasks, setTasks] = useState(() => {
+    const fromApiCache = api.getCached("/tasks");
+    if (Array.isArray(fromApiCache) && fromApiCache.length > 0) return fromApiCache;
+    try {
+      const cached = localStorage.getItem(`kriri:cache:tasks_${organization?.id || "personal"}`);
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [loading, setLoading] = useState(() => tasks.length === 0);
+  const [selectedTaskId, setSelectedTaskId] = useState(null);
+  const [highlightedTaskId, setHighlightedTaskId] = useState(null);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(null);
 
   useEffect(() => {
     if (!socket) return;
@@ -70,11 +82,22 @@ export default function Tasks() {
 
   useEffect(() => {
     if (!user) return;
-    setLoading(true);
+    setTasks((prev) => {
+      if (prev.length === 0) setLoading(true);
+      return prev;
+    });
     api
       .get("/tasks")
       .then((data) => {
-        setTasks(data);
+        if (Array.isArray(data)) {
+          setTasks(data);
+          try {
+            localStorage.setItem(
+              `kriri:cache:tasks_${organization?.id || "personal"}`,
+              JSON.stringify(data),
+            );
+          } catch {}
+        }
         setLoading(false);
       })
       .catch((err) => {
@@ -83,13 +106,17 @@ export default function Tasks() {
       });
   }, [user?.id, organization?.id]);
 
-  const filteredTasks = tasks.filter(
-    (t) =>
-      (t.title || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (t.assignee_name || "")
-        .toLowerCase()
-        .includes(searchQuery.toLowerCase()) ||
-      (t.status || "").toLowerCase().includes(searchQuery.toLowerCase()),
+  const filteredTasks = useMemo(
+    () =>
+      tasks.filter(
+        (t) =>
+          (t.title || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+          (t.assignee_name || "")
+            .toLowerCase()
+            .includes(searchQuery.toLowerCase()) ||
+          (t.status || "").toLowerCase().includes(searchQuery.toLowerCase()),
+      ),
+    [tasks, searchQuery],
   );
 
   useEffect(() => {
@@ -142,7 +169,7 @@ export default function Tasks() {
   };
 
   return (
-    <div className="w-full flex flex-col h-full animate-in fade-in duration-300">
+    <div className="w-full flex flex-col min-h-full md:h-full animate-in fade-in duration-300">
       {/* Top Header Row */}
       <div className="flex items-center justify-between gap-3 mb-4 sm:mb-6 min-h-[38px]">
         {/* Left: Mobile hamburger menu + Title + Count */}
@@ -150,15 +177,15 @@ export default function Tasks() {
           <button
             type="button"
             onClick={openMobileNav}
-            className="md:hidden p-1.5 -ml-1 text-[#8a8f98] hover:text-white rounded-md hover:bg-white/[0.06] transition-colors shrink-0"
+            className="md:hidden p-1.5 -ml-1 text-zinc-500 hover:text-zinc-900 dark:text-[#8a8f98] dark:hover:text-white rounded-md hover:bg-black/[0.05] dark:hover:bg-white/[0.06] transition-colors shrink-0"
             aria-label="Open menu"
           >
             <Menu size={18} strokeWidth={1.75} />
           </button>
-          <h1 className="text-base font-semibold tracking-tight text-white truncate">
+          <h1 className="text-base font-semibold tracking-tight text-zinc-900 dark:text-white truncate">
             Issues
           </h1>
-          <div className="px-2 py-0.5 rounded-full bg-surface-elevated text-text-secondary text-[11px] font-medium border border-border shrink-0">
+          <div className="px-2 py-0.5 rounded-full bg-black/[0.04] dark:bg-white/[0.06] text-zinc-600 dark:text-[#8a8f98] text-[11px] font-medium border border-black/[0.06] dark:border-white/[0.06] shrink-0">
             {tasks.length}
           </div>
         </div>
@@ -169,14 +196,14 @@ export default function Tasks() {
           <div className="hidden sm:block relative">
             <Search
               size={14}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted"
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 dark:text-[#8a8f98]"
             />
             <input
               type="text"
               placeholder="Filter tasks..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-[200px] bg-surface-elevated border border-border rounded-md pl-9 pr-3 py-1.5 text-xs text-white placeholder:text-text-muted focus:outline-none focus:border-white/20 transition-colors"
+              className="w-[200px] bg-white dark:bg-[#16171a] border border-black/[0.08] dark:border-white/[0.08] rounded-md pl-9 pr-3 py-1.5 text-xs text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-[#8a8f98] focus:outline-none focus:border-black/20 dark:focus:border-white/20 transition-colors"
             />
           </div>
 
@@ -186,8 +213,8 @@ export default function Tasks() {
             onClick={() => setIsSearchOpen((prev) => !prev)}
             className={`sm:hidden h-[26px] w-[26px] flex items-center justify-center rounded-md transition-colors ${
               isSearchOpen || searchQuery
-                ? "bg-white/[0.1] text-white"
-                : "text-[#8a8f98] hover:text-white hover:bg-white/[0.06]"
+                ? "bg-black/[0.08] dark:bg-white/[0.1] text-zinc-900 dark:text-white"
+                : "text-zinc-500 hover:text-zinc-900 dark:text-[#8a8f98] dark:hover:text-white hover:bg-black/[0.05] dark:hover:bg-white/[0.06]"
             }`}
             aria-label="Filter tasks"
             title="Search"
@@ -199,7 +226,7 @@ export default function Tasks() {
           {tasks.length > 0 && (
             <button
               onClick={() => setIsCreateModalOpen(true)}
-              className="h-[26px] sm:h-[28px] px-3 bg-white text-black hover:bg-zinc-100 transition-all duration-300 text-[11.5px] sm:text-[12px] font-medium rounded-full shadow-[0_0_20px_rgba(255,255,255,0.14)] hover:shadow-[0_0_28px_rgba(255,255,255,0.22)] active:scale-[0.98] shrink-0 flex items-center gap-1.5"
+              className="h-[26px] sm:h-[28px] px-3 bg-zinc-900 text-white dark:bg-white dark:text-black hover:bg-zinc-800 dark:hover:bg-zinc-100 transition-all duration-300 text-[11.5px] sm:text-[12px] font-medium rounded-full shadow-[0_1px_2px_rgba(0,0,0,0.08)] dark:shadow-[0_0_20px_rgba(255,255,255,0.14)] active:scale-[0.98] shrink-0 flex items-center gap-1.5"
             >
               <Plus size={13} strokeWidth={2.2} /> New Issue
             </button>
@@ -213,7 +240,7 @@ export default function Tasks() {
           <div className="relative flex-1">
             <Search
               size={14}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted"
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 dark:text-[#8a8f98]"
             />
             <input
               type="text"
@@ -221,13 +248,13 @@ export default function Tasks() {
               placeholder="Filter tasks..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-surface-elevated border border-border rounded-md pl-9 pr-8 py-1.5 text-xs text-white placeholder:text-text-muted focus:outline-none focus:border-white/20 transition-colors"
+              className="w-full bg-white dark:bg-[#16171a] border border-black/[0.08] dark:border-white/[0.08] rounded-md pl-9 pr-8 py-1.5 text-xs text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-[#8a8f98] focus:outline-none focus:border-black/20 dark:focus:border-white/20 transition-colors"
             />
             {searchQuery && (
               <button
                 type="button"
                 onClick={() => setSearchQuery("")}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-muted hover:text-white p-0.5"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 dark:text-[#8a8f98] hover:text-zinc-900 dark:hover:text-white p-0.5"
                 aria-label="Clear filter"
               >
                 <X size={12} />
@@ -240,7 +267,7 @@ export default function Tasks() {
               setIsSearchOpen(false);
               setSearchQuery("");
             }}
-            className="text-xs text-text-muted hover:text-white px-1.5 py-1"
+            className="text-xs text-zinc-500 dark:text-[#8a8f98] hover:text-zinc-900 dark:hover:text-white px-1.5 py-1"
           >
             Cancel
           </button>
@@ -250,14 +277,14 @@ export default function Tasks() {
       {tasks.length === 0 ? (
         <div className="flex flex-col items-center justify-center flex-1 max-w-sm mx-auto text-center gap-6 mt-10 animate-in fade-in zoom-in-95 duration-500">
           <div className="w-64 h-64 flex items-center justify-center relative overflow-visible">
-            <Checklist theme="dark" intensity={0.7} className="w-full h-full text-[#8a8f98] opacity-80" />
+            <Checklist theme={effectiveTheme} intensity={0.7} className="w-full h-full text-zinc-400 dark:text-[#8a8f98] opacity-80" />
           </div>
 
           <div className="flex flex-col gap-2">
-            <h2 className="text-lg font-semibold text-white tracking-tight">
+            <h2 className="text-lg font-semibold text-zinc-900 dark:text-white tracking-tight">
               Create your first issue
             </h2>
-            <p className="text-[14px] text-text-muted leading-relaxed">
+            <p className="text-[14px] text-zinc-500 dark:text-[#8a8f98] leading-relaxed">
               Issues are used to track tasks, bugs, and feature requests. Get
               started by organizing your work.
             </p>
@@ -266,7 +293,7 @@ export default function Tasks() {
           <div className="flex items-center gap-3 mt-4">
             <button
               onClick={() => setIsCreateModalOpen(true)}
-              className="h-8 px-4 bg-white text-black rounded-full font-medium text-[13px] hover:bg-zinc-100 transition-all duration-300 shadow-[0_0_20px_rgba(255,255,255,0.14)] hover:shadow-[0_0_28px_rgba(255,255,255,0.22)] active:scale-[0.98] flex items-center gap-2"
+              className="h-8 px-4 bg-zinc-900 text-white dark:bg-white dark:text-black rounded-full font-medium text-[13px] hover:bg-zinc-800 dark:hover:bg-zinc-100 transition-all duration-300 shadow-[0_1px_2px_rgba(0,0,0,0.08)] dark:shadow-[0_0_20px_rgba(255,255,255,0.14)] active:scale-[0.98] flex items-center gap-2"
             >
               <Plus size={14} strokeWidth={2.2} />
               New Issue
@@ -274,9 +301,9 @@ export default function Tasks() {
           </div>
         </div>
       ) : (
-        <div className="flex-1 bg-white/[0.01] border border-white/[0.05] rounded-xl overflow-hidden flex flex-col shadow-sm">
+        <div className="flex-1 bg-white dark:bg-[#16171a] border border-black/[0.08] dark:border-white/[0.08] rounded-xl overflow-hidden flex flex-col shadow-sm">
           {/* Mobile Issue List (< md) */}
-          <div className="md:hidden flex flex-col divide-y divide-white/[0.05] overflow-y-auto">
+          <div className="md:hidden flex flex-col divide-y divide-black/[0.06] dark:divide-white/[0.05] overflow-y-auto">
             {filteredTasks.map((task, idx) => {
               const isHighlighted = String(highlightedTaskId) === String(task.id);
               const isSelected = String(selectedTaskId) === String(task.id) || activeIndex === idx;
@@ -291,17 +318,17 @@ export default function Tasks() {
                   }}
                   className={`relative p-3.5 flex flex-col gap-2 transition-colors cursor-pointer ${
                     isHighlighted
-                      ? "bg-white/[0.06] before:absolute before:left-0 before:top-2.5 before:bottom-2.5 before:w-[3px] before:rounded-r-full before:bg-white/80"
+                      ? "bg-black/[0.04] dark:bg-white/[0.06] before:absolute before:left-0 before:top-2.5 before:bottom-2.5 before:w-[3px] before:rounded-r-full before:bg-zinc-900 dark:before:bg-white/80"
                       : isSelected
-                        ? "bg-white/[0.04]"
-                        : "hover:bg-white/[0.03] active:bg-white/[0.06]"
+                        ? "bg-black/[0.02] dark:bg-white/[0.04]"
+                        : "hover:bg-black/[0.02] dark:hover:bg-white/[0.03] active:bg-black/[0.04] dark:active:bg-white/[0.06]"
                   }`}
                 >
                   <div className="flex items-center justify-between text-[11px]">
                     <div className="flex items-center gap-2">
                       <span
                         className={`font-mono transition-colors ${
-                          isHighlighted ? "text-[#f0f0f0]" : "text-text-muted"
+                          isHighlighted ? "text-zinc-900 dark:text-[#f0f0f0]" : "text-zinc-500 dark:text-[#8a8f98]"
                         }`}
                       >
                         {task.project_identifier
@@ -318,12 +345,12 @@ export default function Tasks() {
                             ? "bg-danger/10 text-danger border-danger/20"
                             : task.priority === "Medium"
                               ? "bg-warning/10 text-warning border-warning/20"
-                              : "bg-surface-elevated text-text-secondary border-border"
+                              : "bg-black/[0.04] dark:bg-white/[0.06] text-zinc-600 dark:text-[#8a8f98] border-black/[0.06] dark:border-white/[0.06]"
                         }`}
                       >
                         {task.priority}
                       </span>
-                      <div className="flex items-center gap-1.5 text-text-secondary">
+                      <div className="flex items-center gap-1.5 text-zinc-600 dark:text-[#8a8f98]">
                         {task.status === "Done" ? (
                           <CheckSquare size={13} className="text-success" />
                         ) : task.status === "In Progress" ? (
@@ -331,18 +358,18 @@ export default function Tasks() {
                         ) : task.status === "In Review" ? (
                           <FileText size={13} className="text-info fill-info/20" />
                         ) : (
-                          <Compass size={13} className="text-text-muted" />
+                          <Compass size={13} className="text-zinc-400 dark:text-[#8a8f98]" />
                         )}
                         <span className="text-[12px]">{task.status}</span>
                       </div>
                     </div>
                   </div>
 
-                  <div className="text-[13px] font-medium text-text-primary line-clamp-2">
+                  <div className="text-[13px] font-medium text-zinc-900 dark:text-white line-clamp-2">
                     {task.title}
                   </div>
 
-                  <div className="flex items-center justify-between text-[11px] text-text-muted pt-0.5">
+                  <div className="flex items-center justify-between text-[11px] text-zinc-500 dark:text-[#8a8f98] pt-0.5">
                     <div className="flex items-center gap-1.5 truncate">
                       {task.assignee_name && (
                         <div className="w-4 h-4 rounded-full bg-accent/20 flex items-center justify-center text-accent text-[8px] font-bold">
@@ -363,7 +390,7 @@ export default function Tasks() {
           {/* Desktop/Tablet Table Grid (>= md) */}
           <div className="hidden md:flex flex-col flex-1 overflow-x-auto">
             {/* Table Header */}
-            <div className="grid grid-cols-[80px_minmax(240px,1fr)_120px_100px_100px_80px] min-w-[720px] gap-4 px-5 py-3 border-b border-white/[0.05] text-xs font-medium text-[#8a8f98] uppercase tracking-wider">
+            <div className="grid grid-cols-[80px_minmax(240px,1fr)_120px_100px_100px_80px] min-w-[720px] gap-4 px-5 py-3 border-b border-black/[0.06] dark:border-white/[0.05] text-xs font-medium text-zinc-500 dark:text-[#8a8f98] uppercase tracking-wider">
               <div>ID</div>
               <div>Title</div>
               <div>Status</div>
@@ -373,7 +400,7 @@ export default function Tasks() {
             </div>
 
             {/* Table Body */}
-            <div className="flex-1 overflow-y-auto divide-y divide-white/[0.05] min-w-[720px]">
+            <div className="flex-1 overflow-y-auto divide-y divide-black/[0.06] dark:divide-white/[0.05] min-w-[720px]">
               {filteredTasks.map((task, idx) => {
                 const isHighlighted = String(highlightedTaskId) === String(task.id);
                 const isSelected = String(selectedTaskId) === String(task.id) || activeIndex === idx;
@@ -388,16 +415,16 @@ export default function Tasks() {
                     }}
                     className={`relative grid grid-cols-[80px_minmax(240px,1fr)_120px_100px_100px_80px] gap-4 px-5 py-3.5 transition-colors items-center text-[13px] group cursor-pointer ${
                       isHighlighted
-                        ? "bg-white/[0.06] before:absolute before:left-0 before:top-2 before:bottom-2 before:w-[3px] before:rounded-r-full before:bg-white/80"
+                        ? "bg-black/[0.04] dark:bg-white/[0.06] before:absolute before:left-0 before:top-2 before:bottom-2 before:w-[3px] before:rounded-r-full before:bg-zinc-900 dark:before:bg-white/80"
                         : isSelected
-                          ? "bg-white/[0.03]"
-                          : "hover:bg-white/[0.03]"
+                          ? "bg-black/[0.02] dark:bg-white/[0.03]"
+                          : "hover:bg-black/[0.02] dark:hover:bg-white/[0.03]"
                     }`}
                   >
                     <div className="flex items-center gap-1.5 font-mono text-[11px]">
                       <span
                         className={`transition-colors ${
-                          isHighlighted ? "text-[#f0f0f0]" : "text-text-muted"
+                          isHighlighted ? "text-zinc-900 dark:text-[#f0f0f0]" : "text-zinc-500 dark:text-[#8a8f98]"
                         }`}
                       >
                         {task.project_identifier
@@ -407,7 +434,7 @@ export default function Tasks() {
                             : task.id}
                       </span>
                     </div>
-                  <div className="text-text-primary font-medium truncate group-hover:text-accent transition-colors">
+                  <div className="text-zinc-900 dark:text-white font-medium truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                     {task.title}
                   </div>
                   <div className="flex items-center gap-2">
@@ -421,13 +448,13 @@ export default function Tasks() {
                     ) : task.status === "In Review" ? (
                       <FileText size={14} className="text-info fill-info/20" />
                     ) : (
-                      <Compass size={14} className="text-text-muted" />
+                      <Compass size={14} className="text-zinc-400 dark:text-[#8a8f98]" />
                     )}
                     <span
                       className={
                         task.status === "Done"
-                          ? "text-text-secondary"
-                          : "text-text-primary"
+                          ? "text-zinc-500 dark:text-[#8a8f98]"
+                          : "text-zinc-900 dark:text-white"
                       }
                     >
                       {task.status}
@@ -440,13 +467,13 @@ export default function Tasks() {
                           ? "bg-danger/10 text-danger border-danger/20"
                           : task.priority === "Medium"
                             ? "bg-warning/10 text-warning border-warning/20"
-                            : "bg-surface-elevated text-text-secondary border-border"
+                            : "bg-black/[0.04] dark:bg-white/[0.06] text-zinc-600 dark:text-[#8a8f98] border-black/[0.06] dark:border-white/[0.06]"
                       }`}
                     >
                       {task.priority}
                     </span>
                   </div>
-                  <div className="flex items-center gap-2 text-text-secondary truncate">
+                  <div className="flex items-center gap-2 text-zinc-700 dark:text-[#8a8f98] truncate">
                     {task.assignee_name && (
                       <div className="w-5 h-5 rounded-full bg-accent/20 flex items-center justify-center text-accent text-[9px] font-bold">
                         {task.assignee_name.charAt(0)}
@@ -456,7 +483,7 @@ export default function Tasks() {
                       {task.assignee_name || "Unassigned"}
                     </span>
                   </div>
-                  <div className="text-right text-text-muted text-xs">
+                  <div className="text-right text-zinc-500 dark:text-[#8a8f98] text-xs">
                     {task.due_date
                       ? new Date(task.due_date).toLocaleDateString()
                       : "-"}

@@ -279,13 +279,13 @@ export default function BulkActionModal({
         }}
       ></div>
       <div
-        className="relative w-full max-w-[540px] bg-[#18191b]/95 backdrop-blur-2xl border border-white/[0.08] shadow-[0_32px_80px_-16px_rgba(0,0,0,0.8),_inset_0_1px_0_rgba(255,255,255,0.05)] rounded-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+        className="relative w-full max-w-[540px] bg-white dark:bg-[#18191b]/95 backdrop-blur-2xl border border-black/10 dark:border-white/[0.08] shadow-[0_32px_80px_-16px_rgba(0,0,0,0.2),_inset_0_1px_0_rgba(255,255,255,0.05)] rounded-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center px-4 py-3 border-b border-white/[0.06]">
+        <div className="flex items-center px-4 py-3 border-b border-black/[0.06] dark:border-white/[0.06]">
           {commandPaletteState && (
             <div className="flex items-center mr-2">
-              <span className="bg-white/10 text-white text-[12px] px-2 py-1 rounded capitalize">
+              <span className="bg-black/[0.06] dark:bg-white/10 text-zinc-900 dark:text-white text-[12px] font-medium px-2 py-1 rounded capitalize">
                 {commandPaletteState.replace("_", " ")}
               </span>
             </div>
@@ -295,7 +295,7 @@ export default function BulkActionModal({
             placeholder={
               commandPaletteState ? "Search..." : "Type a command or search..."
             }
-            className="flex-1 bg-transparent border-none outline-none text-[14px] text-white placeholder-[#8a8f98]"
+            className="flex-1 bg-transparent border-none outline-none text-[14px] text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-[#8a8f98]"
             autoFocus
             value={commandPaletteSearch}
             onChange={(e) => {
@@ -310,13 +310,13 @@ export default function BulkActionModal({
           {!commandPaletteState ? (
             flattenedCommands.length === 0 ? (
               <div className="flex flex-col pb-4">
-                <div className="px-4 py-2 text-[11px] font-medium text-[#8a8f98] uppercase tracking-wider mb-1">
+                <div className="px-4 py-2 text-[11px] font-medium text-zinc-500 dark:text-[#8a8f98] uppercase tracking-wider mb-1">
                   Quick results for "{commandPaletteSearch}"
                 </div>
-                <div className="px-4 py-2 flex items-center gap-3 text-[13px] text-[#e8e8e8]">
-                  <Search size={14} className="text-[#8a8f98]" />
+                <div className="px-4 py-2 flex items-center gap-3 text-[13px] text-zinc-800 dark:text-[#e8e8e8]">
+                  <Search size={14} className="text-zinc-400 dark:text-[#8a8f98]" />
                   No results found
-                  <span className="text-[#8a8f98] ml-2 text-[12px]">
+                  <span className="text-zinc-500 dark:text-[#8a8f98] ml-2 text-[12px]">
                     Go to advanced search
                   </span>
                 </div>
@@ -328,22 +328,22 @@ export default function BulkActionModal({
                     key={cmd.id}
                     onClick={cmd.action}
                     onMouseEnter={() => setCommandPaletteIndex(idx)}
-                    className={`flex items-center gap-3 px-4 py-2.5 text-[13px] text-[#e8e8e8] hover:bg-white/10 hover:text-white transition-colors text-left w-full justify-between group ${
-                      commandPaletteIndex === idx ? "bg-white/10" : ""
+                    className={`flex items-center gap-3 px-4 py-2.5 text-[13px] text-zinc-800 dark:text-[#e8e8e8] hover:bg-black/[0.04] dark:hover:bg-white/10 hover:text-zinc-900 dark:hover:text-white transition-colors text-left w-full justify-between group ${
+                      commandPaletteIndex === idx ? "bg-black/[0.04] dark:bg-white/10" : ""
                     }`}
                   >
                     <div className="flex items-center gap-3">
                       {cmd.icon} {cmd.label}
                     </div>
                     {cmd.shortcut && (
-                      <div className="text-[11px] font-mono text-[#8a8f98] opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="text-[11px] font-mono text-zinc-500 dark:text-[#8a8f98] opacity-0 group-hover:opacity-100 transition-opacity">
                         {cmd.shortcut}
                       </div>
                     )}
                     {cmd.shortcutKeys && (
-                      <div className="text-[11px] font-mono text-[#8a8f98] flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="text-[11px] font-mono text-zinc-500 dark:text-[#8a8f98] flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         {cmd.shortcutKeys.map((k, i) => (
-                          <span key={i} className="bg-white/10 px-1 rounded">
+                          <span key={i} className="bg-black/[0.06] dark:bg-white/10 px-1 rounded text-zinc-700 dark:text-zinc-300">
                             {k}
                           </span>
                         ))}
@@ -360,8 +360,8 @@ export default function BulkActionModal({
                   key={cmd.id}
                   onClick={cmd.action}
                   onMouseEnter={() => setCommandPaletteIndex(idx)}
-                  className={`flex items-center gap-3 px-4 py-2.5 text-[13px] text-[#e8e8e8] hover:bg-white/10 hover:text-white transition-colors text-left w-full ${
-                    commandPaletteIndex === idx ? "bg-white/10" : ""
+                  className={`flex items-center gap-3 px-4 py-2.5 text-[13px] text-zinc-800 dark:text-[#e8e8e8] hover:bg-black/[0.04] dark:hover:bg-white/10 hover:text-zinc-900 dark:hover:text-white transition-colors text-left w-full ${
+                    commandPaletteIndex === idx ? "bg-black/[0.04] dark:bg-white/10" : ""
                   }`}
                 >
                   {cmd.icon} {cmd.label}
@@ -375,8 +375,8 @@ export default function BulkActionModal({
                   key={cmd.id}
                   onClick={cmd.action}
                   onMouseEnter={() => setCommandPaletteIndex(idx)}
-                  className={`flex items-center gap-3 px-4 py-2.5 text-[13px] text-[#e8e8e8] hover:bg-white/10 hover:text-white transition-colors text-left w-full ${
-                    commandPaletteIndex === idx ? "bg-white/10" : ""
+                  className={`flex items-center gap-3 px-4 py-2.5 text-[13px] text-zinc-800 dark:text-[#e8e8e8] hover:bg-black/[0.04] dark:hover:bg-white/10 hover:text-zinc-900 dark:hover:text-white transition-colors text-left w-full ${
+                    commandPaletteIndex === idx ? "bg-black/[0.04] dark:bg-white/10" : ""
                   }`}
                 >
                   {cmd.icon} {cmd.label}
@@ -385,17 +385,17 @@ export default function BulkActionModal({
             </>
           ) : commandPaletteState === "target_date" ||
             commandPaletteState === "start_date" ? (
-            <div className="p-4 text-center text-[13px] text-[#8a8f98]">
+            <div className="p-4 text-center text-[13px] text-zinc-500 dark:text-[#8a8f98]">
               <input
                 type="date"
-                className="bg-[#0e0f11] border border-white/10 rounded px-3 py-1.5 text-white"
+                className="bg-zinc-100 dark:bg-[#0e0f11] border border-black/10 dark:border-white/10 rounded px-3 py-1.5 text-zinc-900 dark:text-white"
                 onChange={(e) =>
                   handleBulkUpdate(commandPaletteState, e.target.value)
                 }
               />
             </div>
           ) : (
-            <div className="p-4 text-center text-[13px] text-[#8a8f98]">
+            <div className="p-4 text-center text-[13px] text-zinc-500 dark:text-[#8a8f98]">
               Not implemented yet
             </div>
           )}

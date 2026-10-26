@@ -20,6 +20,7 @@ import CreateProjectModal from "../components/CreateProjectModal";
 import { api } from "../lib/api";
 import posthog from "../lib/posthog";
 import PageLoading from "../components/PageLoading";
+import { useTheme } from "../contexts/ThemeContext";
 
 // Arc Components
 import { LineChart } from "../registry/components/line-chart/line-chart";
@@ -31,6 +32,7 @@ import { motion } from "motion/react";
 import { AnimatedCounter } from "../registry/components/animated-counter/animated-counter";
 
 export default function Dashboard() {
+  const { effectiveTheme } = useTheme();
   const { user, isLoaded: isUserLoaded, isSignedIn } = useUser();
   const userName = user?.fullName || user?.firstName || "User";
 
@@ -204,7 +206,7 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="flex flex-col h-full relative">
+      <div className="flex flex-col min-h-full relative">
         <div className="flex items-center justify-between gap-3 min-h-[38px] mb-1 sm:mb-2 flex-shrink-0">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <button
@@ -212,12 +214,12 @@ export default function Dashboard() {
               onClick={() =>
                 window.dispatchEvent(new CustomEvent("open-mobile-nav"))
               }
-              className="md:hidden p-1.5 -ml-1 text-[#8a8f98] hover:text-white rounded-md hover:bg-white/[0.06] transition-colors shrink-0 cursor-pointer"
+              className="md:hidden p-1.5 -ml-1 text-zinc-500 hover:text-zinc-900 dark:text-[#8a8f98] dark:hover:text-white rounded-md hover:bg-black/[0.05] dark:hover:bg-white/[0.06] transition-colors shrink-0 cursor-pointer"
               aria-label="Open menu"
             >
               <Menu size={18} strokeWidth={1.75} />
             </button>
-            <h1 className="text-base font-semibold tracking-tight text-white truncate">
+            <h1 className="text-base font-semibold tracking-tight text-zinc-900 dark:text-white truncate">
               Dashboard
             </h1>
           </div>
@@ -233,7 +235,7 @@ export default function Dashboard() {
 
   if (!hasData) {
     return (
-      <div className="flex flex-col h-full relative">
+      <div className="flex flex-col min-h-full relative">
         {/* Top Header Row */}
         <div className="flex items-center justify-between gap-3 min-h-[38px] mb-1 sm:mb-2 flex-shrink-0">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
@@ -242,12 +244,12 @@ export default function Dashboard() {
               onClick={() =>
                 window.dispatchEvent(new CustomEvent("open-mobile-nav"))
               }
-              className="md:hidden p-1.5 -ml-1 text-[#8a8f98] hover:text-white rounded-md hover:bg-white/[0.06] transition-colors shrink-0 cursor-pointer"
+              className="md:hidden p-1.5 -ml-1 text-zinc-500 hover:text-zinc-900 dark:text-[#8a8f98] dark:hover:text-white rounded-md hover:bg-black/[0.05] dark:hover:bg-white/[0.06] transition-colors shrink-0 cursor-pointer"
               aria-label="Open menu"
             >
               <Menu size={18} strokeWidth={1.75} />
             </button>
-            <h1 className="text-base font-semibold tracking-tight text-white truncate">
+            <h1 className="text-base font-semibold tracking-tight text-zinc-900 dark:text-white truncate">
               Dashboard
             </h1>
           </div>
@@ -256,14 +258,14 @@ export default function Dashboard() {
         <div className="flex flex-col items-center justify-center flex-1 max-w-sm mx-auto text-center gap-6 mt-6 sm:mt-10 animate-in fade-in zoom-in-95 duration-500">
           <div className="w-64 h-64 flex items-center justify-center relative overflow-visible">
             <Drawer
-              theme="dark"
+              theme={effectiveTheme}
               intensity={0.7}
-              className="w-full h-full text-text-muted opacity-80"
+              className="w-full h-full text-zinc-400 dark:text-text-muted opacity-80"
             />
           </div>
 
           <div className="flex flex-col gap-2">
-            <h2 className="text-lg font-semibold text-white tracking-tight">
+            <h2 className="text-lg font-semibold text-zinc-900 dark:text-white tracking-tight">
               Create your first project
             </h2>
             <p className="text-[14px] text-text-muted leading-relaxed">
@@ -335,8 +337,8 @@ export default function Dashboard() {
         ];
 
   return (
-    <div className="flex flex-col h-full relative">
-      <div className="flex flex-col gap-5 sm:gap-6 max-w-7xl mx-auto w-full pb-8 sm:pb-20 animate-in fade-in duration-500">
+    <div className="flex flex-col min-h-full relative">
+      <div className="flex flex-col gap-5 sm:gap-6 max-w-7xl mx-auto w-full pb-6 sm:pb-20 animate-in fade-in duration-500">
         {/* Top Header Row */}
         <div className="flex items-center justify-between gap-3 min-h-[38px] mb-2 sm:mb-3">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
@@ -345,12 +347,12 @@ export default function Dashboard() {
               onClick={() =>
                 window.dispatchEvent(new CustomEvent("open-mobile-nav"))
               }
-              className="md:hidden p-1.5 -ml-1 text-[#8a8f98] hover:text-white rounded-md hover:bg-white/[0.06] transition-colors shrink-0"
+              className="md:hidden p-1.5 -ml-1 text-zinc-500 hover:text-zinc-900 dark:text-[#8a8f98] dark:hover:text-white rounded-md hover:bg-black/[0.05] dark:hover:bg-white/[0.06] transition-colors shrink-0"
               aria-label="Open menu"
             >
               <Menu size={18} strokeWidth={1.75} />
             </button>
-            <h1 className="text-base font-semibold tracking-tight text-white truncate">
+            <h1 className="text-base font-semibold tracking-tight text-zinc-900 dark:text-white truncate">
               Dashboard
             </h1>
           </div>
@@ -361,7 +363,7 @@ export default function Dashboard() {
                 variant="primary"
                 size="sm"
                 onClick={() => setIsCreateModalOpen(true)}
-                className="h-[28px] px-3 text-[12px] font-medium rounded-full gap-1.5 shadow-[0_0_20px_rgba(255,255,255,0.14)] hover:shadow-[0_0_28px_rgba(255,255,255,0.22)] active:scale-[0.98] transition-all"
+                className="h-[28px] px-3 text-[12px] font-medium rounded-full gap-1.5 shadow-xs active:scale-[0.98] transition-all"
               >
                 <Plus size={13} strokeWidth={2.2} />
                 New Project
@@ -371,17 +373,17 @@ export default function Dashboard() {
         </div>
 
         {/* ================================================================
-            FERNLY BENTO GRID ARCHITECTURE (12-Column Responsive Layout)
+            KRIRI BENTO GRID ARCHITECTURE (12-Column Responsive Layout)
             ================================================================ */}
-        <div className="fernly-grid w-full">
+        <div className="kriri-grid w-full">
           {/* Card S1: Stat (Total Projects) */}
           <article
             style={{ "--stagger": 0 }}
-            className="fernly-s1 fernly-card rounded-2xl p-5 sm:p-6 flex flex-col justify-between relative overflow-hidden border border-white/[0.08] bg-[#16171a] hover:bg-[#191a1d] shadow-xs group cursor-pointer"
+            className="kriri-s1 kriri-card rounded-2xl p-5 sm:p-6 flex flex-col justify-between relative overflow-hidden border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#16171a] hover:bg-zinc-50 dark:hover:bg-[#191a1d] shadow-xs group cursor-pointer"
             onClick={() => navigate("/projects")}
           >
             <div className="flex items-center justify-between gap-2">
-              <h2 className="text-[15px] sm:text-[16px] font-medium text-white/90">
+              <h2 className="text-[15px] sm:text-[16px] font-medium text-zinc-900 dark:text-white/90">
                 Total Projects
               </h2>
               <button
@@ -390,7 +392,7 @@ export default function Dashboard() {
                   e.stopPropagation();
                   navigate("/projects");
                 }}
-                className="w-8 h-8 rounded-full bg-white/[0.06] text-white/80 border border-white/[0.1] flex items-center justify-center group-hover:bg-white group-hover:text-black fernly-arrow-spin cursor-pointer"
+                className="w-8 h-8 rounded-full bg-black/[0.05] text-zinc-700 dark:bg-white/[0.06] dark:text-white/80 border border-black/[0.08] dark:border-white/[0.1] flex items-center justify-center group-hover:bg-zinc-900 group-hover:text-white dark:group-hover:bg-white dark:group-hover:text-black kriri-arrow-spin cursor-pointer"
                 aria-label="View projects"
               >
                 <ArrowUpRight size={16} />
@@ -398,12 +400,12 @@ export default function Dashboard() {
             </div>
 
             <div className="my-3 sm:my-4">
-              <span className="text-3xl sm:text-4xl font-semibold text-white tracking-tight">
+              <span className="text-3xl sm:text-4xl font-semibold text-zinc-900 dark:text-white tracking-tight">
                 <AnimatedCounter value={totalProjects} />
               </span>
             </div>
 
-            <div className="flex items-center gap-1.5 text-[11.5px] sm:text-[12px] text-emerald-400 font-medium">
+            <div className="flex items-center gap-1.5 text-[11.5px] sm:text-[12px] text-emerald-600 dark:text-emerald-400 font-medium">
               <Badge tone="positive" size="sm" className="gap-1">
                 <TrendingUp size={11} strokeWidth={2.5} />
                 +{analytics?.stats?.newProjectsThisPeriod || 1}
@@ -415,11 +417,11 @@ export default function Dashboard() {
           {/* Card S2: Ended / Completed Projects */}
           <article
             style={{ "--stagger": 1 }}
-            className="fernly-s2 fernly-card rounded-2xl p-5 sm:p-6 flex flex-col justify-between relative overflow-hidden border border-white/[0.08] bg-[#16171a] hover:bg-[#191a1d] shadow-xs group cursor-pointer"
+            className="kriri-s2 kriri-card rounded-2xl p-5 sm:p-6 flex flex-col justify-between relative overflow-hidden border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#16171a] hover:bg-zinc-50 dark:hover:bg-[#191a1d] shadow-xs group cursor-pointer"
             onClick={() => navigate("/projects")}
           >
             <div className="flex items-center justify-between gap-2">
-              <h2 className="text-[15px] sm:text-[16px] font-medium text-white/90">
+              <h2 className="text-[15px] sm:text-[16px] font-medium text-zinc-900 dark:text-white/90">
                 Ended Projects
               </h2>
               <button
@@ -428,7 +430,7 @@ export default function Dashboard() {
                   e.stopPropagation();
                   navigate("/projects");
                 }}
-                className="w-8 h-8 rounded-full bg-white/[0.06] text-white/80 border border-white/[0.1] flex items-center justify-center group-hover:bg-white group-hover:text-black fernly-arrow-spin cursor-pointer"
+                className="w-8 h-8 rounded-full bg-black/[0.05] text-zinc-700 dark:bg-white/[0.06] dark:text-white/80 border border-black/[0.08] dark:border-white/[0.1] flex items-center justify-center group-hover:bg-zinc-900 group-hover:text-white dark:group-hover:bg-white dark:group-hover:text-black kriri-arrow-spin cursor-pointer"
                 aria-label="View ended projects"
               >
                 <ArrowUpRight size={16} />
@@ -436,12 +438,12 @@ export default function Dashboard() {
             </div>
 
             <div className="my-3 sm:my-4">
-              <span className="text-3xl sm:text-4xl font-semibold text-white tracking-tight">
+              <span className="text-3xl sm:text-4xl font-semibold text-zinc-900 dark:text-white tracking-tight">
                 <AnimatedCounter value={completedProjects} />
               </span>
             </div>
 
-            <div className="flex items-center gap-1.5 text-[11.5px] sm:text-[12px] text-emerald-400 font-medium">
+            <div className="flex items-center gap-1.5 text-[11.5px] sm:text-[12px] text-emerald-600 dark:text-emerald-400 font-medium">
               <Badge tone="positive" size="sm" className="gap-1">
                 <CheckCircle2 size={11} strokeWidth={2.5} />
                 Done
@@ -453,11 +455,11 @@ export default function Dashboard() {
           {/* Card S3: Running Projects */}
           <article
             style={{ "--stagger": 2 }}
-            className="fernly-s3 fernly-card rounded-2xl p-5 sm:p-6 flex flex-col justify-between relative overflow-hidden border border-white/[0.08] bg-[#16171a] hover:bg-[#191a1d] shadow-xs group cursor-pointer"
+            className="kriri-s3 kriri-card rounded-2xl p-5 sm:p-6 flex flex-col justify-between relative overflow-hidden border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#16171a] hover:bg-zinc-50 dark:hover:bg-[#191a1d] shadow-xs group cursor-pointer"
             onClick={() => navigate("/projects")}
           >
             <div className="flex items-center justify-between gap-2">
-              <h2 className="text-[15px] sm:text-[16px] font-medium text-white/90">
+              <h2 className="text-[15px] sm:text-[16px] font-medium text-zinc-900 dark:text-white/90">
                 Running Projects
               </h2>
               <button
@@ -466,7 +468,7 @@ export default function Dashboard() {
                   e.stopPropagation();
                   navigate("/projects");
                 }}
-                className="w-8 h-8 rounded-full bg-white/[0.06] text-white/80 border border-white/[0.1] flex items-center justify-center group-hover:bg-white group-hover:text-black fernly-arrow-spin cursor-pointer"
+                className="w-8 h-8 rounded-full bg-black/[0.05] text-zinc-700 dark:bg-white/[0.06] dark:text-white/80 border border-black/[0.08] dark:border-white/[0.1] flex items-center justify-center group-hover:bg-zinc-900 group-hover:text-white dark:group-hover:bg-white dark:group-hover:text-black kriri-arrow-spin cursor-pointer"
                 aria-label="View running projects"
               >
                 <ArrowUpRight size={16} />
@@ -474,12 +476,12 @@ export default function Dashboard() {
             </div>
 
             <div className="my-3 sm:my-4">
-              <span className="text-3xl sm:text-4xl font-semibold text-white tracking-tight">
+              <span className="text-3xl sm:text-4xl font-semibold text-zinc-900 dark:text-white tracking-tight">
                 <AnimatedCounter value={inProgressProjects} />
               </span>
             </div>
 
-            <div className="flex items-center gap-1.5 text-[11.5px] sm:text-[12px] text-amber-400 font-medium">
+            <div className="flex items-center gap-1.5 text-[11.5px] sm:text-[12px] text-amber-600 dark:text-amber-400 font-medium">
               <Badge tone="warning" size="sm" className="gap-1">
                 <FolderKanban size={11} strokeWidth={2.5} />
                 Active
@@ -491,11 +493,11 @@ export default function Dashboard() {
           {/* Card S4: Pending / Attention */}
           <article
             style={{ "--stagger": 3 }}
-            className="fernly-s4 fernly-card rounded-2xl p-5 sm:p-6 flex flex-col justify-between relative overflow-hidden border border-white/[0.08] bg-[#16171a] hover:bg-[#191a1d] shadow-xs group cursor-pointer"
+            className="kriri-s4 kriri-card rounded-2xl p-5 sm:p-6 flex flex-col justify-between relative overflow-hidden border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#16171a] hover:bg-zinc-50 dark:hover:bg-[#191a1d] shadow-xs group cursor-pointer"
             onClick={() => navigate("/tasks")}
           >
             <div className="flex items-center justify-between gap-2">
-              <h2 className="text-[15px] sm:text-[16px] font-medium text-white/90">
+              <h2 className="text-[15px] sm:text-[16px] font-medium text-zinc-900 dark:text-white/90">
                 Pending / Attention
               </h2>
               <button
@@ -504,7 +506,7 @@ export default function Dashboard() {
                   e.stopPropagation();
                   navigate("/tasks");
                 }}
-                className="w-8 h-8 rounded-full bg-white/[0.06] text-white/80 border border-white/[0.1] flex items-center justify-center group-hover:bg-white group-hover:text-black fernly-arrow-spin cursor-pointer"
+                className="w-8 h-8 rounded-full bg-black/[0.05] text-zinc-700 dark:bg-white/[0.06] dark:text-white/80 border border-black/[0.08] dark:border-white/[0.1] flex items-center justify-center group-hover:bg-zinc-900 group-hover:text-white dark:group-hover:bg-white dark:group-hover:text-black kriri-arrow-spin cursor-pointer"
                 aria-label="View pending tasks"
               >
                 <ArrowUpRight size={16} />
@@ -512,7 +514,7 @@ export default function Dashboard() {
             </div>
 
             <div className="my-3 sm:my-4">
-              <span className="text-3xl sm:text-4xl font-semibold text-white tracking-tight">
+              <span className="text-3xl sm:text-4xl font-semibold text-zinc-900 dark:text-white tracking-tight">
                 <AnimatedCounter value={pendingAttentionCount} />
               </span>
             </div>
@@ -535,12 +537,12 @@ export default function Dashboard() {
           {/* Card AN: Detailed Project Analytics with Arc LineChart & SegmentedControl */}
           <section
             style={{ "--stagger": 4 }}
-            className="fernly-an fernly-card rounded-2xl p-5 sm:p-6 flex flex-col justify-between border border-white/[0.08] bg-[#16171a] shadow-xs relative"
+            className="kriri-an kriri-card rounded-2xl p-5 sm:p-6 flex flex-col justify-between border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#16171a] shadow-xs relative"
           >
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
               <div>
                 <div className="flex items-center gap-2.5 flex-wrap">
-                  <h2 className="text-[16px] sm:text-[17px] font-semibold text-white tracking-tight">
+                  <h2 className="text-[16px] sm:text-[17px] font-semibold text-zinc-900 dark:text-white tracking-tight">
                     Project Analytics &amp; Velocity
                   </h2>
                   <div className="flex items-center gap-1.5">
@@ -558,7 +560,7 @@ export default function Dashboard() {
               </div>
 
               {/* Fluid time range switcher matching Analytics page */}
-              <div className="flex items-center p-0.5 rounded-lg bg-white/[0.04] border border-white/[0.08] backdrop-blur-sm shrink-0">
+              <div className="w-fit self-start sm:self-auto flex items-center p-1 rounded-full bg-black/[0.04] dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/[0.06] backdrop-blur-sm shrink-0">
                 {timeRangeOptions.map((opt) => {
                   const isActive = timeRange === opt.value;
                   return (
@@ -566,16 +568,16 @@ export default function Dashboard() {
                       key={opt.value}
                       type="button"
                       onClick={() => setTimeRange(opt.value)}
-                      className={`relative text-[11px] sm:text-[12px] px-2.5 py-1 rounded-md font-medium transition-colors cursor-pointer shrink-0 ${
+                      className={`relative text-[11px] sm:text-[12px] px-3 py-1 rounded-full font-medium transition-colors cursor-pointer shrink-0 ${
                         isActive
-                          ? "text-white"
-                          : "text-[#8a8f98] hover:text-white"
+                          ? "text-zinc-900 dark:text-white"
+                          : "text-zinc-600 hover:text-zinc-900 dark:text-[#8a8f98] dark:hover:text-white"
                       }`}
                     >
                       {isActive && (
                         <motion.div
                           layoutId="dashboardTimeRangeActivePill"
-                          className="absolute inset-0 bg-white/[0.12] border border-white/10 rounded-md shadow-sm"
+                          className="absolute inset-0 bg-white dark:bg-white/[0.12] border border-black/10 dark:border-white/10 rounded-full shadow-xs pointer-events-none"
                           transition={{
                             type: "spring",
                             stiffness: 450,
@@ -607,11 +609,11 @@ export default function Dashboard() {
           {/* Card RE: Reminders / Next Milestone Focus */}
           <section
             style={{ "--stagger": 5 }}
-            className="fernly-re fernly-card rounded-2xl p-5 sm:p-6 flex flex-col justify-between border border-white/[0.08] bg-[#16171a] shadow-xs relative"
+            className="kriri-re kriri-card rounded-2xl p-5 sm:p-6 flex flex-col justify-between border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#16171a] shadow-xs relative"
           >
             <div>
               <div className="flex items-center justify-between">
-                <h2 className="text-[16px] sm:text-[17px] font-semibold text-white tracking-tight">
+                <h2 className="text-[16px] sm:text-[17px] font-semibold text-zinc-900 dark:text-white tracking-tight">
                   Reminders
                 </h2>
                 <Badge tone="neutral" size="sm">
@@ -621,12 +623,12 @@ export default function Dashboard() {
 
               {topTask ? (
                 <div className="mt-4 sm:mt-5">
-                  <p className="text-[17px] sm:text-[19px] font-semibold text-white tracking-tight leading-snug line-clamp-2">
+                  <p className="text-[17px] sm:text-[19px] font-semibold text-zinc-900 dark:text-white tracking-tight leading-snug line-clamp-2">
                     {topTask.title}
                   </p>
                   <p className="text-[12.5px] sm:text-[13px] text-text-muted mt-2.5 flex items-center gap-1.5">
                     <Calendar size={13} className="text-text-muted" />
-                    <span className="font-medium text-white/80">
+                    <span className="font-medium text-zinc-800 dark:text-white/80">
                       {topTask.project_identifier ||
                         topTask.project_slug ||
                         "Project"}
@@ -647,7 +649,7 @@ export default function Dashboard() {
                 </div>
               ) : (
                 <div className="mt-5">
-                  <p className="text-[17px] font-semibold text-white tracking-tight">
+                  <p className="text-[17px] font-semibold text-zinc-900 dark:text-white tracking-tight">
                     All caught up!
                   </p>
                   <p className="text-[13px] text-text-muted mt-1.5">
@@ -681,12 +683,12 @@ export default function Dashboard() {
           {/* Card PR: Active Projects (Spans 8 Columns in expanded grid) */}
           <section
             style={{ "--stagger": 6 }}
-            className="fernly-pr fernly-card rounded-2xl p-5 sm:p-6 border border-white/[0.08] bg-[#16171a] shadow-xs flex flex-col justify-between"
+            className="kriri-pr kriri-card rounded-2xl p-5 sm:p-6 border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#16171a] shadow-xs flex flex-col justify-between"
           >
             <div>
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
-                  <h2 className="text-[16px] sm:text-[17px] font-semibold text-white tracking-tight">
+                  <h2 className="text-[16px] sm:text-[17px] font-semibold text-zinc-900 dark:text-white tracking-tight">
                     Active Projects
                   </h2>
                   <Badge tone="neutral" size="sm">
@@ -720,25 +722,25 @@ export default function Dashboard() {
                       {
                         bg: "bg-emerald-500/10",
                         border: "border-emerald-500/20",
-                        text: "text-emerald-400",
+                        text: "text-emerald-500 dark:text-emerald-400",
                         icon: FolderKanban,
                       },
                       {
                         bg: "bg-sky-500/10",
                         border: "border-sky-500/20",
-                        text: "text-sky-400",
+                        text: "text-sky-500 dark:text-sky-400",
                         icon: Layers,
                       },
                       {
                         bg: "bg-indigo-500/10",
                         border: "border-indigo-500/20",
-                        text: "text-indigo-400",
+                        text: "text-indigo-500 dark:text-indigo-400",
                         icon: GitBranch,
                       },
                       {
                         bg: "bg-amber-500/10",
                         border: "border-amber-500/20",
-                        text: "text-amber-400",
+                        text: "text-amber-500 dark:text-amber-400",
                         icon: Sparkles,
                       },
                     ];
@@ -757,7 +759,7 @@ export default function Dashboard() {
                         key={p.id || idx}
                         style={{ "--item-stagger": idx }}
                         onClick={() => navigate(`/projects/${p.id}`)}
-                        className="fernly-list-item flex items-center justify-between gap-3 p-2.5 rounded-xl hover:bg-white/[0.04] transition-colors cursor-pointer group border border-transparent hover:border-white/[0.06]"
+                        className="kriri-list-item flex items-center justify-between gap-3 p-2.5 rounded-xl hover:bg-black/[0.03] dark:hover:bg-white/[0.04] transition-colors cursor-pointer group border border-transparent hover:border-black/[0.06] dark:hover:border-white/[0.06]"
                       >
                         <div className="flex items-center gap-3 min-w-0 flex-1">
                           <div
@@ -767,7 +769,7 @@ export default function Dashboard() {
                           </div>
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2">
-                              <p className="text-[13.5px] font-medium text-white group-hover:text-emerald-400 transition-colors truncate">
+                              <p className="text-[13.5px] font-medium text-zinc-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors truncate">
                                 {p.name}
                               </p>
                               <Badge tone={healthTone} size="sm">
@@ -775,7 +777,7 @@ export default function Dashboard() {
                               </Badge>
                             </div>
                             <p className="text-[11.5px] text-text-muted truncate mt-0.5">
-                              <span className="font-mono text-white/70">
+                              <span className="font-mono text-zinc-600 dark:text-white/70">
                                 {p.identifier || p.slug || "PRJ"}
                               </span>
                               {" · "}
@@ -790,7 +792,7 @@ export default function Dashboard() {
                           <div className="w-24 sm:w-32 hidden sm:block">
                             <Progress value={p.progress || 0} max={100} />
                           </div>
-                          <span className="text-xs font-semibold text-white/80 w-8 text-right font-mono">
+                          <span className="text-xs font-semibold text-zinc-700 dark:text-white/80 w-8 text-right font-mono">
                             {p.progress || 0}%
                           </span>
                         </div>
@@ -805,11 +807,11 @@ export default function Dashboard() {
               </div>
             </div>
 
-            <div className="pt-3 border-t border-white/[0.05] mt-3">
+            <div className="pt-3 border-t border-black/[0.06] dark:border-white/[0.05] mt-3">
               <button
                 type="button"
                 onClick={() => navigate("/projects")}
-                className="w-full text-center text-[12px] font-medium text-text-muted hover:text-white transition-colors cursor-pointer"
+                className="w-full text-center text-[12px] font-medium text-text-muted hover:text-zinc-900 dark:hover:text-white transition-colors cursor-pointer"
               >
                 View all projects &rarr;
               </button>
@@ -819,12 +821,12 @@ export default function Dashboard() {
           {/* Card TM: Team Collaboration (Spans 4 Columns) */}
           <section
             style={{ "--stagger": 7 }}
-            className="fernly-tm fernly-card rounded-2xl p-5 sm:p-6 flex flex-col justify-between border border-white/[0.08] bg-[#16171a] shadow-xs"
+            className="kriri-tm kriri-card rounded-2xl p-5 sm:p-6 flex flex-col justify-between border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#16171a] shadow-xs"
           >
             <div>
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
-                  <h2 className="text-[16px] sm:text-[17px] font-semibold text-white tracking-tight">
+                  <h2 className="text-[16px] sm:text-[17px] font-semibold text-zinc-900 dark:text-white tracking-tight">
                     Team Collaboration
                   </h2>
                   <Badge tone="neutral" size="sm">
@@ -866,7 +868,7 @@ export default function Dashboard() {
                     <div
                       key={m.id || idx}
                       style={{ "--item-stagger": idx }}
-                      className="fernly-list-item flex items-center justify-between gap-3 p-2 rounded-xl hover:bg-white/[0.03] transition-colors"
+                      className="kriri-list-item flex items-center justify-between gap-3 p-2 rounded-xl hover:bg-black/[0.03] dark:hover:bg-white/[0.03] transition-colors"
                     >
                       <div className="flex items-center gap-3 min-w-0">
                         <Avatar
@@ -876,20 +878,20 @@ export default function Dashboard() {
                           className="shrink-0"
                         />
                         <div className="min-w-0">
-                          <p className="text-[13.5px] font-semibold text-white truncate">
+                          <p className="text-[13.5px] font-semibold text-zinc-900 dark:text-white truncate">
                             {m.name || m.email}
                           </p>
                           {task ? (
                             <p className="text-[11.5px] text-text-muted truncate mt-0.5">
                               Working on{" "}
-                              <span className="text-white/90 font-medium">
+                              <span className="text-zinc-800 dark:text-white/90 font-medium">
                                 {task.title}
                               </span>
                             </p>
                           ) : (
                             <p className="text-[11.5px] text-text-muted truncate mt-0.5">
                               Role:{" "}
-                              <span className="text-white/80">
+                              <span className="text-zinc-700 dark:text-white/80">
                                 {m.role || "Member"}
                               </span>
                               {m.active_tasks_count
@@ -920,12 +922,12 @@ export default function Dashboard() {
               </div>
             </div>
 
-            <div className="pt-3 border-t border-white/[0.05] mt-3 flex items-center justify-between text-xs text-text-muted">
+            <div className="pt-3 border-t border-black/[0.06] dark:border-white/[0.05] mt-3 flex items-center justify-between text-xs text-text-muted">
               <span>{teamMembers.length} active team members</span>
               <button
                 type="button"
                 onClick={() => navigate("/settings")}
-                className="hover:text-white transition-colors cursor-pointer"
+                className="hover:text-zinc-900 dark:hover:text-white transition-colors cursor-pointer"
               >
                 Manage &rarr;
               </button>

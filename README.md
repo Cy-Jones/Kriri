@@ -58,7 +58,7 @@ Kriri's architecture is designed around **Workspaces**, **Projects**, and **Task
 2. **Database Setup:**
    Ensure PostgreSQL is running, then execute the schema and migrations in your database:
    ```bash
-   psql -U your_user -d kriri -f backend/schema.sql
+   psql -U your_user -d kriri -f backend/database/schema.sql
    psql -U your_user -d kriri -f backend/migrations/001_align_projects_and_tasks.sql
    ```
 
@@ -97,6 +97,14 @@ Kriri's architecture is designed around **Workspaces**, **Projects**, and **Task
    To enable JIT provisioning, configure Clerk Webhooks to point to `http://<your-domain>/api/webhooks/clerk` and subscribe to:
    - `user.created`, `user.updated`, `user.deleted`
    - `organizationMembership.updated`
+
+## Documentation
+
+- [Academic Project Progress Report & Weekly Logbook](PROJECT_PROGRESS_REPORT.md)
+- [Product & Architecture Blueprint](docs/architecture/BLUEPRINT.md)
+- [Technical Instructions & Guidelines](docs/architecture/INSTRUCTIONS.md)
+- [PostHog AI Observability Setup Report](docs/reports/POSTHOG_AI_OBSERVABILITY.md)
+- [Docs Index](docs/README.md)
 
 ---
 

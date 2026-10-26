@@ -629,8 +629,11 @@ function Channels({ channels = contactExampleChannels, value, onChange, reduced 
                 )}
                 <span className={styles.channelIcon}>{channel.icon}</span>
                 <span className={styles.channelText}>
-                  <span>{channel.label}</span>
-                  <span>{channel.meta}</span>
+                  <span className={styles.channelLabelFull}>{channel.label}</span>
+                  <span className={styles.channelLabelShort}>
+                    {channel.shortLabel || channel.label}
+                  </span>
+                  <span className={styles.channelMeta}>{channel.meta}</span>
                 </span>
               </button>
             );

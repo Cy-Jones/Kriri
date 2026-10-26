@@ -21,8 +21,8 @@ export const motionTokens = {
     snappy: { type: "spring", visualDuration: 0.26, bounce: 0.12 },
     /** Panels, height changes, and layout shifts. Critically damped, never overshoots. */
     smooth: { type: "spring", visualDuration: 0.4, bounce: 0 },
-    /** Shape morphs, shared layout highlights, and width changes that follow new content. */
-    morph: { type: "spring", visualDuration: 0.42, bounce: 0.16 },
+    /** Shape morphs, shared layout highlights, and fluid switchers. */
+    morph: { type: "spring", stiffness: 450, damping: 35 },
   },
   /** Stagger steps in seconds. Keep total stagger under roughly 0.4s. */
   stagger: { char: 0.016, word: 0.04, line: 0.08, item: 0.035 },

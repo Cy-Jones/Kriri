@@ -3,6 +3,8 @@
   display: inline-flex;
   width: max-content;
   max-width: 100%;
+  flex-shrink: 0;
+  white-space: nowrap;
   min-height: var(--control-height-sm);
   align-items: center;
   justify-content: center;
@@ -16,6 +18,9 @@
   font-size: var(--text-sm);
   font-weight: 500;
   cursor: pointer;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
   -webkit-tap-highlight-color: transparent;
   transition:
     background-color var(--duration-fast) var(--ease-standard),

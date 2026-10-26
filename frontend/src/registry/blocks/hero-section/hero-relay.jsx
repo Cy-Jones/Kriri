@@ -21,7 +21,7 @@ const EVENTS = [
     routed: true,
     issue: "ONB-482",
     total: 412,
-    ms: { lookup: 118, branch: 2, slack: 164, linear: 231, warehouse: 58 },
+    ms: { lookup: 118, branch: 2, slack: 164, github: 231, warehouse: 58 },
   },
   {
     customer: "Tidepool",
@@ -30,7 +30,7 @@ const EVENTS = [
     routed: false,
     issue: "",
     total: 171,
-    ms: { lookup: 96, branch: 1, slack: 0, linear: 0, warehouse: 61 },
+    ms: { lookup: 96, branch: 1, slack: 0, github: 0, warehouse: 61 },
   },
   {
     customer: "Halcyon Health",
@@ -39,7 +39,7 @@ const EVENTS = [
     routed: true,
     issue: "ONB-483",
     total: 436,
-    ms: { lookup: 131, branch: 2, slack: 149, linear: 244, warehouse: 66 },
+    ms: { lookup: 131, branch: 2, slack: 149, github: 244, warehouse: 66 },
   },
 ];
 
@@ -54,14 +54,14 @@ const STEPS = {
   lookup: [3, 4],
   branch: [5, 6],
   slack: [7, 8],
-  linear: [7, 8],
+  github: [7, 8],
   warehouse: [7, 8],
 };
-const ACTIONS = ["slack", "linear", "warehouse"];
+const ACTIONS = ["slack", "github", "warehouse"];
 
 function statusOf(id, phase, event) {
   const [start, end] = STEPS[id];
-  if ((id === "slack" || id === "linear") && !event.routed && phase >= 6)
+  if ((id === "slack" || id === "github") && !event.routed && phase >= 6)
     return "skipped";
   return phase < start ? "idle" : phase < end ? "running" : "done";
 }
@@ -78,7 +78,7 @@ const LAYOUTS = {
       lookup: { x: 170, y: 112, w: 300, h: 60 },
       branch: { x: 170, y: 224, w: 300, h: 60 },
       slack: { x: 0, y: 356, w: 200, h: 84 },
-      linear: { x: 220, y: 356, w: 200, h: 84 },
+      github: { x: 220, y: 356, w: 200, h: 84 },
       warehouse: { x: 440, y: 356, w: 200, h: 84 },
     },
   },
@@ -91,7 +91,7 @@ const LAYOUTS = {
       lookup: { x: 0, y: 78, w: 344, h: 52 },
       branch: { x: 0, y: 156, w: 344, h: 52 },
       slack: { x: 0, y: 244, w: 108, h: 72 },
-      linear: { x: 118, y: 244, w: 108, h: 72 },
+      github: { x: 118, y: 244, w: 108, h: 72 },
       warehouse: { x: 236, y: 244, w: 108, h: 72 },
     },
   },
@@ -101,7 +101,7 @@ const EDGES = [
   { from: "trigger", to: "lookup", phase: 2 },
   { from: "lookup", to: "branch", phase: 4 },
   { from: "branch", to: "slack", phase: 6 },
-  { from: "branch", to: "linear", phase: 6 },
+  { from: "branch", to: "github", phase: 6 },
   { from: "branch", to: "warehouse", phase: 6 },
 ];
 
@@ -118,7 +118,7 @@ function edgePath(layout, from, to) {
 
 const RESULTS = {
   slack: (event) => `Sent in ${event.ms.slack} ms`,
-  linear: (event) => `${event.issue} in ${event.ms.linear} ms`,
+  github: (event) => `${event.issue} in ${event.ms.github} ms`,
   warehouse: (event) => `Saved in ${event.ms.warehouse} ms`,
 };
 
@@ -381,9 +381,9 @@ export function HeroRelay({
                       title: narrow ? "Slack" : "Post to #revenue",
                       waiting: "Slack",
                     },
-                    linear: {
-                      icon: logo("linear-color"),
-                      title: narrow ? "Linear" : "Create Linear issue",
+                    github: {
+                      icon: logo("github"),
+                      title: narrow ? "GitHub" : "Create GitHub issue",
                       waiting: "Onboarding team",
                     },
                     warehouse: {

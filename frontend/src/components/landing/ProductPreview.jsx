@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { Format as Checklist, Lockers, Plot as Chart } from "@lucasmarkes/hairline/react";
+import { useTheme } from "../../contexts/ThemeContext";
 
 const initialTasks = [
   {
@@ -153,6 +154,7 @@ const teamMembers = [
 ];
 
 export function ProductPreview() {
+  const { effectiveTheme } = useTheme();
   const [activeTab, setActiveTab] = useState("issues");
   const [loadingTab, setLoadingTab] = useState(null);
   const [issueTab, setIssueTab] = useState("active");
@@ -224,15 +226,26 @@ export function ProductPreview() {
           type="button"
           onClick={() => handleTabClick(item)}
           title={item.label}
-          className={`w-9 h-8 mx-auto flex items-center justify-center rounded-md transition-colors relative ${
+          className={`relative w-9 h-8 mx-auto flex items-center justify-center rounded-full transition-colors ${
             isActive
-              ? "bg-white/[0.08] text-white font-medium shadow-sm"
+              ? "text-white font-medium"
               : "text-[#8a8f98] hover:bg-white/[0.04] hover:text-[#e8e8e8]"
           }`}
         >
-          <Icon size={15} />
+          {isActive && (
+            <motion.div
+              layoutId="previewCollapsedSidebarPill"
+              className="absolute inset-0 bg-white/[0.14] border border-white/10 rounded-full shadow-xs"
+              transition={{
+                type: "spring",
+                stiffness: 450,
+                damping: 35,
+              }}
+            />
+          )}
+          <Icon size={15} className="relative z-10" />
           {item.badge && (
-            <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-blue-500" />
+            <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-blue-500 z-10" />
           )}
         </button>
       );
@@ -242,19 +255,30 @@ export function ProductPreview() {
         key={item.id}
         type="button"
         onClick={() => handleTabClick(item)}
-        className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-md transition-colors text-left ${
+        className={`relative w-full flex items-center justify-between px-2.5 py-1.5 rounded-md transition-colors text-left ${
           isActive
-            ? "bg-white/[0.08] text-white font-medium shadow-sm"
+            ? "text-white font-medium shadow-sm"
             : "text-[#8a8f98] hover:bg-white/[0.04] hover:text-[#e8e8e8]"
         }`}
       >
-        <div className="flex items-center gap-2.5">
+        {isActive && (
+          <motion.div
+            layoutId="previewExpandedSidebarPill"
+            className="absolute inset-0 bg-white/[0.08] border border-white/5 rounded-md"
+            transition={{
+              type: "spring",
+              stiffness: 450,
+              damping: 35,
+            }}
+          />
+        )}
+        <div className="flex items-center gap-2.5 relative z-10">
           <Icon size={15} />
           <span>{item.label}</span>
         </div>
         {item.badge && (
           <span
-            className={`text-[10px] font-sans px-1.5 py-0.5 rounded-full ${
+            className={`relative z-10 text-[10px] font-sans px-1.5 py-0.5 rounded-full ${
               isActive
                 ? "bg-white/20 text-white font-semibold"
                 : "bg-white/[0.06] text-[#8a8f98]"
@@ -501,7 +525,7 @@ export function ProductPreview() {
                     {issueTab === "backlog" ? (
                       <div className="flex-1 flex flex-col items-center justify-center p-8 sm:p-12 text-center gap-4 border border-white/[0.05] bg-white/[0.01] rounded-xl">
                         <div className="w-48 h-48 flex items-center justify-center relative overflow-visible">
-                          <Checklist theme="dark" intensity={0.7} className="w-full h-full text-[#8a8f98] opacity-80" />
+                          <Checklist theme={effectiveTheme} intensity={0.7} className="w-full h-full text-[#8a8f98] opacity-80" />
                         </div>
                         <div>
                           <h2 className="text-sm sm:text-base font-semibold text-white tracking-tight">
@@ -973,7 +997,7 @@ export function ProductPreview() {
                     {notifications.length === 0 ? (
                       <div className="flex-1 flex flex-col items-center justify-center h-full text-[#8a8f98] gap-3 sm:gap-4 my-auto select-none">
                         <div className="w-32 h-32 relative overflow-visible">
-                          <Lockers theme="dark" intensity={0.5} className="w-full h-full opacity-60" />
+                          <Lockers theme={effectiveTheme} intensity={0.5} className="w-full h-full opacity-60" />
                         </div>
                         <span className="text-[13px] text-[#8a8f98] font-medium">
                           All caught up
@@ -1041,7 +1065,7 @@ export function ProductPreview() {
 
                     <div className="flex-1 flex flex-col items-center justify-center max-w-sm mx-auto text-center gap-3.5 sm:gap-4.5 lg:gap-6 my-auto select-none">
                       <div className="w-48 h-48 flex items-center justify-center relative overflow-visible">
-                        <Chart theme="dark" intensity={0.7} className="w-full h-full text-[#8a8f98] opacity-80" />
+                        <Chart theme={effectiveTheme} intensity={0.7} className="w-full h-full text-[#8a8f98] opacity-80" />
                       </div>
 
                       <div className="flex flex-col gap-2">

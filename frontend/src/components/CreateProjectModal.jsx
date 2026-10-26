@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { api } from "../lib/api";
 import posthog from "../lib/posthog";
+import { sileo } from "sileo";
 import DatePicker from "./DatePicker";
 import LabelPicker from "./LabelPicker";
 import LeadPicker from "./LeadPicker";
@@ -24,7 +25,7 @@ const PillTooltip = ({ text, show, children }) => (
   <div className="relative flex group/tooltip">
     {children}
     {show && (
-      <div className="absolute top-[calc(100%+6px)] left-1/2 -translate-x-1/2 px-2.5 py-1 bg-[#25272a] border border-[#333538] rounded-md text-[12px] text-[#d1d2d5] opacity-0 invisible group-hover/tooltip:opacity-100 group-hover/tooltip:visible transition-all duration-200 delay-[400ms] pointer-events-none whitespace-nowrap z-[60] shadow-xl font-normal tracking-wide">
+      <div className="absolute top-[calc(100%+6px)] left-1/2 -translate-x-1/2 px-2.5 py-1 bg-zinc-900 dark:bg-[#25272a] border border-black/10 dark:border-[#333538] rounded-md text-[12px] text-zinc-100 dark:text-[#d1d2d5] opacity-0 invisible group-hover/tooltip:opacity-100 group-hover/tooltip:visible transition-all duration-200 delay-[400ms] pointer-events-none whitespace-nowrap z-[60] shadow-xl font-normal tracking-wide">
         {text}
       </div>
     )}
@@ -84,7 +85,7 @@ export default function CreateProjectModal({
   const [priority, setPriority] = useState(draft?.priority ?? "No priority");
   const [health, setHealth] = useState(draft?.health ?? "On Track");
 
-  // Linear specific pills
+  // Project filter pills
   const [lead, setLead] = useState(draft?.lead ?? null);
   const [members, setMembers] = useState(draft?.members ?? []);
   const [startDate, setStartDate] = useState(draft?.startDate ?? null);
@@ -100,7 +101,6 @@ export default function CreateProjectModal({
   const [milestoneName, setMilestoneName] = useState("");
   const [milestoneDesc, setMilestoneDesc] = useState("");
   const [milestoneTargetDate, setMilestoneTargetDate] = useState(null);
-  const [toast, setToast] = useState(null);
 
   useEffect(() => {
     const draftData = {
@@ -136,11 +136,10 @@ export default function CreateProjectModal({
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!name.trim()) {
-      setToast({
+      sileo.warning({
         title: "Project name required",
-        message: "The project name cannot be empty.",
+        description: "The project name cannot be empty.",
       });
-      setTimeout(() => setToast(null), 4000);
       return;
     }
     try {
@@ -181,13 +180,16 @@ export default function CreateProjectModal({
       setMilestones([]);
 
       onClose();
+      sileo.success({
+        title: "Project created",
+        description: `"${data.name}" has been created successfully.`,
+      });
     } catch (err) {
       console.error("Error creating project:", err);
-      setToast({
+      sileo.error({
         title: "Failed to create project",
-        message: err.message || "An unexpected error occurred.",
+        description: err.message || "An unexpected error occurred.",
       });
-      setTimeout(() => setToast(null), 4000);
     }
   };
 
@@ -207,12 +209,12 @@ export default function CreateProjectModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-3 sm:p-4 md:p-6">
-      <div className="bg-[#1a1a1a] w-full max-w-[95vw] md:max-w-3xl lg:max-w-4xl max-h-[90vh] md:h-[85vh] rounded-2xl flex flex-col shadow-2xl overflow-hidden border border-[#2a2a2a]">
+    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-3 sm:p-4 md:p-6 backdrop-blur-sm">
+      <div className="bg-white dark:bg-[#1a1a1a] w-full max-w-[95vw] md:max-w-3xl lg:max-w-4xl max-h-[90vh] md:h-[85vh] rounded-2xl flex flex-col shadow-2xl overflow-hidden border border-black/10 dark:border-[#2a2a2a]">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 shrink-0">
+        <div className="flex items-center justify-between px-5 py-4 shrink-0 border-b border-black/[0.06] dark:border-transparent">
           <div className="flex items-center gap-2">
-            <div className="flex items-center justify-center text-[#85868a]">
+            <div className="flex items-center justify-center text-zinc-400 dark:text-[#85868a]">
               <svg
                 width="16"
                 height="16"
@@ -226,10 +228,10 @@ export default function CreateProjectModal({
                 <path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z" />
               </svg>
             </div>
-            <div className="text-[#85868a] text-[14px] flex items-center gap-1.5 font-medium">
+            <div className="text-zinc-500 dark:text-[#85868a] text-[14px] flex items-center gap-1.5 font-medium">
               <span>Workspace</span>
-              <span className="text-[#55565a]">›</span>
-              <span className="text-[#d1d2d5]">New project</span>
+              <span className="text-zinc-400 dark:text-[#55565a]">›</span>
+              <span className="text-zinc-900 dark:text-[#d1d2d5]">New project</span>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -243,7 +245,7 @@ export default function CreateProjectModal({
               <button
                 type="button"
                 onClick={onClose}
-                className="h-7 px-3 bg-white/5 hover:bg-white/10 text-[#d1d2d5] hover:text-white text-[12px] font-medium rounded-full transition-all active:scale-[0.98] border border-white/5 flex items-center"
+                className="h-7 px-3 bg-black/5 hover:bg-black/10 dark:bg-white/5 dark:hover:bg-white/10 text-zinc-700 hover:text-zinc-900 dark:text-[#d1d2d5] dark:hover:text-white text-[12px] font-medium rounded-full transition-all active:scale-[0.98] border border-black/5 dark:border-white/5 flex items-center"
               >
                 Save as draft
               </button>
@@ -251,7 +253,7 @@ export default function CreateProjectModal({
             <button
               type="button"
               onClick={onClose}
-              className="w-6 h-6 rounded flex items-center justify-center text-[#a1a1aa] hover:text-white transition-colors"
+              className="w-6 h-6 rounded flex items-center justify-center text-zinc-400 hover:text-zinc-900 dark:text-[#a1a1aa] dark:hover:text-white transition-colors"
             >
               <svg
                 width="14"
@@ -271,7 +273,7 @@ export default function CreateProjectModal({
         </div>
 
         {/* Main Content Area */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar px-10 pt-6">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar px-4 sm:px-8 md:px-10 pt-4 sm:pt-6">
           <form
             id="create-project-form"
             onSubmit={handleSubmit}
@@ -283,7 +285,7 @@ export default function CreateProjectModal({
               placeholder="Project Title"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full bg-transparent border-none text-[32px] font-bold text-white focus:outline-none placeholder:text-[#5f6368] mb-2"
+              className="w-full bg-transparent border-none text-2xl sm:text-[32px] font-bold text-zinc-900 dark:text-white focus:outline-none placeholder:text-zinc-400 dark:placeholder:text-[#5f6368] mb-2"
             />
 
             <input
@@ -291,7 +293,7 @@ export default function CreateProjectModal({
               placeholder="Add a brief summary of this project..."
               value={shortSummary}
               onChange={(e) => setShortSummary(e.target.value)}
-              className="w-full bg-transparent border-none text-[15px] text-[#d1d2d5] focus:outline-none placeholder:text-[#85868a] mb-4"
+              className="w-full bg-transparent border-none text-[15px] text-zinc-700 dark:text-[#d1d2d5] focus:outline-none placeholder:text-zinc-400 dark:placeholder:text-[#85868a] mb-4"
             />
 
             {/* Top Pills Row */}
@@ -308,7 +310,7 @@ export default function CreateProjectModal({
                         activePicker === "status" ? null : "status",
                       )
                     }
-                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-transparent bg-white/[0.04] hover:bg-white/[0.08] cursor-pointer transition-colors text-[#d1d2d5] text-[13px] font-medium"
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-black/[0.08] dark:border-transparent bg-black/[0.03] hover:bg-black/[0.06] dark:bg-white/[0.04] dark:hover:bg-white/[0.08] cursor-pointer transition-colors text-zinc-700 hover:text-zinc-900 dark:text-[#d1d2d5] dark:hover:text-white text-[13px] font-medium"
                   >
                     {getStatusIcon(status)}
                     <span>{status}</span>
@@ -335,7 +337,7 @@ export default function CreateProjectModal({
                         activePicker === "priority" ? null : "priority",
                       )
                     }
-                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-transparent bg-white/[0.04] hover:bg-white/[0.08] cursor-pointer transition-colors text-[#d1d2d5] text-[13px] font-medium"
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-black/[0.08] dark:border-transparent bg-black/[0.03] hover:bg-black/[0.06] dark:bg-white/[0.04] dark:hover:bg-white/[0.08] cursor-pointer transition-colors text-zinc-700 hover:text-zinc-900 dark:text-[#d1d2d5] dark:hover:text-white text-[13px] font-medium"
                   >
                     {getPriorityIcon(priority)}
                     <span>
@@ -362,7 +364,7 @@ export default function CreateProjectModal({
                     onClick={() =>
                       setActivePicker(activePicker === "lead" ? null : "lead")
                     }
-                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-transparent bg-white/[0.04] hover:bg-white/[0.08] cursor-pointer transition-colors text-[#d1d2d5] text-[13px] font-medium"
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-black/[0.08] dark:border-transparent bg-black/[0.03] hover:bg-black/[0.06] dark:bg-white/[0.04] dark:hover:bg-white/[0.08] cursor-pointer transition-colors text-zinc-700 hover:text-zinc-900 dark:text-[#d1d2d5] dark:hover:text-white text-[13px] font-medium"
                   >
                     {lead ? (
                       <>
@@ -390,7 +392,7 @@ export default function CreateProjectModal({
                           height="14"
                           viewBox="0 0 24 24"
                           fill="none"
-                          className="text-[#85868a]"
+                          className="text-zinc-400 dark:text-[#85868a]"
                         >
                           <circle
                             cx="12"
@@ -458,7 +460,7 @@ export default function CreateProjectModal({
                         activePicker === "members" ? null : "members",
                       )
                     }
-                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-transparent bg-white/[0.04] hover:bg-white/[0.08] cursor-pointer transition-colors text-[#d1d2d5] text-[13px] font-medium"
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-black/[0.08] dark:border-transparent bg-black/[0.03] hover:bg-black/[0.06] dark:bg-white/[0.04] dark:hover:bg-white/[0.08] cursor-pointer transition-colors text-zinc-700 hover:text-zinc-900 dark:text-[#d1d2d5] dark:hover:text-white text-[13px] font-medium"
                   >
                     {members.length > 0 ? (
                       <>
@@ -489,7 +491,7 @@ export default function CreateProjectModal({
                           height="14"
                           viewBox="0 0 24 24"
                           fill="none"
-                          className="text-[#85868a]"
+                          className="text-zinc-400 dark:text-[#85868a]"
                         >
                           <circle
                             cx="9"
@@ -542,14 +544,14 @@ export default function CreateProjectModal({
                     onClick={() =>
                       setActivePicker(activePicker === "start" ? null : "start")
                     }
-                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-transparent bg-white/[0.04] hover:bg-white/[0.08] cursor-pointer transition-colors text-[#d1d2d5] text-[13px] font-medium"
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-black/[0.08] dark:border-transparent bg-black/[0.03] hover:bg-black/[0.06] dark:bg-white/[0.04] dark:hover:bg-white/[0.08] cursor-pointer transition-colors text-zinc-700 hover:text-zinc-900 dark:text-[#d1d2d5] dark:hover:text-white text-[13px] font-medium"
                   >
                     <svg
                       width="14"
                       height="14"
                       viewBox="0 0 24 24"
                       fill="none"
-                      className="text-[#85868a]"
+                      className="text-zinc-400 dark:text-[#85868a]"
                     >
                       <path
                         d="M18 4H6C4.895 4 4 4.895 4 6V11"
@@ -599,14 +601,14 @@ export default function CreateProjectModal({
                         activePicker === "target" ? null : "target",
                       )
                     }
-                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-transparent bg-white/[0.04] hover:bg-white/[0.08] cursor-pointer transition-colors text-[#d1d2d5] text-[13px] font-medium"
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-black/[0.08] dark:border-transparent bg-black/[0.03] hover:bg-black/[0.06] dark:bg-white/[0.04] dark:hover:bg-white/[0.08] cursor-pointer transition-colors text-zinc-700 hover:text-zinc-900 dark:text-[#d1d2d5] dark:hover:text-white text-[13px] font-medium"
                   >
                     <svg
                       width="14"
                       height="14"
                       viewBox="0 0 24 24"
                       fill="none"
-                      className="text-[#85868a]"
+                      className="text-zinc-400 dark:text-[#85868a]"
                     >
                       <path
                         d="M18 4H6C4.895 4 4 4.895 4 6V20C4 21.105 4.895 22 6 22H18C19.105 22 20 21.105 20 20V6C20 4.895 19.105 4 18 4Z"
@@ -641,14 +643,14 @@ export default function CreateProjectModal({
                         activePicker === "labels" ? null : "labels",
                       )
                     }
-                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-transparent bg-white/[0.04] hover:bg-white/[0.08] cursor-pointer transition-colors text-[#d1d2d5] text-[13px] font-medium"
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-black/[0.08] dark:border-transparent bg-black/[0.03] hover:bg-black/[0.06] dark:bg-white/[0.04] dark:hover:bg-white/[0.08] cursor-pointer transition-colors text-zinc-700 hover:text-zinc-900 dark:text-[#d1d2d5] dark:hover:text-white text-[13px] font-medium"
                   >
                     <svg
                       width="14"
                       height="14"
                       viewBox="0 0 24 24"
                       fill="none"
-                      className="text-[#85868a]"
+                      className="text-zinc-400 dark:text-[#85868a]"
                     >
                       <path
                         d="M4 12L10 6H20C21.1046 6 22 6.89543 22 8V16C22 17.1046 21.1046 18 20 18H10L4 12Z"
@@ -689,7 +691,7 @@ export default function CreateProjectModal({
                         activePicker === "health" ? null : "health",
                       )
                     }
-                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-transparent bg-white/[0.04] hover:bg-white/[0.08] cursor-pointer transition-colors text-[#d1d2d5] text-[13px] font-medium"
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-black/[0.08] dark:border-transparent bg-black/[0.03] hover:bg-black/[0.06] dark:bg-white/[0.04] dark:hover:bg-white/[0.08] cursor-pointer transition-colors text-zinc-700 hover:text-zinc-900 dark:text-[#d1d2d5] dark:hover:text-white text-[13px] font-medium"
                   >
                     <svg
                       width="14"
@@ -775,7 +777,7 @@ export default function CreateProjectModal({
               placeholder="What are you building? Add context, goals, and key details here..."
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="w-full flex-1 bg-transparent border-none text-[15px] text-[#d1d2d5] focus:outline-none placeholder:text-[#85868a] resize-none min-h-[120px]"
+              className="w-full flex-1 bg-transparent border-none text-[15px] text-zinc-800 dark:text-[#d1d2d5] focus:outline-none placeholder:text-zinc-400 dark:placeholder:text-[#85868a] resize-none min-h-[120px]"
             />
 
             {/* Added Milestones list */}
@@ -784,7 +786,7 @@ export default function CreateProjectModal({
                 {milestones.map((m, i) => (
                   <div
                     key={i}
-                    className="flex items-center gap-2 mb-2 text-[13px] text-[#d1d2d5]"
+                    className="flex items-center gap-2 mb-2 text-[13px] text-zinc-800 dark:text-[#d1d2d5]"
                   >
                     <svg
                       width="14"
@@ -798,7 +800,7 @@ export default function CreateProjectModal({
                     </svg>
                     <span className="font-medium">{m.name}</span>
                     {m.date && (
-                      <span className="text-[#85868a]">Target: {m.date}</span>
+                      <span className="text-zinc-500 dark:text-[#85868a]">Target: {m.date}</span>
                     )}
                   </div>
                 ))}
@@ -808,10 +810,10 @@ export default function CreateProjectModal({
         </div>
 
         {/* Footer Area */}
-        <div className="mt-auto px-5 py-4 border-t border-[#2a2a2a] shrink-0">
+        <div className="mt-auto px-5 py-4 border-t border-black/[0.08] dark:border-[#2a2a2a] shrink-0">
           {isCreatingMilestone ? (
-            <div className="bg-[#202225] border border-[#333538] rounded-xl p-4 mb-4 shadow-lg relative">
-              <div className="text-[13px] text-[#d1d2d5] font-medium mb-3">
+            <div className="bg-zinc-50 dark:bg-[#202225] border border-black/10 dark:border-[#333538] rounded-xl p-4 mb-4 shadow-lg relative">
+              <div className="text-[13px] text-zinc-900 dark:text-[#d1d2d5] font-medium mb-3">
                 Create milestone
               </div>
 
@@ -824,7 +826,7 @@ export default function CreateProjectModal({
                     fill="none"
                     stroke="currentColor"
                     strokeWidth="2"
-                    className="text-[#85868a]"
+                    className="text-zinc-400 dark:text-[#85868a]"
                   >
                     <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
                   </svg>
@@ -833,7 +835,7 @@ export default function CreateProjectModal({
                     placeholder="Milestone name"
                     value={milestoneName}
                     onChange={(e) => setMilestoneName(e.target.value)}
-                    className="bg-transparent border-none text-[14px] text-white focus:outline-none placeholder:text-[#55565a] w-full"
+                    className="bg-transparent border-none text-[14px] text-zinc-900 dark:text-white focus:outline-none placeholder:text-zinc-400 dark:placeholder:text-[#55565a] w-full"
                   />
                 </div>
                 <div className="relative">
@@ -845,7 +847,7 @@ export default function CreateProjectModal({
                           : "milestoneTarget",
                       )
                     }
-                    className={`cursor-pointer flex items-center gap-1.5 ${milestoneTargetDate ? "text-[#d1d2d5] bg-white/[0.04] px-2 py-1 rounded-md" : "text-[#85868a] hover:text-white"}`}
+                    className={`cursor-pointer flex items-center gap-1.5 ${milestoneTargetDate ? "text-zinc-900 dark:text-[#d1d2d5] bg-black/[0.04] dark:bg-white/[0.04] px-2 py-1 rounded-md" : "text-zinc-400 dark:text-[#85868a] hover:text-zinc-900 dark:hover:text-white"}`}
                   >
                     <svg
                       width="16"
@@ -884,21 +886,21 @@ export default function CreateProjectModal({
                 placeholder="Add a description..."
                 value={milestoneDesc}
                 onChange={(e) => setMilestoneDesc(e.target.value)}
-                className="w-full bg-transparent border-none text-[13px] text-[#85868a] focus:outline-none placeholder:text-[#55565a] resize-none h-16 mb-2 ml-6"
+                className="w-full bg-transparent border-none text-[13px] text-zinc-600 dark:text-[#85868a] focus:outline-none placeholder:text-zinc-400 dark:placeholder:text-[#55565a] resize-none h-16 mb-2 ml-6"
               />
 
               <div className="flex items-center justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setIsCreatingMilestone(false)}
-                  className="h-7 px-3 bg-white/[0.04] hover:bg-white/[0.08] text-white text-[12px] font-medium rounded-full transition-all active:scale-[0.98] flex items-center"
+                  className="h-7 px-3 bg-black/[0.04] hover:bg-black/[0.08] dark:bg-white/[0.04] dark:hover:bg-white/[0.08] text-zinc-900 dark:text-white text-[12px] font-medium rounded-full transition-all active:scale-[0.98] flex items-center"
                 >
                   Cancel
                 </button>
                 <button
                   type="button"
                   onClick={handleAddMilestone}
-                  className="h-7 px-3.5 bg-white hover:bg-zinc-100 text-black text-[12px] font-medium rounded-full transition-all active:scale-[0.98] shadow-[0_0_16px_rgba(255,255,255,0.14)] flex items-center"
+                  className="h-7 px-3.5 bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 dark:text-black text-[12px] font-medium rounded-full transition-all active:scale-[0.98] shadow-sm dark:shadow-[0_0_16px_rgba(255,255,255,0.14)] flex items-center"
                 >
                   Add milestone
                 </button>
@@ -907,17 +909,17 @@ export default function CreateProjectModal({
           ) : (
             <div
               onClick={() => setIsCreatingMilestone(true)}
-              className="bg-[#202225] border border-[#333538] rounded-xl px-4 py-3 flex items-center justify-between cursor-pointer hover:bg-[#25272a] transition-colors mb-4"
+              className="bg-zinc-50 dark:bg-[#202225] border border-black/10 dark:border-[#333538] rounded-xl px-4 py-3 flex items-center justify-between cursor-pointer hover:bg-zinc-100 dark:hover:bg-[#25272a] transition-colors mb-4"
             >
               <div className="flex flex-col gap-0.5">
-                <span className="text-white text-[13px] font-medium">
+                <span className="text-zinc-900 dark:text-white text-[13px] font-medium">
                   Milestones +
                 </span>
-                <span className="text-[#85868a] text-[12px]">
+                <span className="text-zinc-500 dark:text-[#85868a] text-[12px]">
                   Use milestones to track progress
                 </span>
               </div>
-              <div className="text-[#55565a]">
+              <div className="text-zinc-400 dark:text-[#55565a]">
                 <svg
                   width="20"
                   height="20"
@@ -935,12 +937,12 @@ export default function CreateProjectModal({
             </div>
           )}
 
-          <div className="flex items-center justify-end gap-2.5 border-t border-[#2a2a2a] pt-4">
+          <div className="flex items-center justify-end gap-2.5 border-t border-black/[0.08] dark:border-[#2a2a2a] pt-4">
             {(name.trim() || description.trim() || shortSummary.trim()) && (
               <button
                 type="button"
                 onClick={onClose}
-                className="h-8 px-4 bg-[#25272a] hover:bg-[#333538] text-white text-[12.5px] font-medium rounded-full transition-all active:scale-[0.98] border border-[#333538] flex items-center"
+                className="h-8 px-4 bg-black/5 hover:bg-black/10 dark:bg-[#25272a] dark:hover:bg-[#333538] text-zinc-700 hover:text-zinc-900 dark:text-white text-[12.5px] font-medium rounded-full transition-all active:scale-[0.98] border border-black/10 dark:border-[#333538] flex items-center"
               >
                 Save as draft
               </button>
@@ -948,7 +950,7 @@ export default function CreateProjectModal({
             <button
               type="button"
               onClick={handleSubmit}
-              className="h-8 px-5 bg-white hover:bg-zinc-100 text-black text-[12.5px] font-medium rounded-full transition-all duration-300 shadow-[0_0_20px_rgba(255,255,255,0.14)] hover:shadow-[0_0_28px_rgba(255,255,255,0.22)] active:scale-[0.98] flex items-center"
+              className="h-8 px-5 bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 dark:text-black text-[12.5px] font-medium rounded-full transition-all duration-300 shadow-sm dark:shadow-[0_0_20px_rgba(255,255,255,0.14)] dark:hover:shadow-[0_0_28px_rgba(255,255,255,0.22)] active:scale-[0.98] flex items-center"
             >
               Create project
             </button>
@@ -956,41 +958,7 @@ export default function CreateProjectModal({
         </div>
       </div>
 
-      {/* Toast Notification */}
-      {toast && (
-        <div className="fixed bottom-6 right-6 bg-[#202225] border border-[#333538] rounded-xl shadow-2xl p-3 flex items-start gap-3 min-w-[300px] z-[60] animate-in slide-in-from-bottom-5">
-          <div className="mt-0.5">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="#ff6b6b">
-              <circle cx="12" cy="12" r="12" />
-              <rect x="11" y="6" width="2" height="6" fill="#202225" rx="1" />
-              <circle cx="12" cy="16" r="1.5" fill="#202225" />
-            </svg>
-          </div>
-          <div className="flex-1">
-            <div className="text-[13px] text-[#d1d2d5] font-medium mb-0.5">
-              {toast.title}
-            </div>
-            <div className="text-[12px] text-[#85868a]">{toast.message}</div>
-          </div>
-          <button
-            type="button"
-            onClick={() => setToast(null)}
-            className="text-[#85868a] hover:text-white transition-colors"
-          >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          </button>
-        </div>
-      )}
+
     </div>
   );
 }

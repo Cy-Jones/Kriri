@@ -224,14 +224,14 @@ function LumenDashboard({ narrow }) {
           <i />
           <i />
         </span>
-        <span className={styles.url}>app.lumen.so/acme/overview</span>
+        <span className={styles.url}>app.kriri.app/kriri-demo-01/overview</span>
       </div>
       <div className={styles.app}>
         {!narrow && (
           <aside className={styles.sidebar}>
             <div className={styles.workspace}>
-              <span className={styles.wsMark}>A</span>
-              <span className={styles.wsName}>Acme Cloud</span>
+              <span className={styles.wsMark}>K</span>
+              <span className={styles.wsName}>Kriri Cloud</span>
               <ChevronsUpDown
                 size={14}
                 strokeWidth={1.75}

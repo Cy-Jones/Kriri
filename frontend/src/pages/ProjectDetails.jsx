@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useDeferredValue, useTransition } from "react";
+import { motion } from "motion/react";
 import {
   useParams,
   Link,
@@ -17,6 +18,7 @@ import LeadPicker from "../components/LeadPicker";
 import DatePicker from "../components/DatePicker";
 import MembersAvatarStack from "../components/projects/MembersAvatarStack";
 import { getInitial, getAvatarColor } from "../lib/avatarUtils";
+import { copyTextToClipboard } from "../lib/use-copy-feedback";
 import {
   Plus,
   CheckSquare,
@@ -38,11 +40,13 @@ import {
 import TaskDetailsModal from "../components/TaskDetailsModal";
 import CreateTaskModal from "../components/CreateTaskModal";
 import { useListShortcuts } from "../hooks/useListShortcuts";
+import { useTheme } from "../contexts/ThemeContext";
 import { Format as Checklist } from "@lucasmarkes/hairline/react";
 
 export default function ProjectDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { effectiveTheme } = useTheme();
   const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
   const { user } = useUser();
@@ -115,12 +119,16 @@ export default function ProjectDetails() {
       ? tabParam.charAt(0).toUpperCase() + tabParam.slice(1)
       : "Overview",
   );
+  const [isTabPending, startTabTransition] = useTransition();
+  const deferredTab = useDeferredValue(activeTab);
   const tabs = ["Overview", "Issues", "Milestones"];
   const [activePicker, setActivePicker] = useState(null);
 
   const handleTabChange = (tab) => {
     setActiveTab(tab);
-    setSearchParams({ tab: tab.toLowerCase() });
+    startTabTransition(() => {
+      setSearchParams({ tab: tab.toLowerCase() });
+    });
     posthog.capture("project_tab_changed", {
       tab: tab.toLowerCase(),
       project_id: id,
@@ -278,25 +286,23 @@ export default function ProjectDetails() {
 
   if (!project) {
     return <div className="p-8 text-white">Project not found</div>;
-  }
-
-  const renderPropertiesSidebar = (isMobile = false) => (
+  }  const renderPropertiesSidebar = (isMobile = false) => (
     <div className={`flex flex-col ${isMobile ? "gap-6" : "p-5 gap-7"}`}>
       {/* Properties section */}
       <div>
         {!isMobile && (
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-[13px] font-semibold text-white">Properties</h3>
+            <h3 className="text-[13px] font-semibold text-zinc-900 dark:text-white">Properties</h3>
           </div>
         )}
 
         <div className="flex flex-col gap-3 text-[13px]">
           {/* Status */}
-          <div className="grid grid-cols-[90px_1fr] items-center text-[#85868a]">
+          <div className="grid grid-cols-[90px_1fr] items-center text-zinc-500 dark:text-[#85868a]">
             <span>Status</span>
             <div className="relative">
               <div
-                className={`flex items-center gap-2 text-white p-1 -ml-1 rounded ${canManageProjects ? "cursor-pointer hover:bg-white/5" : "cursor-default"}`}
+                className={`flex items-center gap-2 text-zinc-900 dark:text-white p-1 -ml-1 rounded ${canManageProjects ? "cursor-pointer hover:bg-black/5 dark:hover:bg-white/5" : "cursor-default"}`}
                 onClick={(e) => {
                   e.stopPropagation();
                   if (canManageProjects) setActivePicker(activePicker === "status" ? null : "status");
@@ -318,11 +324,11 @@ export default function ProjectDetails() {
           </div>
 
           {/* Priority */}
-          <div className="grid grid-cols-[90px_1fr] items-center text-[#85868a]">
+          <div className="grid grid-cols-[90px_1fr] items-center text-zinc-500 dark:text-[#85868a]">
             <span>Priority</span>
             <div className="relative">
               <div
-                className={`flex items-center gap-2 text-white p-1 -ml-1 rounded ${canManageProjects ? "cursor-pointer hover:bg-white/5" : "cursor-default"}`}
+                className={`flex items-center gap-2 text-zinc-900 dark:text-white p-1 -ml-1 rounded ${canManageProjects ? "cursor-pointer hover:bg-black/5 dark:hover:bg-white/5" : "cursor-default"}`}
                 onClick={(e) => {
                   e.stopPropagation();
                   if (canManageProjects) setActivePicker(activePicker === "priority" ? null : "priority");
@@ -344,11 +350,11 @@ export default function ProjectDetails() {
           </div>
 
           {/* Health */}
-          <div className="grid grid-cols-[90px_1fr] items-center text-[#85868a]">
+          <div className="grid grid-cols-[90px_1fr] items-center text-zinc-500 dark:text-[#85868a]">
             <span>Health</span>
             <div className="relative">
               <div
-                className={`flex items-center gap-2 text-white p-1 -ml-1 rounded ${canManageProjects ? "cursor-pointer hover:bg-white/5" : "cursor-default"}`}
+                className={`flex items-center gap-2 text-zinc-900 dark:text-white p-1 -ml-1 rounded ${canManageProjects ? "cursor-pointer hover:bg-black/5 dark:hover:bg-white/5" : "cursor-default"}`}
                 onClick={(e) => {
                   e.stopPropagation();
                   if (canManageProjects) setActivePicker(activePicker === "health" ? null : "health");
@@ -370,11 +376,11 @@ export default function ProjectDetails() {
           </div>
 
           {/* Lead */}
-          <div className="grid grid-cols-[90px_1fr] items-center text-[#85868a]">
+          <div className="grid grid-cols-[90px_1fr] items-center text-zinc-500 dark:text-[#85868a]">
             <span>Lead</span>
             <div className="relative">
               <div
-                className={`flex items-center gap-2 text-white p-1 -ml-1 rounded ${canManageProjects ? "cursor-pointer hover:bg-white/5" : "cursor-default"}`}
+                className={`flex items-center gap-2 text-zinc-900 dark:text-white p-1 -ml-1 rounded ${canManageProjects ? "cursor-pointer hover:bg-black/5 dark:hover:bg-white/5" : "cursor-default"}`}
                 onClick={(e) => {
                   e.stopPropagation();
                   if (canManageProjects) setActivePicker(activePicker === "lead" ? null : "lead");
@@ -399,13 +405,13 @@ export default function ProjectDetails() {
                   </>
                 ) : (
                   <>
-                    <div className="flex items-center justify-center w-4 h-4 rounded-full border border-white/[0.1] border-dashed text-white/[0.3]">
+                    <div className="flex items-center justify-center w-4 h-4 rounded-full border border-black/10 dark:border-white/[0.1] border-dashed text-zinc-400 dark:text-white/[0.3]">
                       <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
                         <circle cx="12" cy="7" r="4" />
                       </svg>
                     </div>
-                    <span className="text-[#85868a]">Unassigned</span>
+                    <span className="text-zinc-400 dark:text-[#85868a]">Unassigned</span>
                   </>
                 )}
               </div>
@@ -422,14 +428,14 @@ export default function ProjectDetails() {
           </div>
 
           {/* Members */}
-          <div className="grid grid-cols-[90px_1fr] items-center text-[#85868a]">
+          <div className="grid grid-cols-[90px_1fr] items-center text-zinc-500 dark:text-[#85868a]">
             <span>Members</span>
             <div className="flex items-center gap-2">
               {project.members && project.members.length > 0 && (
                 <MembersAvatarStack members={project.members} max={3} />
               )}
               <div
-                className={`flex items-center gap-1.5 transition-colors rounded p-1 ${project.members && project.members.length > 0 ? "" : "-ml-1"} ${canManageProjects ? "hover:text-white cursor-pointer hover:bg-white/5" : "cursor-default"}`}
+                className={`flex items-center gap-1.5 transition-colors rounded p-1 ${project.members && project.members.length > 0 ? "" : "-ml-1"} ${canManageProjects ? "text-zinc-600 hover:text-zinc-900 dark:text-[#85868a] dark:hover:text-white cursor-pointer hover:bg-black/5 dark:hover:bg-white/5" : "text-zinc-400 dark:text-[#85868a] cursor-default"}`}
                 onClick={canManageProjects ? () => {} : undefined}
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -444,11 +450,11 @@ export default function ProjectDetails() {
           </div>
 
           {/* Start date */}
-          <div className="grid grid-cols-[90px_1fr] items-center text-[#85868a]">
+          <div className="grid grid-cols-[90px_1fr] items-center text-zinc-500 dark:text-[#85868a]">
             <span>Start date</span>
             <div className="relative">
               <div
-                className={`flex items-center gap-2 text-white p-1 -ml-1 rounded ${canManageProjects ? "cursor-pointer hover:bg-white/5" : "cursor-default"}`}
+                className={`flex items-center gap-2 text-zinc-900 dark:text-white p-1 -ml-1 rounded ${canManageProjects ? "cursor-pointer hover:bg-black/5 dark:hover:bg-white/5" : "cursor-default"}`}
                 onClick={(e) => {
                   e.stopPropagation();
                   if (canManageProjects) setActivePicker(activePicker === "startDate" ? null : "startDate");
@@ -480,11 +486,11 @@ export default function ProjectDetails() {
           </div>
 
           {/* Target date */}
-          <div className="grid grid-cols-[90px_1fr] items-center text-[#85868a]">
+          <div className="grid grid-cols-[90px_1fr] items-center text-zinc-500 dark:text-[#85868a]">
             <span>Target date</span>
             <div className="relative">
               <div
-                className={`flex items-center gap-2 text-white p-1 -ml-1 rounded ${canManageProjects ? "cursor-pointer hover:bg-white/5" : "cursor-default"}`}
+                className={`flex items-center gap-2 text-zinc-900 dark:text-white p-1 -ml-1 rounded ${canManageProjects ? "cursor-pointer hover:bg-black/5 dark:hover:bg-white/5" : "cursor-default"}`}
                 onClick={(e) => {
                   e.stopPropagation();
                   if (canManageProjects) setActivePicker(activePicker === "dueDate" ? null : "dueDate");
@@ -517,25 +523,25 @@ export default function ProjectDetails() {
 
           {/* Teams */}
           {project.teams && project.teams.length > 0 && (
-            <div className="grid grid-cols-[90px_1fr] items-center text-[#85868a]">
+            <div className="grid grid-cols-[90px_1fr] items-center text-zinc-500 dark:text-[#85868a]">
               <span>Teams</span>
-              <div className={`flex items-center gap-2 text-white p-1 -ml-1 rounded ${canManageProjects ? "cursor-pointer hover:bg-white/5" : "cursor-default"}`}>
+              <div className={`flex items-center gap-2 text-zinc-900 dark:text-white p-1 -ml-1 rounded ${canManageProjects ? "cursor-pointer hover:bg-black/5 dark:hover:bg-white/5" : "cursor-default"}`}>
                 <div className="w-4 h-4 rounded-[3px] bg-[#e95454]/10 text-[#e95454] flex items-center justify-center font-bold text-[9px]">
                   {project.teams[0].charAt(0).toUpperCase()}
                 </div>
                 <span>{project.teams[0]}</span>
                 {project.teams.length > 1 && (
-                  <span className="text-[#85868a] text-[12px]">+{project.teams.length - 1}</span>
+                  <span className="text-zinc-500 dark:text-[#85868a] text-[12px]">+{project.teams.length - 1}</span>
                 )}
               </div>
             </div>
           )}
 
           {/* Slack */}
-          <div className="grid grid-cols-[90px_1fr] items-center text-[#85868a]">
+          <div className="grid grid-cols-[90px_1fr] items-center text-zinc-500 dark:text-[#85868a]">
             <span>Slack</span>
             <div
-              className={`flex items-center gap-2 transition-colors rounded -ml-1 p-1 ${canManageProjects ? "hover:text-white cursor-pointer hover:bg-white/5" : "cursor-default"}`}
+              className={`flex items-center gap-2 transition-colors rounded -ml-1 p-1 ${canManageProjects ? "text-zinc-600 hover:text-zinc-900 dark:text-[#85868a] dark:hover:text-white cursor-pointer hover:bg-black/5 dark:hover:bg-white/5" : "text-zinc-400 dark:text-[#85868a] cursor-default"}`}
               onClick={canManageProjects ? () => {} : undefined}
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -546,10 +552,10 @@ export default function ProjectDetails() {
           </div>
 
           {/* Labels */}
-          <div className="grid grid-cols-[90px_1fr] items-center text-[#85868a]">
+          <div className="grid grid-cols-[90px_1fr] items-center text-zinc-500 dark:text-[#85868a]">
             <span>Labels</span>
             <div
-              className={`flex items-center gap-2 transition-colors rounded -ml-1 p-1 ${canManageProjects ? "hover:text-white cursor-pointer hover:bg-white/5" : "cursor-default"}`}
+              className={`flex items-center gap-2 transition-colors rounded -ml-1 p-1 ${canManageProjects ? "text-zinc-600 hover:text-zinc-900 dark:text-[#85868a] dark:hover:text-white cursor-pointer hover:bg-black/5 dark:hover:bg-white/5" : "text-zinc-400 dark:text-[#85868a] cursor-default"}`}
               onClick={canManageProjects ? () => {} : undefined}
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -562,21 +568,21 @@ export default function ProjectDetails() {
         </div>
       </div>
 
-      <hr className="border-white/[0.06]" />
+      <hr className="border-black/[0.08] dark:border-white/[0.06]" />
 
       {/* Milestones section */}
       <div>
         <div className="flex items-center justify-between mb-3">
           <div
             onClick={() => handleTabChange("Milestones")}
-            className="flex items-center gap-1.5 text-[13px] font-semibold text-white cursor-pointer hover:text-[#d1d2d5]"
+            className="flex items-center gap-1.5 text-[13px] font-semibold text-zinc-900 hover:text-zinc-700 dark:text-white dark:hover:text-[#d1d2d5] cursor-pointer"
           >
             <span>Milestones</span>
-            <ChevronRight size={13} className="text-[#85868a]" />
+            <ChevronRight size={13} className="text-zinc-400 dark:text-[#85868a]" />
           </div>
           <button
             onClick={() => handleTabChange("Milestones")}
-            className="text-[#8a8f98] hover:text-white p-0.5 rounded transition-colors"
+            className="text-zinc-500 hover:text-zinc-900 dark:text-[#8a8f98] dark:hover:text-white p-0.5 rounded transition-colors"
           >
             <Plus size={14} />
           </button>
@@ -584,7 +590,7 @@ export default function ProjectDetails() {
         {project.milestones && project.milestones.length > 0 ? (
           <div className="flex flex-col gap-2">
             {project.milestones.map((ms, idx) => (
-              <div key={idx} className="flex items-start gap-2 text-[13px] text-[#d1d2d5]">
+              <div key={idx} className="flex items-start gap-2 text-[13px] text-zinc-700 dark:text-[#d1d2d5]">
                 <svg className="mt-0.5 text-[#5e6ad2] shrink-0" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
                 </svg>
@@ -593,20 +599,20 @@ export default function ProjectDetails() {
             ))}
           </div>
         ) : (
-          <p className="text-[12px] text-[#85868a] leading-relaxed">
+          <p className="text-[12px] text-zinc-500 dark:text-[#85868a] leading-relaxed">
             Add milestones to organize work within your project and break it into more granular stages.
           </p>
         )}
       </div>
 
-      <hr className="border-white/[0.06]" />
+      <hr className="border-black/[0.08] dark:border-white/[0.06]" />
 
       {/* Activity section */}
       <div>
         <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-1.5 text-[13px] font-semibold text-white cursor-pointer hover:text-[#d1d2d5]">
+          <div className="flex items-center gap-1.5 text-[13px] font-semibold text-zinc-900 hover:text-zinc-700 dark:text-white dark:hover:text-[#d1d2d5] cursor-pointer">
             <span>Activity</span>
-            <ChevronRight size={13} className="text-[#85868a]" />
+            <ChevronRight size={13} className="text-zinc-400 dark:text-[#85868a]" />
           </div>
         </div>
 
@@ -614,8 +620,8 @@ export default function ProjectDetails() {
           <div className="w-5 h-5 rounded-full bg-[#f97373] text-white flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">
             {(project.lead?.name || project.lead?.email || "C").charAt(0).toUpperCase()}
           </div>
-          <div className="text-[#85868a]">
-            <span className="text-[#d1d2d5] font-medium mr-1">
+          <div className="text-zinc-500 dark:text-[#85868a]">
+            <span className="text-zinc-800 dark:text-[#d1d2d5] font-medium mr-1">
               {project.lead?.name || project.lead?.email || "cyrusjones"}
             </span>
             created the project{" "}
@@ -632,25 +638,25 @@ export default function ProjectDetails() {
   );
 
   return (
-    <div className="w-full flex flex-col h-full bg-black md:bg-[#131416] animate-in fade-in duration-300 overflow-hidden select-none">
+    <div className="w-full flex flex-col min-h-full md:h-full bg-white dark:bg-black md:dark:bg-[#131416] animate-in fade-in duration-300 md:overflow-hidden select-none">
       {/* 1. Top Breadcrumb & Action Header */}
-      <div className="h-[44px] shrink-0 flex items-center justify-between px-3 sm:px-6 border-b border-white/[0.06] bg-black md:bg-[#131416] z-20">
+      <div className="h-[44px] shrink-0 flex items-center justify-between px-3 sm:px-6 border-b border-black/[0.08] dark:border-white/[0.06] bg-white dark:bg-black md:dark:bg-[#131416] z-20">
         <div className="flex items-center gap-1.5 sm:gap-2 text-[13px] font-medium min-w-0">
           <button
             type="button"
             onClick={() => window.dispatchEvent(new CustomEvent("open-mobile-nav"))}
-            className="md:hidden p-1 -ml-1 text-[#8a8f98] hover:text-white rounded-md hover:bg-white/[0.06] transition-colors shrink-0"
+            className="md:hidden p-1 -ml-1 text-zinc-500 hover:text-zinc-900 dark:text-[#8a8f98] dark:hover:text-white rounded-md hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors shrink-0"
             aria-label="Open menu"
           >
             <Menu size={17} strokeWidth={1.75} />
           </button>
           <Link
             to="/projects"
-            className="text-[#85868a] hover:text-white transition-colors shrink-0"
+            className="text-zinc-500 hover:text-zinc-900 dark:text-[#85868a] dark:hover:text-white transition-colors shrink-0"
           >
             Projects
           </Link>
-          <span className="text-[#55565a] shrink-0">›</span>
+          <span className="text-zinc-400 dark:text-[#55565a] shrink-0">›</span>
           <div className="flex items-center gap-1.5 min-w-0">
             <div className="w-4 h-4 rounded-[4px] bg-[#e95454]/10 text-[#e95454] flex items-center justify-center shrink-0">
               <svg
@@ -666,18 +672,18 @@ export default function ProjectDetails() {
                 <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
               </svg>
             </div>
-            <span className="text-white truncate max-w-[150px] sm:max-w-[280px] md:max-w-md">
+            <span className="text-zinc-900 dark:text-white truncate max-w-[150px] sm:max-w-[280px] md:max-w-md font-semibold">
               {project.name}
             </span>
           </div>
         </div>
 
         {/* Right Action Icons (Star, More, Link, Bell) */}
-        <div className="flex items-center gap-0.5 sm:gap-1 shrink-0 text-[#85868a]">
+        <div className="flex items-center gap-0.5 sm:gap-1 shrink-0 text-zinc-500 dark:text-[#85868a]">
           <button
             type="button"
             onClick={() => setIsStarred(!isStarred)}
-            className="w-7 h-7 rounded-md hover:text-white hover:bg-white/[0.06] flex items-center justify-center transition-colors"
+            className="w-7 h-7 rounded-md hover:text-zinc-900 dark:hover:text-white hover:bg-black/[0.04] dark:hover:bg-white/[0.06] flex items-center justify-center transition-colors"
             title={isStarred ? "Remove from favorites" : "Add to favorites"}
           >
             <Star
@@ -689,7 +695,7 @@ export default function ProjectDetails() {
           <button
             type="button"
             onClick={() => setIsMobileSidebarOpen(true)}
-            className="w-7 h-7 rounded-md hover:text-white hover:bg-white/[0.06] flex items-center justify-center transition-colors"
+            className="w-7 h-7 rounded-md hover:text-zinc-900 dark:hover:text-white hover:bg-black/[0.04] dark:hover:bg-white/[0.06] flex items-center justify-center transition-colors"
             title="More options"
           >
             <MoreHorizontal size={14} />
@@ -697,18 +703,18 @@ export default function ProjectDetails() {
 
           <button
             type="button"
-            onClick={() => {
-              if (navigator.clipboard) {
-                navigator.clipboard.writeText(window.location.href);
+            onClick={async () => {
+              const success = await copyTextToClipboard(window.location.href);
+              if (success) {
                 setIsCopied(true);
                 setTimeout(() => setIsCopied(false), 2000);
               }
             }}
-            className="w-7 h-7 rounded-md hover:text-white hover:bg-white/[0.06] flex items-center justify-center transition-colors relative"
+            className="w-7 h-7 rounded-md hover:text-zinc-900 dark:hover:text-white hover:bg-black/[0.04] dark:hover:bg-white/[0.06] flex items-center justify-center transition-colors relative"
             title={isCopied ? "Link copied!" : "Copy link"}
           >
             {isCopied ? (
-              <Check size={14} className="text-emerald-400" />
+              <Check size={14} className="text-emerald-500 dark:text-emerald-400" />
             ) : (
               <Link2 size={14} />
             )}
@@ -717,7 +723,7 @@ export default function ProjectDetails() {
           <button
             type="button"
             onClick={() => setIsSubscribed(!isSubscribed)}
-            className="w-7 h-7 rounded-md hover:text-white hover:bg-white/[0.06] flex items-center justify-center transition-colors"
+            className="w-7 h-7 rounded-md hover:text-zinc-900 dark:hover:text-white hover:bg-black/[0.04] dark:hover:bg-white/[0.06] flex items-center justify-center transition-colors"
             title={isSubscribed ? "Subscribed to updates" : "Subscribe"}
           >
             <Bell
@@ -728,8 +734,8 @@ export default function ProjectDetails() {
         </div>
       </div>
 
-      {/* 2. Linear-style Tab Row */}
-      <div className="h-[42px] shrink-0 flex items-center justify-between px-3 sm:px-6 border-b border-white/[0.06] bg-black md:bg-[#131416] z-10">
+      {/* 2. Navigation Tab Row */}
+      <div className="h-[42px] shrink-0 flex items-center justify-between px-3 sm:px-6 border-b border-black/[0.08] dark:border-white/[0.06] bg-white dark:bg-black md:dark:bg-[#131416] z-10">
         <div className="flex items-center gap-1 sm:gap-1.5 overflow-x-auto no-scrollbar py-0.5">
           {tabs.map((tab) => {
             const isActive = activeTab === tab;
@@ -737,13 +743,24 @@ export default function ProjectDetails() {
               <button
                 key={tab}
                 onClick={() => handleTabChange(tab)}
-                className={`transition-all text-xs font-medium rounded-md px-3 py-1 flex items-center gap-1.5 shrink-0 ${
+                className={`relative transition-colors text-xs font-medium rounded-full px-3 py-1 flex items-center gap-1.5 shrink-0 cursor-pointer ${
                   isActive
-                    ? "bg-white/[0.1] text-white shadow-sm"
-                    : "text-[#85868a] hover:text-[#d1d2d5] hover:bg-white/[0.04]"
+                    ? "text-zinc-900 dark:text-white"
+                    : "text-zinc-600 hover:text-zinc-900 dark:text-[#8a8f98] dark:hover:text-white"
                 }`}
               >
-                <span>{tab}</span>
+                {isActive && (
+                  <motion.div
+                    layoutId="projectDetailsActiveTab"
+                    className="absolute inset-0 bg-white dark:bg-white/[0.12] border border-black/10 dark:border-white/10 rounded-full shadow-xs pointer-events-none"
+                    transition={{
+                      type: "spring",
+                      stiffness: 450,
+                      damping: 35,
+                    }}
+                  />
+                )}
+                <span className="relative z-10">{tab}</span>
               </button>
             );
           })}
@@ -754,7 +771,7 @@ export default function ProjectDetails() {
           <button
             type="button"
             onClick={() => setIsMobileSidebarOpen((prev) => !prev)}
-            className="w-7 h-7 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] text-[#8a8f98] hover:text-white flex items-center justify-center transition-colors"
+            className="w-7 h-7 rounded-lg bg-black/[0.04] hover:bg-black/[0.08] dark:bg-white/[0.04] dark:hover:bg-white/[0.08] border border-black/[0.08] dark:border-white/[0.06] text-zinc-500 hover:text-zinc-900 dark:text-[#8a8f98] dark:hover:text-white flex items-center justify-center transition-colors"
             title="Toggle properties panel"
           >
             <PanelRight size={14} />
@@ -766,10 +783,10 @@ export default function ProjectDetails() {
       <div className="flex-1 flex overflow-hidden min-h-0">
         {/* Left Scrollable Content */}
         <div className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-6 lg:p-10 min-w-0">
-          {activeTab === "Overview" && (
+          {deferredTab === "Overview" && (
             <div className="max-w-3xl">
               {/* Project Icon Badge */}
-              <div className="w-11 h-11 rounded-xl bg-gradient-to-b from-[#2a1717] to-[#1c1212] border border-[#e95454]/25 text-[#e95454] flex items-center justify-center mb-4 shadow-sm">
+              <div className="w-11 h-11 rounded-xl bg-gradient-to-b from-red-500/10 to-red-500/5 dark:from-[#2a1717] dark:to-[#1c1212] border border-[#e95454]/25 text-[#e95454] flex items-center justify-center mb-4 shadow-sm">
                 <svg
                   width="22"
                   height="22"
@@ -785,16 +802,16 @@ export default function ProjectDetails() {
               </div>
 
               {/* Title & Subtitle */}
-              <h1 className="text-xl sm:text-2xl font-bold text-white mb-2 tracking-tight">
+              <h1 className="text-xl sm:text-2xl font-bold text-zinc-900 dark:text-white mb-2 tracking-tight">
                 {project.name}
               </h1>
-              <p className="text-[#85868a] text-[13px] leading-relaxed mb-6">
+              <p className="text-zinc-500 dark:text-[#85868a] text-[13px] leading-relaxed mb-6">
                 A collaborative workspace for managing projects, tasks, and team workflows.
               </p>
 
               {/* Properties Section: Horizontal Chips */}
               <div className="mb-6">
-                <div className="text-[12px] font-medium text-[#85868a] mb-2.5">
+                <div className="text-[12px] font-medium text-zinc-500 dark:text-[#85868a] mb-2.5">
                   Properties
                 </div>
                 <div className="flex flex-wrap items-center gap-2 text-xs">
@@ -806,7 +823,7 @@ export default function ProjectDetails() {
                         if (canManageProjects)
                           setActivePicker(activePicker === "status" ? null : "status");
                       }}
-                      className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] text-white transition-colors ${
+                      className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-black/[0.03] hover:bg-black/[0.06] border border-black/[0.08] text-zinc-900 dark:bg-white/[0.04] dark:hover:bg-white/[0.08] dark:border-white/[0.06] dark:text-white transition-colors ${
                         canManageProjects ? "cursor-pointer" : "cursor-default"
                       }`}
                     >
@@ -832,7 +849,7 @@ export default function ProjectDetails() {
                         if (canManageProjects)
                           setActivePicker(activePicker === "priority" ? null : "priority");
                       }}
-                      className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] text-white transition-colors ${
+                      className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-black/[0.03] hover:bg-black/[0.06] border border-black/[0.08] text-zinc-900 dark:bg-white/[0.04] dark:hover:bg-white/[0.08] dark:border-white/[0.06] dark:text-white transition-colors ${
                         canManageProjects ? "cursor-pointer" : "cursor-default"
                       }`}
                     >
@@ -858,7 +875,7 @@ export default function ProjectDetails() {
                         if (canManageProjects)
                           setActivePicker(activePicker === "lead" ? null : "lead");
                       }}
-                      className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] text-white transition-colors ${
+                      className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-black/[0.03] hover:bg-black/[0.06] border border-black/[0.08] text-zinc-900 dark:bg-white/[0.04] dark:hover:bg-white/[0.08] dark:border-white/[0.06] dark:text-white transition-colors ${
                         canManageProjects ? "cursor-pointer" : "cursor-default"
                       }`}
                     >
@@ -885,7 +902,7 @@ export default function ProjectDetails() {
                           </span>
                         </>
                       ) : (
-                        <span className="text-[#85868a]">No lead</span>
+                        <span className="text-zinc-500 dark:text-[#85868a]">No lead</span>
                       )}
                     </div>
                     {activePicker === "lead" && (
@@ -907,11 +924,11 @@ export default function ProjectDetails() {
                         if (canManageProjects)
                           setActivePicker(activePicker === "dueDate" ? null : "dueDate");
                       }}
-                      className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] text-white transition-colors ${
+                      className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-black/[0.03] hover:bg-black/[0.06] border border-black/[0.08] text-zinc-900 dark:bg-white/[0.04] dark:hover:bg-white/[0.08] dark:border-white/[0.06] dark:text-white transition-colors ${
                         canManageProjects ? "cursor-pointer" : "cursor-default"
                       }`}
                     >
-                      <Calendar size={12} className="text-[#85868a]" />
+                      <Calendar size={12} className="text-zinc-500 dark:text-[#85868a]" />
                       <span>{formatProjectDates(project.start_date, project.due_date)}</span>
                     </div>
                     {activePicker === "dueDate" && (
@@ -928,7 +945,7 @@ export default function ProjectDetails() {
 
                   {/* Team Chip */}
                   {project.teams && project.teams.length > 0 && (
-                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white/[0.04] border border-white/[0.06] text-white">
+                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-black/[0.03] border border-black/[0.08] text-zinc-900 dark:bg-white/[0.04] dark:border-white/[0.06] dark:text-white">
                       <div className="w-3.5 h-3.5 rounded-[3px] bg-[#e95454]/10 text-[#e95454] flex items-center justify-center font-bold text-[8px]">
                         {project.teams[0].charAt(0).toUpperCase()}
                       </div>
@@ -940,7 +957,7 @@ export default function ProjectDetails() {
                   <button
                     type="button"
                     onClick={() => setIsMobileSidebarOpen(true)}
-                    className="w-7 h-[26px] rounded-md bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] text-[#8a8f98] hover:text-white flex items-center justify-center transition-colors"
+                    className="w-7 h-[26px] rounded-md bg-black/[0.03] hover:bg-black/[0.06] border border-black/[0.08] text-zinc-500 hover:text-zinc-900 dark:bg-white/[0.04] dark:hover:bg-white/[0.08] dark:border-white/[0.06] dark:text-[#8a8f98] dark:hover:text-white flex items-center justify-center transition-colors"
                     title="View all properties"
                   >
                     <MoreHorizontal size={13} />
@@ -950,12 +967,12 @@ export default function ProjectDetails() {
 
               {/* Resources Section */}
               <div className="mb-6">
-                <div className="text-[12px] font-medium text-[#85868a] mb-2">
+                <div className="text-[12px] font-medium text-zinc-500 dark:text-[#85868a] mb-2">
                   Resources
                 </div>
                 <button
                   type="button"
-                  className="text-[13px] text-[#85868a] hover:text-white flex items-center gap-1.5 py-1 transition-colors"
+                  className="text-[13px] text-zinc-500 hover:text-zinc-900 dark:text-[#85868a] dark:hover:text-white flex items-center gap-1.5 py-1 transition-colors"
                 >
                   <Plus size={14} />
                   <span>Add document or link...</span>
@@ -967,11 +984,11 @@ export default function ProjectDetails() {
                 onClick={() => {
                   // Prompt or focus
                 }}
-                className="border border-white/[0.08] hover:border-white/[0.15] bg-white/[0.02] hover:bg-white/[0.04] rounded-xl p-4 flex items-center justify-center gap-2 text-[13.5px] font-medium text-[#d1d2d5] cursor-pointer transition-all my-6 group"
+                className="border border-black/[0.08] hover:border-black/[0.15] bg-black/[0.01] hover:bg-black/[0.03] dark:border-white/[0.08] dark:hover:border-white/[0.15] dark:bg-white/[0.02] dark:hover:bg-white/[0.04] rounded-xl p-4 flex items-center justify-center gap-2 text-[13.5px] font-medium text-zinc-700 hover:text-zinc-900 dark:text-[#d1d2d5] dark:hover:text-white cursor-pointer transition-all my-6 group"
               >
                 <SquarePen
                   size={15}
-                  className="text-[#8a8f98] group-hover:text-white transition-colors"
+                  className="text-zinc-400 group-hover:text-zinc-900 dark:text-[#8a8f98] dark:group-hover:text-white transition-colors"
                 />
                 <span>Write first project update</span>
               </div>
@@ -980,7 +997,7 @@ export default function ProjectDetails() {
               <div className="mb-8">
                 <div
                   onClick={() => setIsDescriptionExpanded(!isDescriptionExpanded)}
-                  className="flex items-center gap-1.5 text-[13px] font-medium text-[#85868a] hover:text-white cursor-pointer mb-3 select-none transition-colors"
+                  className="flex items-center gap-1.5 text-[13px] font-medium text-zinc-500 hover:text-zinc-900 dark:text-[#85868a] dark:hover:text-white cursor-pointer mb-3 select-none transition-colors"
                 >
                   <span>Description</span>
                   <ChevronDown
@@ -1001,10 +1018,10 @@ export default function ProjectDetails() {
                           updateProjectProperty("description", e.target.value);
                         }
                       }}
-                      className="w-full min-h-[140px] text-[13.5px] leading-relaxed text-[#d1d2d5] whitespace-pre-wrap bg-white/[0.02] border border-white/[0.06] hover:border-white/10 focus:border-white/20 focus:outline-none rounded-lg p-3 resize-none transition-colors"
+                      className="w-full min-h-[140px] text-[13.5px] leading-relaxed text-zinc-800 dark:text-[#d1d2d5] whitespace-pre-wrap bg-black/[0.02] border border-black/[0.08] hover:border-black/[0.15] focus:border-black/30 dark:bg-white/[0.02] dark:border-white/[0.06] dark:hover:border-white/10 dark:focus:border-white/20 focus:outline-none rounded-lg p-3 resize-none transition-colors"
                     />
                   ) : (
-                    <div className="text-[13.5px] leading-relaxed text-[#d1d2d5] whitespace-pre-wrap">
+                    <div className="text-[13.5px] leading-relaxed text-zinc-800 dark:text-[#d1d2d5] whitespace-pre-wrap">
                       {project.description || "No description provided."}
                     </div>
                   )
@@ -1015,7 +1032,7 @@ export default function ProjectDetails() {
               <div className="mb-8">
                 <div
                   onClick={() => handleTabChange("Milestones")}
-                  className="flex items-center gap-1.5 text-[13px] text-[#85868a] hover:text-white cursor-pointer py-1 transition-colors"
+                  className="flex items-center gap-1.5 text-[13px] text-zinc-500 hover:text-zinc-900 dark:text-[#85868a] dark:hover:text-white cursor-pointer py-1 transition-colors"
                 >
                   <Plus size={14} />
                   <span>Milestone</span>
@@ -1025,7 +1042,7 @@ export default function ProjectDetails() {
                     {project.milestones.map((ms, idx) => (
                       <div
                         key={idx}
-                        className="flex items-center justify-between p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.05] text-[13px]"
+                        className="flex items-center justify-between p-2.5 rounded-lg bg-black/[0.02] dark:bg-white/[0.02] border border-black/[0.06] dark:border-white/[0.05] text-[13px]"
                       >
                         <div className="flex items-center gap-2">
                           <svg
@@ -1041,9 +1058,9 @@ export default function ProjectDetails() {
                           >
                             <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
                           </svg>
-                          <span className="text-white font-medium">{ms.name || ms.title}</span>
+                          <span className="text-zinc-900 dark:text-white font-medium">{ms.name || ms.title}</span>
                         </div>
-                        <span className="text-xs text-[#8a8f98]">
+                        <span className="text-xs text-zinc-500 dark:text-[#8a8f98]">
                           {ms.due_date
                             ? new Date(ms.due_date).toLocaleDateString("en-US", {
                                 month: "short",
@@ -1059,13 +1076,13 @@ export default function ProjectDetails() {
             </div>
           )}
 
-          {activeTab === "Milestones" &&
+          {deferredTab === "Milestones" &&
             (project.milestones && project.milestones.length > 0 ? (
               <div className="flex flex-col gap-4 mt-2 max-w-3xl">
                 {project.milestones.map((ms, idx) => (
                   <div
                     key={idx}
-                    className="p-4 rounded-xl border border-white/[0.06] bg-white/[0.01] flex flex-col gap-2"
+                    className="p-4 rounded-xl border border-black/[0.08] bg-black/[0.01] dark:border-white/[0.06] dark:bg-white/[0.01] flex flex-col gap-2"
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
@@ -1082,18 +1099,18 @@ export default function ProjectDetails() {
                         >
                           <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
                         </svg>
-                        <span className="font-medium text-white text-[14px]">
+                        <span className="font-semibold text-zinc-900 dark:text-white text-[14px]">
                           {ms.name || ms.title}
                         </span>
                       </div>
-                      <span className="text-xs text-[#8a8f98]">
+                      <span className="text-xs text-zinc-500 dark:text-[#8a8f98]">
                         {ms.due_date
                           ? new Date(ms.due_date).toLocaleDateString()
                           : "No date"}
                       </span>
                     </div>
                     {ms.description && (
-                      <p className="text-[13px] text-[#a1a1aa] ml-6">
+                      <p className="text-[13px] text-zinc-600 dark:text-[#a1a1aa] ml-6">
                         {ms.description}
                       </p>
                     )}
@@ -1102,8 +1119,8 @@ export default function ProjectDetails() {
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center h-full max-w-md mx-auto text-center mt-20">
-                <div className="w-16 h-16 bg-white/[0.03] border border-white/[0.05] rounded-2xl flex items-center justify-center text-[#8a8f98] shadow-sm relative overflow-hidden mb-6">
-                  <div className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-8 bg-white/20 blur-xl rounded-full" />
+                <div className="w-16 h-16 bg-black/[0.03] border border-black/[0.08] dark:bg-white/[0.03] dark:border-white/[0.05] rounded-2xl flex items-center justify-center text-zinc-400 dark:text-[#8a8f98] shadow-sm relative overflow-hidden mb-6">
+                  <div className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-8 bg-zinc-900/10 dark:bg-white/20 blur-xl rounded-full" />
                   <svg
                     width="24"
                     height="24"
@@ -1118,25 +1135,25 @@ export default function ProjectDetails() {
                     <path d="M12 5v14" />
                   </svg>
                 </div>
-                <h2 className="text-[16px] font-medium text-white mb-3">
+                <h2 className="text-[16px] font-semibold text-zinc-900 dark:text-white mb-3">
                   No milestones yet
                 </h2>
-                <p className="text-[14px] text-[#8a8f98] leading-relaxed">
+                <p className="text-[14px] text-zinc-500 dark:text-[#8a8f98] leading-relaxed">
                   Project milestones such as key deliverables and dates will
                   appear here.
                 </p>
               </div>
             ))}
 
-          {activeTab === "Issues" && (
+          {deferredTab === "Issues" && (
             <div className="h-full flex flex-col">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-[16px] font-medium text-white">
+                <h2 className="text-[16px] font-semibold text-zinc-900 dark:text-white">
                   Project Issues
                 </h2>
                 <button
                   onClick={() => setIsCreateModalOpen(true)}
-                  className="flex items-center gap-1.5 bg-white text-black hover:bg-zinc-100 transition-all duration-300 text-xs font-medium px-3.5 py-1.5 rounded-full shadow-[0_0_20px_rgba(255,255,255,0.14)] hover:shadow-[0_0_28px_rgba(255,255,255,0.22)] active:scale-[0.98]"
+                  className="flex items-center gap-1.5 bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-100 transition-all duration-300 text-xs font-medium px-3.5 py-1.5 rounded-full shadow-[0_0_20px_rgba(0,0,0,0.06)] dark:shadow-[0_0_20px_rgba(255,255,255,0.14)] active:scale-[0.98]"
                 >
                   <Plus size={14} strokeWidth={2.2} /> New Issue
                 </button>
@@ -1145,14 +1162,14 @@ export default function ProjectDetails() {
               {tasks.length === 0 ? (
                 <div className="flex flex-col items-center justify-center flex-1 max-w-sm mx-auto text-center gap-6 mt-10">
                   <div className="w-64 h-64 flex items-center justify-center relative overflow-visible">
-                    <Checklist theme="dark" intensity={0.7} className="w-full h-full text-[#8a8f98] opacity-80" />
+                    <Checklist theme={effectiveTheme} intensity={0.7} className="w-full h-full text-zinc-400 dark:text-[#8a8f98] opacity-80" />
                   </div>
 
                   <div className="flex flex-col gap-2">
-                    <h2 className="text-lg font-semibold text-white tracking-tight">
+                    <h2 className="text-lg font-semibold text-zinc-900 dark:text-white tracking-tight">
                       Add issues to the project
                     </h2>
-                    <p className="text-[14px] text-text-muted leading-relaxed">
+                    <p className="text-[14px] text-zinc-500 dark:text-text-muted leading-relaxed">
                       Start building your project by creating an issue. You can
                       also add teams, team members, and project dates in the
                       project sidebar.
@@ -1162,7 +1179,7 @@ export default function ProjectDetails() {
                   <div className="flex items-center gap-3 mt-4">
                     <button
                       onClick={() => setIsCreateModalOpen(true)}
-                      className="h-8 px-4 bg-white text-black rounded-full font-medium text-[13px] hover:bg-zinc-100 transition-all duration-300 shadow-[0_0_20px_rgba(255,255,255,0.14)] hover:shadow-[0_0_28px_rgba(255,255,255,0.22)] active:scale-[0.98] flex items-center gap-2"
+                      className="h-8 px-4 bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-100 rounded-full font-medium text-[13px] transition-all duration-300 shadow-[0_0_20px_rgba(0,0,0,0.06)] dark:shadow-[0_0_20px_rgba(255,255,255,0.14)] active:scale-[0.98] flex items-center gap-2"
                     >
                       <Plus size={14} strokeWidth={2.2} />
                       Create new issue
@@ -1170,9 +1187,9 @@ export default function ProjectDetails() {
                   </div>
                 </div>
               ) : (
-                <div className="flex-1 bg-white/[0.01] border border-white/[0.05] rounded-xl overflow-x-auto flex flex-col shadow-sm">
+                <div className="flex-1 bg-white dark:bg-white/[0.01] border border-black/[0.08] dark:border-white/[0.05] rounded-xl overflow-x-auto flex flex-col shadow-sm">
                   {/* Table Header */}
-                  <div className="grid grid-cols-[110px_minmax(200px,1fr)_120px_100px_100px_80px] min-w-[710px] gap-4 px-5 py-3 border-b border-white/[0.05] text-xs font-medium text-[#8a8f98] uppercase tracking-wider">
+                  <div className="grid grid-cols-[110px_minmax(200px,1fr)_120px_100px_100px_80px] min-w-[710px] gap-4 px-5 py-3 border-b border-black/[0.08] dark:border-white/[0.05] text-xs font-medium text-zinc-500 dark:text-[#8a8f98] uppercase tracking-wider bg-black/[0.01] dark:bg-transparent">
                     <div>ID</div>
                     <div>Title</div>
                     <div>Status</div>
@@ -1182,7 +1199,7 @@ export default function ProjectDetails() {
                   </div>
 
                   {/* Table Body */}
-                  <div className="flex-1 overflow-y-auto divide-y divide-white/[0.05] custom-scrollbar min-w-[710px]">
+                  <div className="flex-1 overflow-y-auto divide-y divide-black/[0.06] dark:divide-white/[0.05] custom-scrollbar min-w-[710px]">
                     {tasks.map((task, idx) => (
                       <div
                         key={task.id}
@@ -1190,35 +1207,35 @@ export default function ProjectDetails() {
                           setSelectedTaskId(task.id);
                           setActiveIndex(idx);
                         }}
-                        className={`grid grid-cols-[110px_minmax(200px,1fr)_120px_100px_100px_80px] gap-4 px-5 py-3.5 hover:bg-white/[0.04] transition-colors items-center text-[13px] group cursor-pointer ${
+                        className={`grid grid-cols-[110px_minmax(200px,1fr)_120px_100px_100px_80px] gap-4 px-5 py-3.5 hover:bg-black/[0.03] dark:hover:bg-white/[0.04] transition-colors items-center text-[13px] group cursor-pointer ${
                           activeIndex === idx
-                            ? "bg-white/[0.08] ring-1 ring-inset ring-white/10"
+                            ? "bg-black/[0.05] ring-1 ring-inset ring-black/10 dark:bg-white/[0.08] dark:ring-white/10"
                             : ""
                         }`}
                       >
-                        <div className="font-mono text-[11px] text-text-muted font-medium">
+                        <div className="font-mono text-[11px] text-zinc-500 dark:text-text-muted font-medium">
                           {task.project_identifier || project?.identifier
                             ? `${task.project_identifier || project.identifier}-${task.id}`
                             : task.id}
                         </div>
-                        <div className="text-text-primary font-medium truncate group-hover:text-accent transition-colors">
+                        <div className="text-zinc-900 dark:text-text-primary font-medium truncate group-hover:text-accent transition-colors">
                           {task.title}
                         </div>
                         <div className="flex items-center gap-2">
                           {task.status === "Done" ? (
-                            <CheckSquare size={14} className="text-green-500" />
+                            <CheckSquare size={14} className="text-emerald-500 dark:text-green-500" />
                           ) : task.status === "In Progress" ? (
-                            <Compass size={14} className="text-orange-400" />
+                            <Compass size={14} className="text-amber-500 dark:text-orange-400" />
                           ) : task.status === "In Review" ? (
-                            <FileText size={14} className="text-blue-400" />
+                            <FileText size={14} className="text-blue-500 dark:text-blue-400" />
                           ) : (
-                            <Compass size={14} className="text-gray-500" />
+                            <Compass size={14} className="text-zinc-400 dark:text-gray-500" />
                           )}
                           <span
                             className={
                               task.status === "Done"
-                                ? "text-gray-400"
-                                : "text-white"
+                                ? "text-zinc-400 dark:text-gray-400"
+                                : "text-zinc-900 dark:text-white"
                             }
                           >
                             {task.status}
@@ -1228,16 +1245,16 @@ export default function ProjectDetails() {
                           <span
                             className={`px-2 py-0.5 rounded text-[11px] font-medium border ${
                               task.priority === "High"
-                                ? "bg-red-500/10 text-red-500 border-red-500/20"
+                                ? "bg-red-500/10 text-red-600 dark:text-red-500 border-red-500/20"
                                 : task.priority === "Medium"
-                                  ? "bg-orange-500/10 text-orange-500 border-orange-500/20"
-                                  : "bg-white/5 text-gray-400 border-white/10"
+                                  ? "bg-amber-500/10 text-amber-600 dark:text-orange-500 border-amber-500/20"
+                                  : "bg-black/5 dark:bg-white/5 text-zinc-500 dark:text-gray-400 border-black/10 dark:border-white/10"
                             }`}
                           >
                             {task.priority}
                           </span>
                         </div>
-                        <div className="flex items-center gap-2 text-gray-400 truncate">
+                        <div className="flex items-center gap-2 text-zinc-600 dark:text-gray-400 truncate">
                           {task.assignee_name && (
                             <div
                               className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white ${getAvatarColor(task.assignee_name, task.assignee_name)}`}
@@ -1249,7 +1266,7 @@ export default function ProjectDetails() {
                             {task.assignee_name || "Unassigned"}
                           </span>
                         </div>
-                        <div className="text-right text-gray-500 text-xs">
+                        <div className="text-right text-zinc-500 dark:text-gray-500 text-xs">
                           {task.due_date
                             ? new Date(task.due_date).toLocaleDateString()
                             : "-"}
@@ -1264,32 +1281,32 @@ export default function ProjectDetails() {
         </div>
 
         {/* Desktop Right Sidebar */}
-        <div className="hidden lg:block w-[300px] xl:w-[320px] shrink-0 border-l border-white/[0.06] overflow-y-auto custom-scrollbar bg-black md:bg-[#131416]">
+        <div className="hidden lg:block w-[300px] xl:w-[320px] shrink-0 border-l border-black/[0.08] dark:border-white/[0.06] overflow-y-auto custom-scrollbar bg-white dark:bg-black md:dark:bg-[#131416]">
           {renderPropertiesSidebar(false)}
         </div>
       </div>
 
-      {/* Mobile Slide-over / Bottom Sheet (Matching Image 4) */}
+      {/* Mobile Slide-over / Bottom Sheet */}
       {isMobileSidebarOpen && (
         <div className="fixed inset-0 z-50 lg:hidden flex flex-col justify-end">
           {/* Backdrop */}
           <div
-            className="fixed inset-0 bg-black/70 backdrop-blur-sm transition-opacity"
+            className="fixed inset-0 bg-black/40 dark:bg-black/70 backdrop-blur-sm transition-opacity"
             onClick={() => setIsMobileSidebarOpen(false)}
           />
           {/* Bottom Sheet Drawer */}
-          <div className="relative z-10 bg-[#161719] border-t border-white/[0.1] rounded-t-2xl max-h-[85vh] overflow-y-auto custom-scrollbar p-5 shadow-2xl flex flex-col animate-in slide-in-from-bottom duration-200">
+          <div className="relative z-10 bg-white dark:bg-[#161719] border-t border-black/[0.1] dark:border-white/[0.1] rounded-t-2xl max-h-[85vh] overflow-y-auto custom-scrollbar p-5 shadow-2xl flex flex-col animate-in slide-in-from-bottom duration-200">
             {/* Sheet Header */}
-            <div className="flex items-center justify-between pb-3 mb-4 border-b border-white/[0.08]">
-              <div className="flex items-center gap-1.5 text-sm font-semibold text-white">
+            <div className="flex items-center justify-between pb-3 mb-4 border-b border-black/[0.08] dark:border-white/[0.08]">
+              <div className="flex items-center gap-1.5 text-sm font-semibold text-zinc-900 dark:text-white">
                 <span>Properties</span>
-                <ChevronDown size={14} className="text-[#8a8f98]" />
+                <ChevronDown size={14} className="text-zinc-500 dark:text-[#8a8f98]" />
               </div>
               <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => setIsMobileSidebarOpen(false)}
-                  className="w-7 h-7 rounded-lg text-[#8a8f98] hover:text-white hover:bg-white/[0.06] flex items-center justify-center transition-colors"
+                  className="w-7 h-7 rounded-lg text-zinc-500 hover:text-zinc-900 hover:bg-black/[0.06] dark:text-[#8a8f98] dark:hover:text-white dark:hover:bg-white/[0.06] flex items-center justify-center transition-colors"
                 >
                   <X size={16} />
                 </button>

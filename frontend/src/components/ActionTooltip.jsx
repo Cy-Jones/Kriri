@@ -8,11 +8,11 @@ function renderShortcutKeys(shortcut) {
     const parts = shortcut.split(" then ");
     return (
       <span className="flex items-center gap-1 ml-1.5">
-        <kbd className="h-[18px] min-w-[18px] px-1.5 flex items-center justify-center rounded-[5px] bg-white/[0.08] border border-white/[0.12] font-mono text-[10px] text-[#a1a7b1]">
+        <kbd className="h-[18px] min-w-[18px] px-1.5 flex items-center justify-center rounded-[5px] bg-zinc-100 dark:bg-white/[0.08] border border-black/10 dark:border-white/[0.12] font-mono text-[10px] text-zinc-600 dark:text-[#a1a7b1]">
           {parts[0]}
         </kbd>
-        <span className="text-[10px] text-[#8a8f98]">then</span>
-        <kbd className="h-[18px] min-w-[18px] px-1.5 flex items-center justify-center rounded-[5px] bg-white/[0.08] border border-white/[0.12] font-mono text-[10px] text-[#a1a7b1]">
+        <span className="text-[10px] text-zinc-500 dark:text-[#8a8f98]">then</span>
+        <kbd className="h-[18px] min-w-[18px] px-1.5 flex items-center justify-center rounded-[5px] bg-zinc-100 dark:bg-white/[0.08] border border-black/10 dark:border-white/[0.12] font-mono text-[10px] text-zinc-600 dark:text-[#a1a7b1]">
           {parts[1]}
         </kbd>
       </span>
@@ -37,7 +37,7 @@ function renderShortcutKeys(shortcut) {
       {keys.map((k, idx) => (
         <kbd
           key={idx}
-          className="h-[18px] min-w-[18px] px-1.5 flex items-center justify-center rounded-[5px] bg-white/[0.08] border border-white/[0.12] font-mono text-[10px] text-[#a1a7b1] leading-none select-none"
+          className="h-[18px] min-w-[18px] px-1.5 flex items-center justify-center rounded-[5px] bg-zinc-100 dark:bg-white/[0.08] border border-black/10 dark:border-white/[0.12] font-mono text-[10px] text-zinc-600 dark:text-[#a1a7b1] leading-none select-none"
         >
           {k}
         </kbd>
@@ -65,11 +65,11 @@ export default function ActionTooltip({
             side={side}
             align={align}
             sideOffset={sideOffset}
-            className="z-[9999] px-2.5 py-1.5 flex items-center gap-1.5 bg-[#2a2b2d] border border-[#3c3f44] text-[#e8e8e8] text-[12px] rounded-lg shadow-xl animate-in fade-in zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out data-[state=closed]:zoom-out-95 pointer-events-none select-none"
+            className="z-[9999] px-2.5 py-1.5 flex items-center gap-1.5 bg-white dark:bg-[#2a2b2d] border border-black/10 dark:border-[#3c3f44] text-zinc-900 dark:text-[#e8e8e8] text-[12px] rounded-lg shadow-xl animate-in fade-in zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out data-[state=closed]:zoom-out-95 pointer-events-none select-none"
           >
             <span className="font-medium whitespace-nowrap">{label}</span>
             {renderShortcutKeys(shortcut)}
-            <Tooltip.Arrow className="fill-[#3c3f44]" />
+            <Tooltip.Arrow className="fill-white dark:fill-[#2a2b2d]" />
           </Tooltip.Content>
         </Tooltip.Portal>
       </Tooltip.Root>

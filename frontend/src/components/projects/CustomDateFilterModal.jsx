@@ -33,20 +33,20 @@ export default function CustomDateFilterModal({
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm">
-      <div className="bg-[#1c1c1e] border border-white/10 rounded-xl shadow-2xl w-full max-w-[640px] flex flex-col animate-in fade-in zoom-in-95 duration-200">
-        <div className="px-5 py-4 border-b border-white/10 flex items-center gap-3">
-          <h2 className="text-[15px] font-medium text-white">
+      <div className="bg-white dark:bg-[#1c1c1e] border border-black/10 dark:border-white/10 rounded-xl shadow-2xl w-full max-w-[640px] flex flex-col animate-in fade-in zoom-in-95 duration-200">
+        <div className="px-5 py-4 border-b border-black/[0.06] dark:border-white/10 flex items-center gap-3">
+          <h2 className="text-[15px] font-semibold text-zinc-900 dark:text-white">
             {customDateCategory}
           </h2>
-          <div className="flex bg-white/5 rounded-full p-0.5">
+          <div className="flex bg-black/[0.04] dark:bg-white/5 rounded-full p-0.5 border border-black/[0.06] dark:border-transparent">
             {["on", "before", "after"].map((modifier) => (
               <button
                 key={modifier}
                 onClick={() => setCustomDateModifier(modifier)}
                 className={`px-3 py-1 text-[12px] rounded-full transition-colors ${
                   customDateModifier === modifier
-                    ? "bg-white/10 text-white"
-                    : "text-[#8a8f98] hover:text-[#e8e8e8]"
+                    ? "bg-white text-zinc-900 shadow-xs dark:bg-white/10 dark:text-white font-medium"
+                    : "text-zinc-600 hover:text-zinc-900 dark:text-[#8a8f98] dark:hover:text-[#e8e8e8]"
                 }`}
               >
                 {modifier}
@@ -66,7 +66,7 @@ export default function CustomDateFilterModal({
               }
             }}
             placeholder="Try: May 2027, Q4, 05/20/2027"
-            className="w-full bg-[#1c1c1e] border border-white/20 rounded-lg text-[13px] text-white placeholder-[#8a8f98] px-3 py-2 outline-none focus:border-[#3b82f6] transition-colors"
+            className="w-full bg-zinc-50 dark:bg-[#1c1c1e] border border-black/15 dark:border-white/20 rounded-lg text-[13px] text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-[#8a8f98] px-3 py-2 outline-none focus:border-[#3b82f6] transition-colors"
           />
 
           <div className="flex items-center gap-1.5">
@@ -76,8 +76,8 @@ export default function CustomDateFilterModal({
                 onClick={() => setCustomDateMode(mode)}
                 className={`px-3 py-1.5 rounded-full text-[12px] transition-colors ${
                   customDateMode === mode
-                    ? "bg-white/10 text-white"
-                    : "text-[#8a8f98] hover:text-[#e8e8e8] hover:bg-white/5"
+                    ? "bg-black/10 text-zinc-900 dark:bg-white/10 dark:text-white font-medium"
+                    : "text-zinc-600 hover:text-zinc-900 hover:bg-black/[0.04] dark:text-[#8a8f98] dark:hover:text-[#e8e8e8] dark:hover:bg-white/5"
                 }`}
               >
                 {mode}
@@ -92,7 +92,7 @@ export default function CustomDateFilterModal({
             {customDateMode === "Quarter" &&
               ["2024", "2025", "2026", "2027", "2028"].map((year) => (
                 <div key={year} className="flex flex-col gap-2">
-                  <div className="text-[12px] text-[#8a8f98]">{year}</div>
+                  <div className="text-[12px] text-zinc-500 dark:text-[#8a8f98] font-medium">{year}</div>
                   <div className="grid grid-cols-4 gap-2">
                     {["Q1", "Q2", "Q3", "Q4"].map((q) => {
                       const val = `${year} ${q}`;
@@ -103,8 +103,8 @@ export default function CustomDateFilterModal({
                           onClick={() => setCustomDateSelection(val)}
                           className={`border rounded-full py-1.5 text-[12px] transition-colors ${
                             isSelected
-                              ? "border-[#3b82f6] bg-[#3b82f6]/20 text-[#3b82f6]"
-                              : "border-white/5 text-[#e8e8e8] hover:bg-white/5 hover:border-white/10"
+                              ? "border-[#3b82f6] bg-[#3b82f6]/20 text-[#3b82f6] font-medium"
+                              : "border-black/10 text-zinc-800 hover:bg-black/[0.03] hover:border-black/20 dark:border-white/5 dark:text-[#e8e8e8] dark:hover:bg-white/5 dark:hover:border-white/10"
                           }`}
                         >
                           {q}
@@ -118,7 +118,7 @@ export default function CustomDateFilterModal({
             {customDateMode === "Month" &&
               ["2024", "2025", "2026", "2027", "2028"].map((year) => (
                 <div key={year} className="flex flex-col gap-2">
-                  <div className="text-[12px] text-[#8a8f98]">{year}</div>
+                  <div className="text-[12px] text-zinc-500 dark:text-[#8a8f98] font-medium">{year}</div>
                   <div className="grid grid-cols-6 gap-2">
                     {[
                       "Jan",
@@ -142,8 +142,8 @@ export default function CustomDateFilterModal({
                           onClick={() => setCustomDateSelection(val)}
                           className={`border rounded-full py-1.5 text-[12px] transition-colors ${
                             isSelected
-                              ? "border-[#3b82f6] bg-[#3b82f6]/20 text-[#3b82f6]"
-                              : "border-white/5 text-[#e8e8e8] hover:bg-white/5 hover:border-white/10"
+                              ? "border-[#3b82f6] bg-[#3b82f6]/20 text-[#3b82f6] font-medium"
+                              : "border-black/10 text-zinc-800 hover:bg-black/[0.03] hover:border-black/20 dark:border-white/5 dark:text-[#e8e8e8] dark:hover:bg-white/5 dark:hover:border-white/10"
                           }`}
                         >
                           {m}
@@ -156,7 +156,7 @@ export default function CustomDateFilterModal({
 
             {customDateMode === "Year" && (
               <div className="flex flex-col gap-2">
-                <div className="text-[12px] text-[#8a8f98]">Select Year</div>
+                <div className="text-[12px] text-zinc-500 dark:text-[#8a8f98] font-medium">Select Year</div>
                 <div className="grid grid-cols-4 gap-2">
                   {[
                     "2020",
@@ -179,8 +179,8 @@ export default function CustomDateFilterModal({
                         onClick={() => setCustomDateSelection(y)}
                         className={`border rounded-full py-1.5 text-[12px] transition-colors ${
                           isSelected
-                            ? "border-[#3b82f6] bg-[#3b82f6]/20 text-[#3b82f6]"
-                            : "border-white/5 text-[#e8e8e8] hover:bg-white/5 hover:border-white/10"
+                            ? "border-[#3b82f6] bg-[#3b82f6]/20 text-[#3b82f6] font-medium"
+                            : "border-black/10 text-zinc-800 hover:bg-black/[0.03] hover:border-black/20 dark:border-white/5 dark:text-[#e8e8e8] dark:hover:bg-white/5 dark:hover:border-white/10"
                         }`}
                       >
                         {y}
@@ -194,7 +194,7 @@ export default function CustomDateFilterModal({
             {customDateMode === "Half-year" &&
               ["2024", "2025", "2026", "2027", "2028"].map((year) => (
                 <div key={year} className="flex flex-col gap-2">
-                  <div className="text-[12px] text-[#8a8f98]">{year}</div>
+                  <div className="text-[12px] text-zinc-500 dark:text-[#8a8f98] font-medium">{year}</div>
                   <div className="grid grid-cols-2 gap-2">
                     {["H1", "H2"].map((h) => {
                       const val = `${year} ${h}`;
@@ -205,8 +205,8 @@ export default function CustomDateFilterModal({
                           onClick={() => setCustomDateSelection(val)}
                           className={`border rounded-full py-1.5 text-[12px] transition-colors ${
                             isSelected
-                              ? "border-[#3b82f6] bg-[#3b82f6]/20 text-[#3b82f6]"
-                              : "border-white/5 text-[#e8e8e8] hover:bg-white/5 hover:border-white/10"
+                              ? "border-[#3b82f6] bg-[#3b82f6]/20 text-[#3b82f6] font-medium"
+                              : "border-black/10 text-zinc-800 hover:bg-black/[0.03] hover:border-black/20 dark:border-white/5 dark:text-[#e8e8e8] dark:hover:bg-white/5 dark:hover:border-white/10"
                           }`}
                         >
                           {h}
@@ -240,7 +240,7 @@ export default function CustomDateFilterModal({
                   return (
                     <div className="flex-1 flex flex-col gap-3">
                       <div className="flex items-center justify-between px-1">
-                        <div className="text-[13px] text-[#e8e8e8] font-medium">
+                        <div className="text-[13px] text-zinc-900 dark:text-[#e8e8e8] font-semibold">
                           {data.monthName} {data.year}
                         </div>
                         {isRight && (
@@ -249,7 +249,7 @@ export default function CustomDateFilterModal({
                               onClick={() =>
                                 setCustomDateMonthOffset((prev) => prev - 1)
                               }
-                              className="text-[#8a8f98] hover:text-white"
+                              className="text-zinc-500 hover:text-zinc-900 dark:text-[#8a8f98] dark:hover:text-white"
                             >
                               <ChevronLeft size={14} />
                             </button>
@@ -257,7 +257,7 @@ export default function CustomDateFilterModal({
                               onClick={() =>
                                 setCustomDateMonthOffset((prev) => prev + 1)
                               }
-                              className="text-[#8a8f98] hover:text-white"
+                              className="text-zinc-500 hover:text-zinc-900 dark:text-[#8a8f98] dark:hover:text-white"
                             >
                               <ChevronRight size={14} />
                             </button>
@@ -269,8 +269,8 @@ export default function CustomDateFilterModal({
                           <div
                             key={d}
                             className={`py-1.5 ${
-                              d === "Su" || d === "Sa" ? "bg-white/[0.02]" : ""
-                            } text-[#8a8f98]`}
+                              d === "Su" || d === "Sa" ? "bg-black/[0.02] dark:bg-white/[0.02]" : ""
+                            } text-zinc-400 dark:text-[#8a8f98] font-medium`}
                           >
                             {d}
                           </div>
@@ -280,7 +280,7 @@ export default function CustomDateFilterModal({
                           <div
                             key={`empty-${i}`}
                             className={`py-1.5 ${
-                              i === 0 ? "bg-white/[0.02]" : ""
+                              i === 0 ? "bg-black/[0.02] dark:bg-white/[0.02]" : ""
                             }`}
                           ></div>
                         ))}
@@ -301,15 +301,15 @@ export default function CustomDateFilterModal({
                             <div
                               key={day}
                               className={`flex items-center justify-center py-1.5 ${
-                                isWeekend ? "bg-white/[0.02]" : ""
+                                isWeekend ? "bg-black/[0.02] dark:bg-white/[0.02]" : ""
                               }`}
                             >
                               <button
                                 onClick={() => setCustomDateSelection(val)}
-                                className={`w-6 h-6 flex items-center justify-center rounded-full transition-colors ${
+                                className={`w-6 h-6 flex items-center justify-center rounded-full transition-colors text-[12px] ${
                                   isSelected
-                                    ? "bg-[#3b82f6] text-white"
-                                    : "text-[#e8e8e8] hover:bg-white/10 hover:text-white"
+                                    ? "bg-[#3b82f6] text-white font-medium"
+                                    : "text-zinc-800 hover:bg-black/10 hover:text-zinc-900 dark:text-[#e8e8e8] dark:hover:bg-white/10 dark:hover:text-white"
                                 }`}
                               >
                                 {day}
@@ -328,7 +328,7 @@ export default function CustomDateFilterModal({
                             <div
                               key={`empty-end-${i}`}
                               className={`py-1.5 ${
-                                isWeekend ? "bg-white/[0.02]" : ""
+                                isWeekend ? "bg-black/[0.02] dark:bg-white/[0.02]" : ""
                               }`}
                             ></div>
                           );
@@ -348,16 +348,16 @@ export default function CustomDateFilterModal({
           </div>
         </div>
 
-        <div className="px-5 py-3 border-t border-white/10 flex justify-end gap-2 bg-white/5 rounded-b-xl">
+        <div className="px-5 py-3 border-t border-black/[0.06] dark:border-white/10 flex justify-end gap-2 bg-black/[0.02] dark:bg-white/5 rounded-b-xl">
           <button
             onClick={onClose}
-            className="px-4 py-1.5 text-[13px] text-[#8a8f98] hover:text-[#e8e8e8] hover:bg-white/5 rounded-md transition-colors"
+            className="px-4 py-1.5 text-[13px] text-zinc-600 hover:text-zinc-900 hover:bg-black/[0.04] dark:text-[#8a8f98] dark:hover:text-[#e8e8e8] dark:hover:bg-white/5 rounded-md transition-colors"
           >
             Cancel
           </button>
           <button
             onClick={handleApply}
-            className="px-4 py-1.5 text-[13px] bg-[#3b82f6] text-white hover:bg-[#3b82f6]/90 rounded-md transition-colors"
+            className="px-4 py-1.5 text-[13px] bg-[#3b82f6] text-white hover:bg-[#3b82f6]/90 rounded-md transition-colors font-medium"
           >
             Apply
           </button>

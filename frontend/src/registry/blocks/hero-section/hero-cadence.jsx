@@ -21,7 +21,7 @@ const MESH = [
 
 /** Sample customers. The marks are the brands' own icons, drawn in the text color. */
 const BRANDS = [
-  { name: "Linear", logo: "/block-logos/linear.svg" },
+  { name: "GitHub", logo: "/block-logos/github.svg" },
   { name: "Vercel", logo: "/block-logos/vercel.svg" },
   { name: "Raycast", logo: "/block-logos/raycast.svg" },
   { name: "Notion", logo: "/block-logos/notion.svg" },

@@ -6,6 +6,12 @@ const { taskSchema } = require("../validators");
 
 exports.getAllTasks = async (req, res) => {
   try {
+    const limit = Math.min(
+      Math.max(parseInt(req.query.limit, 10) || 200, 1),
+      1000,
+    );
+    const offset = Math.max(parseInt(req.query.offset, 10) || 0, 0);
+
     const { rows } = await db.query(
       `
       SELECT t.*, u.name as assignee_name, u.avatar_url as assignee_avatar_url, p.slug as project_slug, p.identifier as project_identifier, p.name as project_name 
@@ -14,8 +20,9 @@ exports.getAllTasks = async (req, res) => {
       JOIN projects p ON t.project_id = p.id
       WHERE p.workspace_id = $1
       ORDER BY t.created_at DESC
+      LIMIT $2 OFFSET $3
     `,
-      [req.workspace.id],
+      [req.workspace.id, limit, offset],
     );
     res.json(rows);
   } catch (error) {

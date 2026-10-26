@@ -4,9 +4,14 @@ let clerkTokenGetter = null;
 let activeAuthScope = "";
 
 export const setClerkTokenGetter = (fn, scope = "") => {
-  if (clerkTokenGetter !== fn || (scope && activeAuthScope !== scope)) {
+  if (scope && activeAuthScope && activeAuthScope !== scope) {
     cachedToken = null;
     tokenExpiry = 0;
+    currentActiveWorkspaceId = null;
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("kriri:active_workspace_id");
+      delete window.__KRIRI_ACTIVE_WORKSPACE_ID__;
+    }
     clearApiCache();
   }
   clerkTokenGetter = fn;
@@ -31,7 +36,7 @@ const getToken = async (forceRefresh = false) => {
       const token = await clerkTokenGetter(forceRefresh ? { skipCache: true } : undefined);
       if (token) {
         cachedToken = token;
-        tokenExpiry = now + 4000; // micro-cache for 4s to dedupe concurrent requests
+        tokenExpiry = now + 45000; // cache for 45s (Clerk tokens are valid for 60s)
         return token;
       }
     } catch (e) {
@@ -40,23 +45,26 @@ const getToken = async (forceRefresh = false) => {
   }
 
   // 2. Fallback to window.Clerk if available
-  if (typeof window !== "undefined") {
-    // If Clerk is initializing, wait up to 1.5s for session
-    if (!window.Clerk?.session) {
-      for (let i = 0; i < 15; i++) {
-        if (window.Clerk?.session) break;
-        await new Promise((r) => setTimeout(r, 80));
+  if (typeof window !== "undefined" && window.Clerk) {
+    if (window.Clerk.loaded && !window.Clerk.session) {
+      return localStorage.getItem("token") || "";
+    }
+
+    if (!window.Clerk.loaded && !window.Clerk.session) {
+      for (let i = 0; i < 4; i++) {
+        if (window.Clerk.loaded || window.Clerk.session) break;
+        await new Promise((r) => setTimeout(r, 40));
       }
     }
 
-    if (window.Clerk && window.Clerk.session) {
+    if (window.Clerk.session) {
       try {
         const token = await window.Clerk.session.getToken(
           forceRefresh ? { skipCache: true } : undefined
         );
         if (token) {
           cachedToken = token;
-          tokenExpiry = now + 4000; // micro-cache for 4s
+          tokenExpiry = now + 45000;
           return token;
         }
       } catch (e) {
@@ -83,10 +91,39 @@ export const clearApiCache = (pattern = "") => {
   }
 };
 
+let currentActiveWorkspaceId = null;
+
+export const setActiveWorkspaceId = (id) => {
+  currentActiveWorkspaceId = id ? String(id) : null;
+  if (typeof window !== "undefined") {
+    if (id) {
+      localStorage.setItem("kriri:active_workspace_id", String(id));
+      window.__KRIRI_ACTIVE_WORKSPACE_ID__ = String(id);
+    } else {
+      localStorage.removeItem("kriri:active_workspace_id");
+      delete window.__KRIRI_ACTIVE_WORKSPACE_ID__;
+    }
+  }
+};
+
+export const getActiveWorkspaceId = () => {
+  if (currentActiveWorkspaceId) return currentActiveWorkspaceId;
+  if (typeof window !== "undefined") {
+    return (
+      window.__KRIRI_ACTIVE_WORKSPACE_ID__ ||
+      localStorage.getItem("kriri:active_workspace_id") ||
+      null
+    );
+  }
+  return null;
+};
+
 const request = async (endpoint, options = {}) => {
   const token = await getToken(Boolean(options._forceFreshToken));
+  const activeWsId = getActiveWorkspaceId();
   const headers = {
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(activeWsId ? { "x-workspace-id": activeWsId } : {}),
     ...(options.body ? { "Content-Type": "application/json" } : {}),
     ...options.headers,
   };
@@ -129,6 +166,11 @@ const request = async (endpoint, options = {}) => {
 };
 
 export const api = {
+  getCached: (endpoint) => {
+    const cacheKey = `${activeAuthScope}:${endpoint}`;
+    const cached = apiCache.get(cacheKey);
+    return cached ? cached.data : null;
+  },
   get: async (endpoint, options = {}) => {
     const ttl = options.ttl ?? 15000; // 15s cache for lightning-fast tab navigation
     const cacheKey = `${activeAuthScope}:${endpoint}`;
@@ -144,7 +186,9 @@ export const api = {
     return data;
   },
   post: async (endpoint, data) => {
-    clearApiCache();
+    if (endpoint !== "/auth/sync") {
+      clearApiCache();
+    }
     return request(endpoint, {
       method: "POST",
       body: JSON.stringify(data),

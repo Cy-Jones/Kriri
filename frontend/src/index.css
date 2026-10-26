@@ -2,25 +2,35 @@
 @import "tw-animate-css";
 @import "@fontsource-variable/plus-jakarta-sans";
 
-@custom-variant dark (&:is(.dark *));
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *, .dark, .dark *));
+@custom-variant light (&:where([data-theme="light"], [data-theme="light"] *, .light, .light *));
 
 @theme {
   --color-background: var(--background);
+  --color-canvas-pitch: var(--canvas-pitch);
+  --color-canvas-deep: var(--canvas-deep);
   --color-surface: var(--surface);
   --color-surface-hover: var(--surface-hover);
   --color-surface-elevated: var(--surface-elevated);
+  --color-surface-floating: var(--surface-floating);
   --color-surface-muted: var(--surface-muted);
 
   --color-border: var(--border);
+  --color-border-subtle: var(--border-subtle);
   --color-border-hover: var(--border-hover);
   --color-border-strong: var(--border-strong);
+  --color-border-popover: var(--border-popover);
 
   --color-text-primary: var(--foreground);
+  --color-text-body: var(--text-body);
   --color-text-secondary: var(--text-secondary);
   --color-text-muted: var(--text-muted);
+  --color-text-faint: var(--text-faint);
 
   --color-accent: var(--accent);
-  --color-accent-hover: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-subtle: var(--accent-subtle);
+  --color-accent-foreground: var(--accent-foreground);
 
   --color-danger: #e5484d;
   --color-success: #30a46c;
@@ -138,11 +148,15 @@
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);
+  --color-border-subtle: var(--border-subtle);
   --color-border-hover: var(--border-hover);
   --color-border-strong: var(--border-strong);
+  --color-border-popover: var(--border-popover);
   --color-destructive: var(--destructive);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-subtle: var(--accent-subtle);
   --color-muted-foreground: var(--muted-foreground);
   --color-muted: var(--muted);
   --color-secondary-foreground: var(--secondary-foreground);
@@ -155,9 +169,12 @@
   --color-card: var(--card);
   --color-foreground: var(--foreground);
   --color-background: var(--background);
+  --color-canvas-pitch: var(--canvas-pitch);
+  --color-canvas-deep: var(--canvas-deep);
   --color-surface: var(--surface);
   --color-surface-hover: var(--surface-hover);
   --color-surface-elevated: var(--surface-elevated);
+  --color-surface-floating: var(--surface-floating);
   --color-surface-muted: var(--surface-muted);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
@@ -173,18 +190,26 @@
   --background: #ffffff;
   --foreground: #09090b;
 
+  --canvas-pitch: #ffffff;
+  --canvas-deep: #fbfbfb;
+
   --surface: #ffffff;
   --surface-hover: #f4f4f5;
   --surface-elevated: #ffffff;
+  --surface-floating: #ffffff;
   --surface-muted: #f4f4f5;
 
+  --border-subtle: #f0f0f2;
   --border: #e4e4e7;
   --border-hover: #d4d4d8;
   --border-strong: #a1a1aa;
+  --border-popover: #e4e4e7;
 
   --text-primary: #09090b;
+  --text-body: #18181b;
   --text-secondary: #52525b;
   --text-muted: #71717a;
+  --text-faint: #a1a1aa;
 
   --card: #ffffff;
   --card-foreground: #09090b;
@@ -196,23 +221,27 @@
   --secondary-foreground: #18181b;
   --muted: #f4f4f5;
   --muted-foreground: #52525b;
-  --accent: #f4f4f5;
-  --accent-foreground: #09090b;
-  --destructive: #ef4444;
+  --accent: #09090b;
+  --accent-hover: #27272a;
+  --accent-foreground: #ffffff;
+  --accent-subtle: rgba(0, 0, 0, 0.05);
+  --destructive: #dc2626;
   --input: #e4e4e7;
   --ring: #18181b;
   --radius: 0.625rem;
 
-  --shadow-resting: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-resting: 0 1px 2px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.02);
+  --shadow-raised: 0 6px 16px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.03);
+  --shadow-floating: 0 16px 36px rgba(0, 0, 0, 0.09), 0 2px 6px rgba(0, 0, 0, 0.04);
   --control-height-sm: 28px;
   --control-height-md: 32px;
   --control-height-lg: 36px;
   --radius-control: 6px;
   --radius-pill: 9999px;
 
-  --sidebar: #fafafa;
+  --sidebar: #fbfbfb;
   --sidebar-foreground: #09090b;
-  --sidebar-primary: #18181b;
+  --sidebar-primary: #09090b;
   --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: #f4f4f5;
   --sidebar-accent-foreground: #18181b;
@@ -230,49 +259,56 @@
   --background: #000000;
   --foreground: #f4f4f5;
 
-  --surface: #111113;
-  --surface-hover: #18191b;
-  --surface-elevated: #1a1b1e;
+  --canvas-pitch: #000000;
+  --canvas-deep: #0a0a0a;
+
+  --surface: #131416;
+  --surface-hover: #1c1d21;
+  --surface-elevated: #1e1f21;
+  --surface-floating: #232429;
   --surface-muted: #161719;
 
-  --border: rgba(255, 255, 255, 0.1);
-  --border-hover: rgba(255, 255, 255, 0.18);
-  --border-strong: rgba(255, 255, 255, 0.25);
+  --border-subtle: rgba(255, 255, 255, 0.04);
+  --border: rgba(255, 255, 255, 0.08);
+  --border-hover: rgba(255, 255, 255, 0.15);
+  --border-strong: rgba(255, 255, 255, 0.20);
+  --border-popover: #333538;
 
-  --text-primary: #f4f4f5;
-  --text-secondary: #a1a1aa;
-  --text-muted: #71717a;
+  --text-primary: #ffffff;
+  --text-body: #f2f2f2;
+  --text-secondary: #8a8a93;
+  --text-muted: #5f6066;
+  --text-faint: #373940;
 
-  --card: #111113;
+  --card: #131416;
   --card-foreground: #f4f4f5;
-  --popover: #111113;
+  --popover: #1e1f21;
   --popover-foreground: #f4f4f5;
   --primary: #ffffff;
   --primary-foreground: #000000;
-  --secondary: #18191b;
+  --secondary: #1c1d21;
   --secondary-foreground: #f4f4f5;
-  --muted: #18191b;
-  --muted-foreground: #a1a1aa;
-  --accent: #18191b;
-  --accent-foreground: #ffffff;
+  --muted: #161719;
+  --muted-foreground: #8a8a93;
+  --accent: #ffffff;
+  --accent-hover: #e8e8e8;
+  --accent-foreground: #000000;
+  --accent-subtle: rgba(255, 255, 255, 0.08);
   --destructive: #ef4444;
-  --input: rgba(255, 255, 255, 0.15);
+  --input: rgba(255, 255, 255, 0.1);
   --ring: #ffffff;
 
-  --shadow-resting: 0 1px 3px rgba(0, 0, 0, 0.5);
-  --control-height-sm: 28px;
-  --control-height-md: 32px;
-  --control-height-lg: 36px;
-  --radius-control: 6px;
-  --radius-pill: 9999px;
+  --shadow-resting: 0 1px 2px rgba(0, 0, 0, 0.25);
+  --shadow-raised: 0 8px 22px rgba(0, 0, 0, 0.35);
+  --shadow-floating: 0 22px 55px rgba(0, 0, 0, 0.50);
 
-  --sidebar: #09090b;
+  --sidebar: #0a0a0a;
   --sidebar-foreground: #f4f4f5;
-  --sidebar-primary: #3b82f6;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #18191b;
+  --sidebar-primary: #ffffff;
+  --sidebar-primary-foreground: #000000;
+  --sidebar-accent: #1c1d21;
   --sidebar-accent-foreground: #f4f4f5;
-  --sidebar-border: rgba(255, 255, 255, 0.1);
+  --sidebar-border: rgba(255, 255, 255, 0.08);
   --sidebar-ring: #ffffff;
   --chart-1: #ffffff;
   --chart-2: #a1a1aa;
@@ -336,10 +372,234 @@
   color: #ffffff !important;
 }
 
+/* Light Theme Overrides for Clerk Elements */
+[data-theme="light"] .cl-organizationPreviewAvatarBox,
+[data-theme="light"] .cl-organizationSwitcherTrigger .cl-avatarBox,
+[data-theme="light"] .cl-avatarBox,
+html:not(.dark) .cl-organizationPreviewAvatarBox,
+html:not(.dark) .cl-organizationSwitcherTrigger .cl-avatarBox,
+html:not(.dark) .cl-avatarBox {
+  border-radius: 6px !important;
+  border: 1px solid rgba(0, 0, 0, 0.12) !important;
+  background: rgba(0, 0, 0, 0.05) !important;
+  color: #09090b !important;
+}
+
+[data-theme="light"] .cl-organizationPreviewAvatarBox svg,
+[data-theme="light"] .cl-organizationPreviewAvatarBox span,
+html:not(.dark) .cl-organizationPreviewAvatarBox svg,
+html:not(.dark) .cl-organizationPreviewAvatarBox span {
+  color: #09090b !important;
+}
+
+/* Light Mode Workspace Switcher Trigger Text */
+[data-theme="light"] .cl-organizationSwitcherTrigger,
+html:not(.dark) .cl-organizationSwitcherTrigger {
+  color: #09090b !important;
+}
+
+[data-theme="light"] .cl-organizationSwitcherTrigger:hover,
+html:not(.dark) .cl-organizationSwitcherTrigger:hover {
+  background-color: rgba(0, 0, 0, 0.06) !important;
+}
+
+[data-theme="light"] .cl-organizationSwitcherTrigger .cl-organizationPreviewMainIdentifier,
+html:not(.dark) .cl-organizationSwitcherTrigger .cl-organizationPreviewMainIdentifier,
+[data-theme="light"] .cl-organizationPreviewMainIdentifier,
+html:not(.dark) .cl-organizationPreviewMainIdentifier {
+  color: #09090b !important;
+  font-weight: 500 !important;
+}
+
+[data-theme="light"] .cl-organizationSwitcherTrigger .cl-organizationPreviewSecondaryIdentifier,
+html:not(.dark) .cl-organizationSwitcherTrigger .cl-organizationPreviewSecondaryIdentifier,
+[data-theme="light"] .cl-organizationPreviewSecondaryIdentifier,
+html:not(.dark) .cl-organizationPreviewSecondaryIdentifier {
+  color: #71717a !important;
+}
+
+[data-theme="light"] .cl-organizationSwitcherTrigger .cl-organizationSwitcherTriggerIcon,
+html:not(.dark) .cl-organizationSwitcherTrigger .cl-organizationSwitcherTriggerIcon,
+[data-theme="light"] .cl-organizationSwitcherTriggerIcon,
+html:not(.dark) .cl-organizationSwitcherTriggerIcon {
+  color: #52525b !important;
+}
+
+/* Light Mode Clerk Popovers & Dropdowns (Screenshot 2) */
+[data-theme="light"] .cl-organizationSwitcherPopoverCard,
+[data-theme="light"] .cl-organizationSwitcherPopoverRoot .cl-card,
+html:not(.dark) .cl-organizationSwitcherPopoverCard,
+html:not(.dark) .cl-organizationSwitcherPopoverRoot .cl-card {
+  background-color: #ffffff !important;
+  color: #09090b !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  box-shadow: 0 16px 36px -4px rgba(0, 0, 0, 0.12), 0 4px 12px -2px rgba(0, 0, 0, 0.06) !important;
+}
+
+[data-theme="light"] .cl-organizationSwitcherPopoverActions .cl-organizationSwitcherPopoverActionButton,
+html:not(.dark) .cl-organizationSwitcherPopoverActions .cl-organizationSwitcherPopoverActionButton,
+[data-theme="light"] .cl-organizationSwitcherPreviewButton,
+html:not(.dark) .cl-organizationSwitcherPreviewButton {
+  color: #09090b !important;
+}
+
+[data-theme="light"] .cl-organizationSwitcherPopoverActions .cl-organizationSwitcherPopoverActionButton:hover,
+html:not(.dark) .cl-organizationSwitcherPopoverActions .cl-organizationSwitcherPopoverActionButton:hover,
+[data-theme="light"] .cl-organizationSwitcherPreviewButton:hover,
+html:not(.dark) .cl-organizationSwitcherPreviewButton:hover {
+  background-color: rgba(0, 0, 0, 0.04) !important;
+}
+
+[data-theme="light"] .cl-organizationSwitcherPopoverActions .cl-organizationSwitcherPopoverActionButtonText,
+html:not(.dark) .cl-organizationSwitcherPopoverActions .cl-organizationSwitcherPopoverActionButtonText,
+[data-theme="light"] .cl-userPreviewMainIdentifier,
+html:not(.dark) .cl-userPreviewMainIdentifier {
+  color: #09090b !important;
+  font-weight: 500 !important;
+}
+
+[data-theme="light"] .cl-userPreviewSecondaryIdentifier,
+html:not(.dark) .cl-userPreviewSecondaryIdentifier {
+  color: #71717a !important;
+}
+
+[data-theme="light"] .cl-organizationSwitcherPopoverFooter,
+html:not(.dark) .cl-organizationSwitcherPopoverFooter {
+  background: #fafafa !important;
+  border-top: 1px solid rgba(0, 0, 0, 0.06) !important;
+}
+
+/* Clerk Modals & Cards Rounded Corners (All Modes) */
+.cl-modalContent,
+.cl-modalContent > div,
+.cl-modalContent .cl-card,
+.cl-modalContent .cl-organizationProfile-root,
+.cl-modalContent .cl-createOrganization-root,
+.cl-modalContent .cl-userProfile-root,
+.cl-organizationProfile-root,
+.cl-createOrganization-root,
+.cl-userProfile-root,
+.cl-organizationSwitcherPopoverCard,
+.cl-organizationSwitcherPopoverRoot .cl-card {
+  border-radius: 20px !important;
+  overflow: hidden !important;
+}
+
+.cl-modalContent {
+  border-radius: 20px !important;
+  overflow: hidden !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(0, 0, 0, 0.05) !important;
+}
+
+[data-theme="dark"] .cl-modalContent,
+.dark .cl-modalContent {
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.05) !important;
+}
+
+.cl-modalContent .cl-card,
+.cl-modalContent .cl-organizationProfile-root,
+.cl-modalContent .cl-createOrganization-root,
+.cl-modalContent .cl-userProfile-root {
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.cl-modalCloseButton {
+  border-radius: 9999px !important;
+  transition: all 0.2s ease !important;
+}
+
+[data-theme="light"] .cl-modalCloseButton,
+html:not(.dark) .cl-modalCloseButton {
+  color: #71717a !important;
+}
+
+[data-theme="light"] .cl-modalCloseButton:hover,
+html:not(.dark) .cl-modalCloseButton:hover {
+  color: #09090b !important;
+  background-color: rgba(0, 0, 0, 0.06) !important;
+}
+
+/* Light Mode Clerk Modals - Organization Profile & Create Organization (Screenshots 3 & 4) */
+[data-theme="light"] .cl-modalContent,
+[data-theme="light"] .cl-organizationProfile-root,
+[data-theme="light"] .cl-createOrganization-root,
+[data-theme="light"] .cl-userProfile-root,
+html:not(.dark) .cl-modalContent,
+html:not(.dark) .cl-organizationProfile-root,
+html:not(.dark) .cl-createOrganization-root,
+html:not(.dark) .cl-userProfile-root {
+  background-color: #ffffff !important;
+  color: #09090b !important;
+}
+
+[data-theme="light"] .cl-navbar,
+html:not(.dark) .cl-navbar {
+  background-color: #fbfbfb !important;
+  border-right: 1px solid rgba(0, 0, 0, 0.08) !important;
+}
+
+[data-theme="light"] .cl-navbarButton,
+html:not(.dark) .cl-navbarButton {
+  color: #52525b !important;
+}
+
+[data-theme="light"] .cl-navbarButton:hover,
+[data-theme="light"] .cl-navbarButton[data-active="true"],
+html:not(.dark) .cl-navbarButton:hover,
+html:not(.dark) .cl-navbarButton[data-active="true"] {
+  background-color: rgba(0, 0, 0, 0.05) !important;
+  color: #09090b !important;
+}
+
+[data-theme="light"] .cl-headerTitle,
+[data-theme="light"] .cl-profileSectionTitleText,
+[data-theme="light"] .cl-formFieldLabel,
+[data-theme="light"] .cl-profileSectionPrimaryDescription,
+html:not(.dark) .cl-headerTitle,
+html:not(.dark) .cl-profileSectionTitleText,
+html:not(.dark) .cl-formFieldLabel,
+html:not(.dark) .cl-profileSectionPrimaryDescription {
+  color: #09090b !important;
+}
+
+[data-theme="light"] .cl-headerSubtitle,
+[data-theme="light"] .cl-profileSectionSubtitleText,
+html:not(.dark) .cl-headerSubtitle,
+html:not(.dark) .cl-profileSectionSubtitleText {
+  color: #71717a !important;
+}
+
+[data-theme="light"] .cl-formFieldInput,
+html:not(.dark) .cl-formFieldInput {
+  background-color: #f4f4f5 !important;
+  color: #09090b !important;
+  border: 1px solid rgba(0, 0, 0, 0.12) !important;
+}
+
+[data-theme="light"] .cl-formButtonPrimary,
+html:not(.dark) .cl-formButtonPrimary {
+  background-color: #09090b !important;
+  color: #ffffff !important;
+}
+
+[data-theme="light"] .cl-formButtonPrimary:hover,
+html:not(.dark) .cl-formButtonPrimary:hover {
+  background-color: #27272a !important;
+}
+
+[data-theme="light"] .cl-footer,
+html:not(.dark) .cl-footer {
+  background: #fafafa !important;
+  border-top: 1px solid rgba(0, 0, 0, 0.06) !important;
+}
+
 /* ==========================================================================
-   Fernly Bento Grid Architecture & Gauge Styles
+   Kriri Bento Grid Architecture & Gauge Styles
    ========================================================================== */
-.fernly-grid {
+.kriri-grid {
   display: grid;
   gap: 16px;
   grid-template-columns: repeat(12, minmax(0, 1fr));
@@ -349,17 +609,17 @@
     "pr pr pr pr pr pr pr pr tm tm tm tm";
 }
 
-.fernly-s1 { grid-area: s1; }
-.fernly-s2 { grid-area: s2; }
-.fernly-s3 { grid-area: s3; }
-.fernly-s4 { grid-area: s4; }
-.fernly-an { grid-area: an; }
-.fernly-re { grid-area: re; }
-.fernly-pr { grid-area: pr; }
-.fernly-tm { grid-area: tm; }
+.kriri-s1 { grid-area: s1; }
+.kriri-s2 { grid-area: s2; }
+.kriri-s3 { grid-area: s3; }
+.kriri-s4 { grid-area: s4; }
+.kriri-an { grid-area: an; }
+.kriri-re { grid-area: re; }
+.kriri-pr { grid-area: pr; }
+.kriri-tm { grid-area: tm; }
 
 @media (max-width: 1200px) {
-  .fernly-grid {
+  .kriri-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     grid-template-areas:
       "s1 s2"
@@ -372,14 +632,14 @@
 }
 
 @media (max-width: 768px) {
-  .fernly-grid {
+  .kriri-grid {
     display: flex;
     flex-direction: column;
     gap: 14px;
   }
 }
 
-.fernly-hatch-pattern {
+.kriri-hatch-pattern {
   background: repeating-linear-gradient(
     -45deg,
     rgba(255, 255, 255, 0.08) 0,
@@ -390,39 +650,39 @@
 }
 
 /* ==========================================================================
-   Fernly Kinetic Physics & GPU Compositing
+   Kriri Kinetic Physics & GPU Compositing
    ========================================================================== */
 :root {
-  --fernly-ease-out: cubic-bezier(0.165, 0.84, 0.44, 1);
-  --fernly-ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --kriri-ease-out: cubic-bezier(0.165, 0.84, 0.44, 1);
+  --kriri-ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
 }
 
-.fernly-card {
+.kriri-card {
   transform: translate3d(0, 0, 0);
   backface-visibility: hidden;
   will-change: transform, box-shadow, border-color;
   transition:
-    transform 0.5s var(--fernly-ease-out),
-    border-color 0.4s var(--fernly-ease-out),
-    box-shadow 0.5s var(--fernly-ease-out),
-    background-color 0.3s var(--fernly-ease-out);
-  animation: fernly-entrance 0.85s var(--fernly-ease-out) backwards;
+    transform 0.5s var(--kriri-ease-out),
+    border-color 0.4s var(--kriri-ease-out),
+    box-shadow 0.5s var(--kriri-ease-out),
+    background-color 0.3s var(--kriri-ease-out);
+  animation: kriri-entrance 0.85s var(--kriri-ease-out) backwards;
   animation-delay: calc(var(--stagger, 0) * 0.07s);
 }
 
-.fernly-card:hover {
+.kriri-card:hover {
   transform: translate3d(0, -4px, 0);
   box-shadow:
     0 14px 34px -8px rgba(0, 0, 0, 0.55),
     0 0 0 1px rgba(255, 255, 255, 0.12);
 }
 
-.fernly-card:active {
+.kriri-card:active {
   transform: translate3d(0, -1px, 0) scale(0.988);
   transition-duration: 0.08s;
 }
 
-@keyframes fernly-entrance {
+@keyframes kriri-entrance {
   from {
     opacity: 0;
     transform: translate3d(0, 36px, 0) scale(0.985);
@@ -434,22 +694,22 @@
 }
 
 /* Staggered slide-in for items within projects & team lists */
-.fernly-list-item {
+.kriri-list-item {
   transform: translate3d(0, 0, 0);
   backface-visibility: hidden;
   transition:
-    transform 0.35s var(--fernly-ease-out),
-    background-color 0.25s var(--fernly-ease-out),
-    border-color 0.25s var(--fernly-ease-out);
-  animation: fernly-item-slide 0.55s var(--fernly-ease-out) backwards;
+    transform 0.35s var(--kriri-ease-out),
+    background-color 0.25s var(--kriri-ease-out),
+    border-color 0.25s var(--kriri-ease-out);
+  animation: kriri-item-slide 0.55s var(--kriri-ease-out) backwards;
   animation-delay: calc(0.35s + var(--item-stagger, 0) * 0.045s);
 }
 
-.fernly-list-item:hover {
+.kriri-list-item:hover {
   transform: translate3d(3px, 0, 0);
 }
 
-@keyframes fernly-item-slide {
+@keyframes kriri-item-slide {
   from {
     opacity: 0;
     transform: translate3d(18px, 0, 0);
@@ -460,33 +720,33 @@
   }
 }
 
-.fernly-arrow-spin {
+.kriri-arrow-spin {
   transition:
-    transform 0.45s var(--fernly-ease-out),
-    background-color 0.3s var(--fernly-ease-out),
-    color 0.3s var(--fernly-ease-out);
+    transform 0.45s var(--kriri-ease-out),
+    background-color 0.3s var(--kriri-ease-out),
+    color 0.3s var(--kriri-ease-out);
 }
 
-.fernly-card:hover .fernly-arrow-spin {
+.kriri-card:hover .kriri-arrow-spin {
   transform: rotate(45deg) scale(1.06);
 }
 
 
 /* ==========================================================================
-   Fernly Kanban Board Motion Physics & GPU Compositing
+   Kriri Kanban Board Motion Physics & GPU Compositing
    ========================================================================== */
-.fernly-kanban-col {
+.kriri-kanban-col {
   transform: translate3d(0, 0, 0);
   backface-visibility: hidden;
   transition:
-    background-color 0.25s var(--fernly-ease-out),
-    border-color 0.25s var(--fernly-ease-out),
-    box-shadow 0.25s var(--fernly-ease-out);
-  animation: fernly-col-in 0.65s var(--fernly-ease-out) backwards;
+    background-color 0.25s var(--kriri-ease-out),
+    border-color 0.25s var(--kriri-ease-out),
+    box-shadow 0.25s var(--kriri-ease-out);
+  animation: kriri-col-in 0.65s var(--kriri-ease-out) backwards;
   animation-delay: calc(var(--col-stagger, 0) * 0.08s);
 }
 
-@keyframes fernly-col-in {
+@keyframes kriri-col-in {
   from {
     opacity: 0;
     transform: translate3d(0, 24px, 0) scale(0.99);
@@ -497,20 +757,20 @@
   }
 }
 
-.fernly-task-card {
+.kriri-task-card {
   transform: translate3d(0, 0, 0);
   backface-visibility: hidden;
   will-change: transform, box-shadow, border-color;
   transition:
-    transform 0.4s var(--fernly-ease-out),
-    border-color 0.3s var(--fernly-ease-out),
-    box-shadow 0.4s var(--fernly-ease-out),
-    background-color 0.2s var(--fernly-ease-out);
-  animation: fernly-task-in 0.55s var(--fernly-ease-out) backwards;
+    transform 0.4s var(--kriri-ease-out),
+    border-color 0.3s var(--kriri-ease-out),
+    box-shadow 0.4s var(--kriri-ease-out),
+    background-color 0.2s var(--kriri-ease-out);
+  animation: kriri-task-in 0.55s var(--kriri-ease-out) backwards;
   animation-delay: calc(0.15s + var(--task-stagger, 0) * 0.035s);
 }
 
-.fernly-task-card:hover {
+.kriri-task-card:hover {
   transform: translate3d(0, -3px, 0);
   border-color: rgba(255, 255, 255, 0.16);
   box-shadow:
@@ -518,12 +778,12 @@
     0 0 0 1px rgba(255, 255, 255, 0.1);
 }
 
-.fernly-task-card:active {
+.kriri-task-card:active {
   transform: translate3d(0, 0, 0) scale(0.985);
   transition-duration: 0.08s;
 }
 
-@keyframes fernly-task-in {
+@keyframes kriri-task-in {
   from {
     opacity: 0;
     transform: translate3d(0, 18px, 0) scale(0.985);
@@ -551,3 +811,97 @@
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.22);
 }
+
+[data-theme="light"] .kriri-card,
+html:not(.dark) .kriri-card {
+  background-color: var(--surface);
+  border-color: var(--border);
+  box-shadow: var(--shadow-resting);
+}
+
+[data-theme="light"] .kriri-card:hover,
+html:not(.dark) .kriri-card:hover {
+  background-color: var(--surface-hover);
+  border-color: var(--border-hover);
+  box-shadow: var(--shadow-raised);
+}
+
+[data-theme="light"] .kriri-kanban-col,
+html:not(.dark) .kriri-kanban-col {
+  background-color: var(--canvas-deep);
+  border-color: var(--border);
+  box-shadow: var(--shadow-resting);
+}
+
+[data-theme="light"] .kriri-task-card,
+html:not(.dark) .kriri-task-card {
+  background-color: var(--surface);
+  border-color: var(--border);
+  box-shadow: var(--shadow-resting);
+}
+
+[data-theme="light"] .kriri-task-card:hover,
+html:not(.dark) .kriri-task-card:hover {
+  background-color: var(--surface-hover);
+  border-color: var(--border-hover);
+  box-shadow: var(--shadow-raised);
+}
+
+[data-theme="light"] .custom-scrollbar::-webkit-scrollbar-thumb,
+html:not(.dark) .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.12);
+}
+
+[data-theme="light"] .custom-scrollbar::-webkit-scrollbar-thumb:hover,
+html:not(.dark) .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.25);
+}
+
+/* ==========================================================================
+   Sileo Toast Integration (Theme & Polish)
+   ========================================================================== */
+[data-sileo-viewport] {
+  z-index: 99999 !important;
+}
+
+[data-sileo-toast] {
+  font-family: var(--font-sans);
+}
+
+/* Morphing SVG boundary stroke & elevation shadow */
+html.dark [data-sileo-canvas],
+html[data-theme="dark"] [data-sileo-canvas] {
+  filter: drop-shadow(0 0 1px rgba(255, 255, 255, 0.16)) drop-shadow(0 14px 32px rgba(0, 0, 0, 0.75));
+}
+
+html.light [data-sileo-canvas],
+html[data-theme="light"] [data-sileo-canvas] {
+  filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.12)) drop-shadow(0 12px 28px rgba(0, 0, 0, 0.08));
+}
+
+/* Title typography */
+[data-sileo-title] {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+/* Description text in dark mode */
+html.dark [data-sileo-description],
+html[data-theme="dark"] [data-sileo-description] {
+  color: #a1a1aa !important;
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  line-height: 1.35rem;
+}
+
+/* Description text in light mode */
+html.light [data-sileo-description],
+html[data-theme="light"] [data-sileo-description] {
+  color: #52525b !important;
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  line-height: 1.35rem;
+}
+
+

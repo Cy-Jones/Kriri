@@ -1,5 +1,6 @@
 const { getAuth } = require("@clerk/express");
 const db = require("../config/database");
+const { generateWorkspaceSlug } = require("../utils/slug");
 
 const requireAuth = (req, res, next) => {
   const auth = getAuth(req);
@@ -56,6 +57,20 @@ exports.verifyToken = async (req, res, next) => {
                   .join(" ") || "Unknown User";
               const avatarUrl = clerkUser.imageUrl || null;
 
+              if (email) {
+                const existingByEmail = await db.query(
+                  "SELECT id FROM users WHERE email = $1",
+                  [email],
+                );
+                if (existingByEmail.rows.length > 0) {
+                  await db.query(
+                    "UPDATE users SET clerk_user_id = $1, name = COALESCE($2, name), avatar_url = COALESCE($3, avatar_url) WHERE email = $4",
+                    [clerkUserId, name, avatarUrl, email],
+                  );
+                  return;
+                }
+              }
+
               await db.query(
                 "INSERT INTO users (clerk_user_id, name, email, avatar_url) VALUES ($1, $2, $3, $4) ON CONFLICT (clerk_user_id) DO UPDATE SET name = $2, email = $3, avatar_url = $4",
                 [clerkUserId, name, email, avatarUrl],
@@ -87,15 +102,22 @@ exports.verifyToken = async (req, res, next) => {
 
       let workspace = null;
 
-      // Check explicit workspace header first
+      // Check explicit workspace header within the active org/personal scope
       if (requestedWsId) {
-        const headerWsRes = await db.query(
-          `SELECT w.*, wm.role 
-           FROM workspaces w
-           JOIN workspace_members wm ON w.id = wm.workspace_id
-           WHERE (w.id::text = $1 OR w.slug = $1 OR w.clerk_org_id = $1) AND wm.user_id = $2`,
-          [requestedWsId, req.user.id],
-        );
+        const queryText = clerkOrgId
+          ? `SELECT w.*, wm.role 
+             FROM workspaces w
+             JOIN workspace_members wm ON w.id = wm.workspace_id
+             WHERE (w.id::text = $1 OR w.slug = $1 OR w.clerk_org_id = $1) AND wm.user_id = $2 AND w.clerk_org_id = $3`
+          : `SELECT w.*, wm.role 
+             FROM workspaces w
+             JOIN workspace_members wm ON w.id = wm.workspace_id
+             WHERE (w.id::text = $1 OR w.slug = $1) AND wm.user_id = $2 AND w.clerk_org_id IS NULL`;
+        const params = clerkOrgId
+          ? [requestedWsId, req.user.id, clerkOrgId]
+          : [requestedWsId, req.user.id];
+
+        const headerWsRes = await db.query(queryText, params);
         if (headerWsRes.rows.length > 0) {
           req.workspace = headerWsRes.rows[0];
           req.workspaceRole = headerWsRes.rows[0].role;
@@ -119,21 +141,49 @@ exports.verifyToken = async (req, res, next) => {
           return next();
         }
 
-        // Provision personal workspace if it doesn't exist yet
-        const personalSlug = `personal-${req.user.id}-${Date.now().toString(36)}`;
-        const personalName = `${req.user.name || "Personal"}'s Workspace`;
-        const newWs = await db.query(
-          "INSERT INTO workspaces (name, slug, owner_id, clerk_org_id) VALUES ($1, $2, $3, NULL) RETURNING *",
-          [personalName, personalSlug, req.user.id],
-        );
-        const ws = newWs.rows[0];
-        await db.query(
-          "INSERT INTO workspace_members (workspace_id, user_id, role) VALUES ($1, $2, 'Owner') ON CONFLICT DO NOTHING",
-          [ws.id, req.user.id],
-        );
-        req.workspace = ws;
-        req.workspaceRole = "Owner";
-        return next();
+        // Provision personal workspace if it doesn't exist yet with advisory lock
+        const client = await db.pool.connect();
+        try {
+          await client.query("BEGIN");
+          await client.query("SELECT pg_advisory_xact_lock($1)", [req.user.id]);
+
+          // Re-check after lock
+          const checkRes = await client.query(
+            `SELECT w.*, wm.role 
+             FROM workspaces w
+             JOIN workspace_members wm ON w.id = wm.workspace_id
+             WHERE wm.user_id = $1 AND w.clerk_org_id IS NULL
+             ORDER BY w.id ASC LIMIT 1`,
+            [req.user.id],
+          );
+          if (checkRes.rows.length > 0) {
+            await client.query("COMMIT");
+            req.workspace = checkRes.rows[0];
+            req.workspaceRole = checkRes.rows[0].role;
+            return next();
+          }
+
+          const personalName = `${req.user.name || "Personal"}'s Workspace`;
+          const personalSlug = await generateWorkspaceSlug(personalName, client);
+          const newWs = await client.query(
+            "INSERT INTO workspaces (name, slug, owner_id, clerk_org_id) VALUES ($1, $2, $3, NULL) RETURNING *",
+            [personalName, personalSlug, req.user.id],
+          );
+          const ws = newWs.rows[0];
+          await client.query(
+            "INSERT INTO workspace_members (workspace_id, user_id, role) VALUES ($1, $2, 'Owner') ON CONFLICT DO NOTHING",
+            [ws.id, req.user.id],
+          );
+          await client.query("COMMIT");
+          req.workspace = ws;
+          req.workspaceRole = "Owner";
+          return next();
+        } catch (lockErr) {
+          await client.query("ROLLBACK");
+          throw lockErr;
+        } finally {
+          client.release();
+        }
       }
 
       const wsRes = await db.query(
@@ -143,25 +193,25 @@ exports.verifyToken = async (req, res, next) => {
 
       if (wsRes.rows.length === 0) {
         // JIT Provisioning (Fallback for missed webhooks in local dev)
-        // Note: For a production app we'd fetch org details from Clerk API here.
-        // For now, we'll create a placeholder to prevent the app from breaking.
         try {
           const { clerkClient } = require("@clerk/express");
           const clerkOrg = await clerkClient.organizations.getOrganization({
             organizationId: clerkOrgId,
           });
-          const orgName = clerkOrg.name || "Synced Workspace";
-          const fallbackSlug =
-            clerkOrg.slug || `org-${clerkOrgId.toLowerCase()}`;
+          const orgName = clerkOrg.name || "Organization Workspace";
+          const fallbackSlug = await generateWorkspaceSlug(
+            clerkOrg.slug || clerkOrg.name || clerkOrgId,
+            db,
+          );
 
           const newWs = await db.query(
-            "INSERT INTO workspaces (clerk_org_id, name, slug, owner_id) VALUES ($1, $2, $3, $4) RETURNING *",
+            "INSERT INTO workspaces (clerk_org_id, name, slug, owner_id) VALUES ($1, $2, $3, $4) ON CONFLICT (clerk_org_id) DO UPDATE SET name = $2 RETURNING *",
             [clerkOrgId, orgName, fallbackSlug, req.user.id],
           );
           workspace = newWs.rows[0];
 
           await db.query(
-            "INSERT INTO workspace_members (workspace_id, user_id, role) VALUES ($1, $2, $3)",
+            "INSERT INTO workspace_members (workspace_id, user_id, role) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING",
             [workspace.id, req.user.id, "Owner"],
           );
         } catch (e) {

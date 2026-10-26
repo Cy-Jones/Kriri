@@ -5,8 +5,17 @@ import { useSocket } from "../contexts/SocketContext";
 export function useProjectData(user, organization) {
   const userName = user?.fullName || "User";
   const [currentUserRole, setCurrentUserRole] = useState(null);
-  const [projects, setProjects] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [projects, setProjects] = useState(() => {
+    const fromApiCache = api.getCached("/projects");
+    if (Array.isArray(fromApiCache) && fromApiCache.length > 0) return fromApiCache;
+    try {
+      const cached = localStorage.getItem(`kriri:cache:projects_${organization?.id || "personal"}`);
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [loading, setLoading] = useState(() => projects.length === 0);
   const [confirmModal, setConfirmModal] = useState({
     isOpen: false,
     projectId: null,
@@ -82,7 +91,10 @@ export function useProjectData(user, organization) {
   // Fetch projects once user context is loaded or workspace changes
   useEffect(() => {
     if (!user) return;
-    setLoading(true);
+    setProjects((prev) => {
+      if (prev.length === 0) setLoading(true);
+      return prev;
+    });
     api
       .get("/projects")
       .then((data) => {
@@ -105,6 +117,12 @@ export function useProjectData(user, organization) {
             dependencies: p.dependencies || [],
           }));
           setProjects(enriched);
+          try {
+            localStorage.setItem(
+              `kriri:cache:projects_${organization?.id || "personal"}`,
+              JSON.stringify(enriched),
+            );
+          } catch {}
         } else {
           setProjects([]);
         }
@@ -112,7 +130,6 @@ export function useProjectData(user, organization) {
       })
       .catch((err) => {
         console.warn("API get projects failed:", err);
-        setProjects([]);
         setLoading(false);
       });
   }, [user?.id, organization?.id]);

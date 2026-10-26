@@ -1008,24 +1008,6 @@ export const SiteHeader = forwardRef(function SiteHeader(
                     );
                   })}
                 </ul>
-                {(secondaryAction || primaryAction) && (
-                  <motion.div
-                    className={styles.sheetActions}
-                    initial={reduced ? false : { opacity: 0, y: -6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{
-                      duration: 0.26,
-                      ease: enter,
-                      delay: reduced
-                        ? 0
-                        : 0.04 + items.length * motionTokens.stagger.item,
-                    }}
-                  >
-                    {secondaryAction &&
-                      actionNode(secondaryAction, "secondary")}
-                    {primaryAction && actionNode(primaryAction, "primary")}
-                  </motion.div>
-                )}
               </nav>
             </motion.div>
           </>

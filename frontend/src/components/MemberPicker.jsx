@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 
-export default function LinearMemberPicker({
+export default function MemberPicker({
   onClose,
   onSelect,
   currentMembers = [],
@@ -48,17 +48,17 @@ export default function LinearMemberPicker({
       ref={popoverRef}
       className={`${
         isMobile
-          ? "bg-[#202225] border border-[#333538] rounded-2xl shadow-2xl w-[280px] max-w-[calc(100vw-32px)] text-white text-[12.5px] flex flex-col p-2"
-          : "absolute top-full left-0 mt-2 bg-[#202225] border border-[#333538] rounded-xl shadow-2xl w-[260px] max-h-[300px] overflow-y-auto z-50 text-white text-[13px] flex flex-col p-1.5 custom-scrollbar"
+          ? "bg-white dark:bg-[#202225] border border-black/10 dark:border-[#333538] rounded-2xl shadow-2xl w-[280px] max-w-[calc(100vw-32px)] text-zinc-900 dark:text-white text-[12.5px] flex flex-col p-2"
+          : "absolute top-full left-0 mt-2 bg-white dark:bg-[#202225] border border-black/10 dark:border-[#333538] rounded-xl shadow-2xl w-[260px] max-h-[300px] overflow-y-auto z-50 text-zinc-900 dark:text-white text-[13px] flex flex-col p-1.5 custom-scrollbar"
       }`}
     >
-      <div className="flex items-center justify-between px-2 py-1.5 border-b border-[#333538] mb-1.5">
-        <span className="text-[12px] font-medium text-[#8a8f98]">Select members</span>
+      <div className="flex items-center justify-between px-2 py-1.5 border-b border-black/10 dark:border-[#333538] mb-1.5">
+        <span className="text-[12px] font-medium text-zinc-500 dark:text-[#8a8f98]">Select members</span>
         {isMobile && (
           <button
             type="button"
             onClick={onClose}
-            className="text-[#8a8f98] hover:text-white p-0.5 rounded transition-colors"
+            className="text-zinc-500 hover:text-zinc-900 dark:text-[#8a8f98] dark:hover:text-white p-0.5 rounded transition-colors"
           >
             <svg
               width="13"
@@ -79,7 +79,7 @@ export default function LinearMemberPicker({
 
       <div className="flex flex-col gap-0.5 overflow-y-auto max-h-[220px] custom-scrollbar">
         {availableMembers.length === 0 && (
-          <div className="p-2 text-[#8a8f98] text-center italic text-[12px]">
+          <div className="p-2 text-zinc-500 dark:text-[#8a8f98] text-center italic text-[12px]">
             No members found.
           </div>
         )}
@@ -93,10 +93,10 @@ export default function LinearMemberPicker({
             <div
               key={member.id}
               onClick={() => toggleMember(member)}
-              className="flex items-center gap-2 p-2 rounded-lg hover:bg-white/[0.04] cursor-pointer transition-colors"
+              className="flex items-center gap-2 p-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/[0.04] cursor-pointer transition-colors"
             >
               <div
-                className={`w-3.5 h-3.5 rounded-[3px] border ${isSelected ? "bg-[#f54868] border-[#f54868]" : "border-[#55565a]"} flex items-center justify-center shrink-0`}
+                className={`w-3.5 h-3.5 rounded-[3px] border ${isSelected ? "bg-[#f54868] border-[#f54868]" : "border-zinc-300 dark:border-[#55565a]"} flex items-center justify-center shrink-0`}
               >
                 {isSelected && (
                   <svg
@@ -122,7 +122,7 @@ export default function LinearMemberPicker({
                   {initial}
                 </div>
               )}
-              <span className="text-[#d1d2d5] truncate text-[12.5px]">{displayName}</span>
+              <span className="text-zinc-800 dark:text-[#d1d2d5] truncate text-[12.5px]">{displayName}</span>
             </div>
           );
         })}

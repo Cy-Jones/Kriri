@@ -48,7 +48,7 @@ export default function HealthPicker({ value, onChange, onClose }) {
   return (
     <div
       ref={popoverRef}
-      className="absolute top-full left-0 mt-2 bg-[#1c1d22] border border-white/10 rounded-xl shadow-2xl w-[200px] z-50 text-white p-1 animate-in fade-in zoom-in-95 duration-150"
+      className="absolute top-full left-0 mt-2 bg-white dark:bg-[#1c1d22] border border-black/10 dark:border-white/10 rounded-xl shadow-2xl w-[200px] z-50 text-zinc-900 dark:text-white p-1 animate-in fade-in zoom-in-95 duration-150"
     >
       <div className="flex flex-col gap-0.5">
         {HEALTH_OPTIONS.map((option) => {
@@ -63,8 +63,8 @@ export default function HealthPicker({ value, onChange, onClose }) {
               }}
               className={`w-full flex items-center justify-between px-3 py-2 text-left cursor-pointer rounded-lg transition-colors ${
                 isSelected
-                  ? "bg-white/[0.08] text-white"
-                  : "hover:bg-white/[0.05] text-[#d1d2d5]"
+                  ? "bg-black/5 dark:bg-white/[0.08] text-zinc-900 dark:text-white font-medium"
+                  : "hover:bg-black/5 dark:hover:bg-white/[0.05] text-zinc-700 dark:text-[#d1d2d5]"
               }`}
             >
               <div className="flex items-center gap-2.5">
@@ -93,7 +93,7 @@ export default function HealthPicker({ value, onChange, onClose }) {
                   strokeWidth="2.5"
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  className="text-white/80"
+                  className="text-zinc-900 dark:text-white/80"
                 >
                   <polyline points="20 6 9 17 4 12" />
                 </svg>

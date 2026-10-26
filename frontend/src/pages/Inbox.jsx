@@ -32,11 +32,13 @@ import {
 } from "lucide-react";
 import { useListShortcuts } from "../hooks/useListShortcuts";
 import PageLoading from "../components/PageLoading";
+import { useTheme } from "../contexts/ThemeContext";
 import { Lockers, Riffle } from "@lucasmarkes/hairline/react";
 import { Avatar } from "@/registry/components/avatar/avatar";
 import { Badge } from "@/registry/components/badge/badge";
 import { Button } from "@/registry/components/button/button";
 import ActionTooltip from "../components/ActionTooltip";
+import { copyTextToClipboard } from "../lib/use-copy-feedback";
 
 const formatDetailDate = (dateStr) => {
   if (!dateStr) return "";
@@ -130,10 +132,10 @@ const Toggle = ({ active, onChange }) => (
       e.stopPropagation();
       if (onChange) onChange(!active);
     }}
-    className={`w-[28px] h-[16px] rounded-full relative transition-colors cursor-pointer outline-none ${active ? "bg-white" : "bg-white/[0.15]"}`}
+    className={`w-[28px] h-[16px] rounded-full relative transition-colors cursor-pointer outline-none ${active ? "bg-zinc-900 dark:bg-white" : "bg-black/[0.12] dark:bg-white/[0.15]"}`}
   >
     <div
-      className={`absolute top-[2px] w-[12px] h-[12px] rounded-full transition-transform shadow-sm ${active ? "translate-x-[14px] bg-black" : "translate-x-[2px] bg-white"}`}
+      className={`absolute top-[2px] w-[12px] h-[12px] rounded-full transition-transform shadow-sm ${active ? "translate-x-[14px] bg-white dark:bg-black" : "translate-x-[2px] bg-white"}`}
     />
   </button>
 );
@@ -148,10 +150,10 @@ const SelectDropdown = ({ value, options = [], onChange }) => {
           e.stopPropagation();
           setIsOpen(!isOpen);
         }}
-        className="flex items-center justify-between gap-2 pl-2.5 pr-1.5 py-[3px] rounded-md bg-white/[0.04] hover:bg-white/[0.08] text-[#e8e8e8] text-[12px] font-medium transition-colors outline-none min-w-[60px]"
+        className="flex items-center justify-between gap-2 pl-2.5 pr-1.5 py-[3px] rounded-md bg-black/[0.04] dark:bg-white/[0.04] hover:bg-black/[0.08] dark:hover:bg-white/[0.08] text-zinc-800 dark:text-[#e8e8e8] text-[12px] font-medium transition-colors outline-none min-w-[60px]"
       >
         {value}
-        <ChevronDown size={14} className="text-[#8a8f98]" strokeWidth={2.5} />
+        <ChevronDown size={14} className="text-zinc-500 dark:text-[#8a8f98]" strokeWidth={2.5} />
       </button>
       {isOpen && (
         <>
@@ -162,7 +164,7 @@ const SelectDropdown = ({ value, options = [], onChange }) => {
               setIsOpen(false);
             }}
           />
-          <div className="absolute top-full right-0 mt-1 z-[70] min-w-[140px] bg-[#232429] border border-white/[0.08] rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.5)] py-1 flex flex-col text-[13px]">
+          <div className="absolute top-full right-0 mt-1 z-[70] min-w-[140px] bg-white dark:bg-[#232429] border border-black/10 dark:border-white/[0.08] rounded-xl shadow-lg dark:shadow-[0_8px_30px_rgb(0,0,0,0.5)] py-1 flex flex-col text-[13px]">
             {options.map((opt, idx) => (
               <button
                 key={idx}
@@ -172,13 +174,13 @@ const SelectDropdown = ({ value, options = [], onChange }) => {
                   setIsOpen(false);
                   if (onChange) onChange(opt);
                 }}
-                className="w-full text-left px-3 py-1.5 hover:bg-white/[0.08] text-[#e8e8e8] hover:text-white transition-colors flex items-center justify-between group/opt"
+                className="w-full text-left px-3 py-1.5 hover:bg-black/[0.05] dark:hover:bg-white/[0.08] text-zinc-700 dark:text-[#e8e8e8] hover:text-zinc-900 dark:hover:text-white transition-colors flex items-center justify-between group/opt"
               >
                 {opt}
                 {opt === value && (
                   <Check
                     size={14}
-                    className="text-[#8a8f98] group-hover/opt:text-white"
+                    className="text-zinc-500 dark:text-[#8a8f98] group-hover/opt:text-zinc-900 dark:group-hover/opt:text-white"
                   />
                 )}
               </button>
@@ -194,6 +196,7 @@ const SelectDropdown = ({ value, options = [], onChange }) => {
 
 
 export default function Inbox() {
+  const { effectiveTheme } = useTheme();
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedNotifId, setSelectedNotifId] = useState(null);
@@ -424,12 +427,12 @@ export default function Inbox() {
   const [copiedKey, setCopiedKey] = useState(false);
   const replyInputRef = useRef(null);
 
-  const handleCopyLink = () => {
+  const handleCopyLink = async () => {
     const url =
       selectedNotif?.entity_type === "task" && selectedNotif?.entity_id
         ? `${window.location.origin}/kanban?task=${selectedNotif.entity_id}`
         : `${window.location.origin}/inbox`;
-    navigator.clipboard?.writeText(url);
+    await copyTextToClipboard(url);
     setCopiedLink(true);
     setTimeout(() => {
       setCopiedLink(false);
@@ -437,14 +440,14 @@ export default function Inbox() {
     }, 1200);
   };
 
-  const handleCopyKey = () => {
+  const handleCopyKey = async () => {
     const key =
       taskDetail?.project_identifier ||
       selectedNotif?.project_identifier ||
       (selectedNotif?.entity_type === "task"
         ? `KRI-${selectedNotif.entity_id}`
         : `NOTIF-${selectedNotif?.id || "0"}`);
-    navigator.clipboard?.writeText(key);
+    await copyTextToClipboard(key);
     setCopiedKey(true);
     setTimeout(() => {
       setCopiedKey(false);
@@ -538,23 +541,23 @@ export default function Inbox() {
   }
 
   return (
-    <div className="flex h-full w-full bg-black md:bg-[#131416] text-[#e8e8e8] text-[13px] font-sans antialiased">
+    <div className="flex h-full w-full bg-white dark:bg-black md:dark:bg-[#131416] text-zinc-900 dark:text-[#e8e8e8] text-[13px] font-sans antialiased">
       {/* Left Sidebar */}
       <div
-        className={`w-full md:w-[320px] md:flex-shrink-0 border-r border-white/[0.06] flex flex-col bg-transparent relative z-10 ${selectedNotif ? "hidden md:flex" : "flex"}`}
+        className={`w-full md:w-[320px] md:flex-shrink-0 border-r border-black/[0.08] dark:border-white/[0.06] flex flex-col bg-transparent relative z-10 ${selectedNotif ? "hidden md:flex" : "flex"}`}
       >
         {/* Header */}
-        <div className="h-12 flex items-center justify-between px-3 border-b border-white/[0.06] flex-shrink-0">
+        <div className="h-12 flex items-center justify-between px-3 border-b border-black/[0.08] dark:border-white/[0.06] flex-shrink-0">
           <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={() => window.dispatchEvent(new CustomEvent("open-mobile-nav"))}
-              className="md:hidden p-1.5 -ml-1 text-[#8a8f98] hover:text-white rounded-md hover:bg-white/[0.06] transition-colors shrink-0"
+              className="md:hidden p-1.5 -ml-1 text-zinc-500 hover:text-zinc-900 dark:text-[#8a8f98] dark:hover:text-white rounded-md hover:bg-black/[0.05] dark:hover:bg-white/[0.06] transition-colors shrink-0"
               aria-label="Open menu"
             >
               <Menu size={18} strokeWidth={1.75} />
             </button>
-            <h1 className="text-base font-semibold tracking-tight text-white">
+            <h1 className="text-base font-semibold tracking-tight text-zinc-900 dark:text-white">
               Inbox
             </h1>
             {unreadCount > 0 && (
@@ -562,7 +565,7 @@ export default function Inbox() {
                 {unreadCount}
               </Badge>
             )}
-            <button className="h-6 w-6 flex items-center justify-center rounded-[4px] text-[#8a8f98] hover:bg-white/[0.06] hover:text-[#e8e8e8] transition-colors">
+            <button className="h-6 w-6 flex items-center justify-center rounded-[4px] text-zinc-500 hover:text-zinc-900 dark:text-[#8a8f98] hover:bg-black/[0.05] dark:hover:bg-white/[0.06] dark:hover:text-[#e8e8e8] transition-colors">
               <MoreHorizontal size={14} />
             </button>
           </div>
@@ -575,16 +578,16 @@ export default function Inbox() {
                 }
                 className={`h-[24px] w-[24px] flex items-center justify-center rounded-md transition-all ${
                   filter === "unread"
-                    ? "text-white bg-white/10 hover:bg-white/15"
-                    : "text-[#8a8f98] hover:bg-white/[0.06] hover:text-[#e8e8e8]"
+                    ? "text-zinc-900 bg-black/[0.08] dark:text-white dark:bg-white/10 hover:bg-black/[0.12] dark:hover:bg-white/15"
+                    : "text-zinc-500 hover:text-zinc-900 dark:text-[#8a8f98] hover:bg-black/[0.05] dark:hover:bg-white/[0.06] dark:hover:text-[#e8e8e8]"
                 }`}
               >
                 <InboxIconLucide size={14} strokeWidth={2} />
               </button>
               <div
-                className={`absolute top-full mt-1.5 items-center whitespace-nowrap px-2 py-1 bg-[#232429] border border-white/[0.08] rounded shadow-xl z-50 ${filter === "unread" ? "hidden" : "hidden group-hover:flex"}`}
+                className={`absolute top-full mt-1.5 items-center whitespace-nowrap px-2 py-1 bg-white dark:bg-[#232429] border border-black/10 dark:border-white/[0.08] rounded shadow-lg dark:shadow-xl z-50 ${filter === "unread" ? "hidden" : "hidden group-hover:flex"}`}
               >
-                <span className="text-[12px] font-medium text-[#e8e8e8]">
+                <span className="text-[12px] font-medium text-zinc-800 dark:text-[#e8e8e8]">
                   Show unreads only
                 </span>
               </div>
@@ -599,19 +602,19 @@ export default function Inbox() {
                 }}
                 className={`h-[24px] w-[24px] flex items-center justify-center rounded-md transition-colors ${
                   filterOpen
-                    ? "bg-white/[0.08] text-[#e8e8e8]"
-                    : "text-[#8a8f98] hover:bg-white/[0.06] hover:text-[#e8e8e8]"
+                    ? "bg-black/[0.08] text-zinc-900 dark:bg-white/[0.08] dark:text-[#e8e8e8]"
+                    : "text-zinc-500 hover:text-zinc-900 dark:text-[#8a8f98] hover:bg-black/[0.05] dark:hover:bg-white/[0.06] dark:hover:text-[#e8e8e8]"
                 }`}
               >
                 <ListFilter size={15} strokeWidth={2} />
               </button>
               <div
-                className={`absolute top-full mt-1.5 items-center gap-1.5 whitespace-nowrap px-2 py-1 bg-[#232429] border border-white/[0.08] rounded shadow-xl z-50 ${filterOpen ? "hidden" : "hidden group-hover:flex"}`}
+                className={`absolute top-full mt-1.5 items-center gap-1.5 whitespace-nowrap px-2 py-1 bg-white dark:bg-[#232429] border border-black/10 dark:border-white/[0.08] rounded shadow-lg dark:shadow-xl z-50 ${filterOpen ? "hidden" : "hidden group-hover:flex"}`}
               >
-                <span className="text-[12px] font-medium text-[#e8e8e8]">
+                <span className="text-[12px] font-medium text-zinc-800 dark:text-[#e8e8e8]">
                   Add Filter
                 </span>
-                <kbd className="h-[18px] px-1.5 rounded-[3px] flex items-center justify-center bg-white/[0.08] text-[10px] text-[#8a8f98] font-sans font-medium border border-white/[0.04]">
+                <kbd className="h-[18px] px-1.5 rounded-[3px] flex items-center justify-center bg-black/[0.06] dark:bg-white/[0.08] text-[10px] text-zinc-600 dark:text-[#8a8f98] font-sans font-medium border border-black/[0.06] dark:border-white/[0.04]">
                   F
                 </kbd>
               </div>
@@ -624,15 +627,15 @@ export default function Inbox() {
                       setActiveFilterSubmenu(null);
                     }}
                   />
-                  <div className="absolute top-full right-0 mt-1.5 z-50 w-[240px] max-w-[calc(100vw-24px)] bg-[#232429] border border-white/[0.08] rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex flex-col text-[13px]">
-                    <div className="flex items-center justify-between px-3 py-2 border-b border-white/[0.08]">
+                  <div className="absolute top-full right-0 mt-1.5 z-50 w-[240px] max-w-[calc(100vw-24px)] bg-white dark:bg-[#232429] border border-black/10 dark:border-white/[0.08] rounded-xl shadow-lg dark:shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex flex-col text-[13px]">
+                    <div className="flex items-center justify-between px-3 py-2 border-b border-black/[0.06] dark:border-white/[0.08]">
                       <input
                         type="text"
                         placeholder="Add Filter..."
-                        className="bg-transparent text-[#e8e8e8] placeholder-[#8a8f98] outline-none text-[13px] w-full font-medium"
+                        className="bg-transparent text-zinc-900 dark:text-[#e8e8e8] placeholder:text-zinc-400 dark:placeholder:text-[#8a8f98] outline-none text-[13px] w-full font-medium"
                         autoFocus
                       />
-                      <kbd className="h-[18px] px-1.5 rounded-[3px] flex items-center justify-center bg-white/[0.08] text-[10px] text-[#8a8f98] font-sans font-medium border border-white/[0.04]">
+                      <kbd className="h-[18px] px-1.5 rounded-[3px] flex items-center justify-center bg-black/[0.06] dark:bg-white/[0.08] text-[10px] text-zinc-600 dark:text-[#8a8f98] font-sans font-medium border border-black/[0.06] dark:border-white/[0.04]">
                         F
                       </kbd>
                     </div>
@@ -674,25 +677,25 @@ export default function Inbox() {
                               onMouseEnter={() =>
                                 setActiveFilterSubmenu(item.label)
                               }
-                              className={`w-full flex items-center justify-between px-3 py-1.5 transition-colors text-left group/item cursor-pointer ${isSubOpen ? "bg-white/[0.06]" : "hover:bg-white/[0.06]"}`}
+                              className={`w-full flex items-center justify-between px-3 py-1.5 transition-colors text-left group/item cursor-pointer ${isSubOpen ? "bg-black/[0.04] dark:bg-white/[0.06]" : "hover:bg-black/[0.04] dark:hover:bg-white/[0.06]"}`}
                             >
                               <div className="flex items-center gap-2.5">
                                 <div
-                                  className={`transition-colors ${isSubOpen ? "text-[#e8e8e8]" : "text-[#8a8f98] group-hover/item:text-[#e8e8e8]"}`}
+                                  className={`transition-colors ${isSubOpen ? "text-zinc-900 dark:text-[#e8e8e8]" : "text-zinc-500 dark:text-[#8a8f98] group-hover/item:text-zinc-900 dark:group-hover/item:text-[#e8e8e8]"}`}
                                 >
                                   {item.icon}
                                 </div>
-                                <span className="text-[#e8e8e8]">{item.label}</span>
+                                <span className="text-zinc-800 dark:text-[#e8e8e8]">{item.label}</span>
                               </div>
                               <ChevronRight
                                 size={14}
-                                className={`transition-all duration-200 ${isSubOpen ? "rotate-90 text-[#e8e8e8]" : "text-[#8a8f98] group-hover/item:opacity-100"}`}
+                                className={`transition-all duration-200 ${isSubOpen ? "rotate-90 text-zinc-900 dark:text-[#e8e8e8]" : "text-zinc-400 dark:text-[#8a8f98] group-hover/item:opacity-100"}`}
                               />
                             </div>
 
                             {/* Mobile inline accordion */}
                             {isSubOpen && (
-                              <div className="md:hidden flex flex-col py-1 pl-4 pr-1 bg-white/[0.02] border-y border-white/[0.04]">
+                              <div className="md:hidden flex flex-col py-1 pl-4 pr-1 bg-black/[0.02] dark:bg-white/[0.02] border-y border-black/[0.04] dark:border-white/[0.04]">
                                 {subOptions.map((sub) => {
                                   const isChecked = filterState[category]?.includes(sub);
                                   return (
@@ -703,19 +706,19 @@ export default function Inbox() {
                                         e.stopPropagation();
                                         toggleFilter(category, sub);
                                       }}
-                                      className="w-full text-left flex items-center gap-2.5 px-3 py-1.5 hover:bg-white/[0.06] cursor-pointer outline-none"
+                                      className="w-full text-left flex items-center gap-2.5 px-3 py-1.5 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] cursor-pointer outline-none"
                                     >
                                       <div
-                                        className={`w-3.5 h-3.5 rounded-[3px] border flex items-center justify-center transition-colors ${isChecked ? "bg-white border-white" : "border-white/[0.2]"}`}
+                                        className={`w-3.5 h-3.5 rounded-[3px] border flex items-center justify-center transition-colors ${isChecked ? "bg-zinc-900 border-zinc-900 dark:bg-white dark:border-white" : "border-black/20 dark:border-white/[0.2]"}`}
                                       >
                                         {isChecked && (
                                           <Check
                                             size={10}
-                                            className="text-black stroke-[3]"
+                                            className="text-white dark:text-black stroke-[3]"
                                           />
                                         )}
                                       </div>
-                                      <span className="text-[#e8e8e8] text-[12.5px] select-none truncate">
+                                      <span className="text-zinc-800 dark:text-[#e8e8e8] text-[12.5px] select-none truncate">
                                         {sub}
                                       </span>
                                     </button>
@@ -729,12 +732,12 @@ export default function Inbox() {
 
                       {/* Desktop flyout inward */}
                       {activeFilterSubmenu && (
-                        <div className="hidden md:flex absolute top-0 right-[calc(100%+6px)] w-[220px] bg-[#232429] border border-white/[0.08] rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex-col text-[13px] overflow-hidden z-50">
-                          <div className="flex items-center px-3 py-2 border-b border-white/[0.08]">
+                        <div className="hidden md:flex absolute top-0 right-[calc(100%+6px)] w-[220px] bg-white dark:bg-[#232429] border border-black/10 dark:border-white/[0.08] rounded-xl shadow-lg dark:shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex-col text-[13px] overflow-hidden z-50">
+                          <div className="flex items-center px-3 py-2 border-b border-black/[0.06] dark:border-white/[0.08]">
                             <input
                               type="text"
                               placeholder="Filter..."
-                              className="bg-transparent text-[#e8e8e8] placeholder-[#8a8f98] outline-none text-[13px] w-full font-medium"
+                              className="bg-transparent text-zinc-900 dark:text-[#e8e8e8] placeholder:text-zinc-400 dark:placeholder:text-[#8a8f98] outline-none text-[13px] w-full font-medium"
                             />
                           </div>
                           <div className="py-1 max-h-56 overflow-y-auto">
@@ -762,22 +765,22 @@ export default function Inbox() {
                                     e.stopPropagation();
                                     toggleFilter(category, sub);
                                   }}
-                                  className="w-full text-left flex items-center gap-2.5 px-3 py-1.5 hover:bg-white/[0.06] cursor-pointer outline-none"
+                                  className="w-full text-left flex items-center gap-2.5 px-3 py-1.5 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] cursor-pointer outline-none"
                                 >
                                   <div
-                                    className={`w-3.5 h-3.5 rounded-[3px] border flex items-center justify-center transition-colors ${isChecked ? "bg-white border-white" : "border-white/[0.2]"}`}
+                                    className={`w-3.5 h-3.5 rounded-[3px] border flex items-center justify-center transition-colors ${isChecked ? "bg-zinc-900 border-zinc-900 dark:bg-white dark:border-white" : "border-black/20 dark:border-white/[0.2]"}`}
                                   >
                                     {isChecked && (
                                       <Check
                                         size={10}
-                                        className="text-black stroke-[3]"
+                                        className="text-white dark:text-black stroke-[3]"
                                       />
                                     )}
                                   </div>
-                                  <span className="text-[#e8e8e8] text-[13px] select-none">
+                                  <span className="text-zinc-800 dark:text-[#e8e8e8] text-[13px] select-none">
                                     {sub}
                                   </span>
-                                    </button>
+                                </button>
                                   );
                                 })}
                               </div>
@@ -798,23 +801,23 @@ export default function Inbox() {
                 }}
                 className={`h-[24px] w-[24px] flex items-center justify-center rounded-md transition-colors ${
                   displayOpen
-                    ? "bg-white/[0.08] text-[#e8e8e8]"
-                    : "text-[#8a8f98] hover:bg-white/[0.06] hover:text-[#e8e8e8]"
+                    ? "bg-black/[0.08] text-zinc-900 dark:bg-white/[0.08] dark:text-[#e8e8e8]"
+                    : "text-zinc-500 hover:text-zinc-900 dark:text-[#8a8f98] hover:bg-black/[0.05] dark:hover:bg-white/[0.06] dark:hover:text-[#e8e8e8]"
                 }`}
               >
                 <SlidersHorizontal size={14} strokeWidth={2.2} />
               </button>
               <div
-                className={`absolute top-full mt-1.5 left-0 items-center gap-1.5 whitespace-nowrap px-2 py-1 bg-[#232429] border border-white/[0.08] rounded shadow-xl z-50 ${displayOpen ? "hidden" : "hidden group-hover:flex"}`}
+                className={`absolute top-full mt-1.5 left-0 items-center gap-1.5 whitespace-nowrap px-2 py-1 bg-white dark:bg-[#232429] border border-black/10 dark:border-white/[0.08] rounded shadow-lg dark:shadow-xl z-50 ${displayOpen ? "hidden" : "hidden group-hover:flex"}`}
               >
-                <span className="text-[12px] font-medium text-[#e8e8e8]">
+                <span className="text-[12px] font-medium text-zinc-800 dark:text-[#e8e8e8]">
                   Show display options
                 </span>
                 <div className="flex gap-0.5">
-                  <kbd className="h-[18px] px-1.5 rounded-[3px] flex items-center justify-center bg-white/[0.08] text-[10px] text-[#8a8f98] font-sans font-medium border border-white/[0.04]">
+                  <kbd className="h-[18px] px-1.5 rounded-[3px] flex items-center justify-center bg-black/[0.06] dark:bg-white/[0.08] text-[10px] text-zinc-600 dark:text-[#8a8f98] font-sans font-medium border border-black/[0.06] dark:border-white/[0.04]">
                     ↑
                   </kbd>
-                  <kbd className="h-[18px] px-1.5 rounded-[3px] flex items-center justify-center bg-white/[0.08] text-[10px] text-[#8a8f98] font-sans font-medium border border-white/[0.04]">
+                  <kbd className="h-[18px] px-1.5 rounded-[3px] flex items-center justify-center bg-black/[0.06] dark:bg-white/[0.08] text-[10px] text-zinc-600 dark:text-[#8a8f98] font-sans font-medium border border-black/[0.06] dark:border-white/[0.04]">
                     V
                   </kbd>
                 </div>
@@ -825,9 +828,9 @@ export default function Inbox() {
                     className="fixed inset-0 z-40"
                     onClick={() => setDisplayOpen(false)}
                   />
-                  <div className="absolute top-full right-0 mt-1.5 z-50 w-[280px] bg-[#232429] border border-white/[0.08] rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.5)] py-1.5 flex flex-col text-[13px]">
-                    <div className="flex items-center justify-between px-4 py-1.5 hover:bg-white/[0.04]">
-                      <span className="text-[#e8e8e8] font-medium">
+                  <div className="absolute top-full right-0 mt-1.5 z-50 w-[280px] bg-white dark:bg-[#232429] border border-black/10 dark:border-white/[0.08] rounded-xl shadow-lg dark:shadow-[0_8px_30px_rgb(0,0,0,0.5)] py-1.5 flex flex-col text-[13px]">
+                    <div className="flex items-center justify-between px-4 py-1.5 hover:bg-black/[0.03] dark:hover:bg-white/[0.04]">
+                      <span className="text-zinc-800 dark:text-[#e8e8e8] font-medium">
                         Enable priority inbox
                       </span>
                       <Toggle
@@ -840,8 +843,8 @@ export default function Inbox() {
                         }
                       />
                     </div>
-                    <div className="flex items-center justify-between px-4 py-1.5 hover:bg-white/[0.04]">
-                      <span className="text-[#8a8f98]">
+                    <div className="flex items-center justify-between px-4 py-1.5 hover:bg-black/[0.03] dark:hover:bg-white/[0.04]">
+                      <span className="text-zinc-500 dark:text-[#8a8f98]">
                         Include in priority inbox
                       </span>
                       <SelectDropdown
@@ -855,8 +858,8 @@ export default function Inbox() {
                         }
                       />
                     </div>
-                    <div className="flex items-center justify-between px-4 py-1.5 hover:bg-white/[0.04]">
-                      <span className="text-[#8a8f98]">Badge count</span>
+                    <div className="flex items-center justify-between px-4 py-1.5 hover:bg-black/[0.03] dark:hover:bg-white/[0.04]">
+                      <span className="text-zinc-500 dark:text-[#8a8f98]">Badge count</span>
                       <SelectDropdown
                         value={displayOptions.badgeCount}
                         options={["Priority & Other", "Priority only", "None"]}
@@ -869,10 +872,10 @@ export default function Inbox() {
                       />
                     </div>
 
-                    <div className="my-1.5 h-[1px] bg-white/[0.04]" />
+                    <div className="my-1.5 h-[1px] bg-black/[0.06] dark:bg-white/[0.04]" />
 
-                    <div className="flex items-center justify-between px-4 py-1.5 hover:bg-white/[0.04]">
-                      <span className="text-[#8a8f98]">Group unreads by</span>
+                    <div className="flex items-center justify-between px-4 py-1.5 hover:bg-black/[0.03] dark:hover:bg-white/[0.04]">
+                      <span className="text-zinc-500 dark:text-[#8a8f98]">Group unreads by</span>
                       <SelectDropdown
                         value={displayOptions.groupUnreadsBy}
                         options={[
@@ -889,8 +892,8 @@ export default function Inbox() {
                         }
                       />
                     </div>
-                    <div className="flex items-center justify-between px-4 py-1.5 hover:bg-white/[0.04]">
-                      <span className="text-[#8a8f98]">Ordering</span>
+                    <div className="flex items-center justify-between px-4 py-1.5 hover:bg-black/[0.03] dark:hover:bg-white/[0.04]">
+                      <span className="text-zinc-500 dark:text-[#8a8f98]">Ordering</span>
                       <SelectDropdown
                         value={displayOptions.ordering}
                         options={["Newest", "Oldest", "Priority"]}
@@ -903,10 +906,10 @@ export default function Inbox() {
                       />
                     </div>
 
-                    <div className="my-1.5 h-[1px] bg-white/[0.04]" />
+                    <div className="my-1.5 h-[1px] bg-black/[0.06] dark:bg-white/[0.04]" />
 
-                    <div className="flex items-center justify-between px-4 py-1.5 hover:bg-white/[0.04]">
-                      <span className="text-[#e8e8e8] font-medium">
+                    <div className="flex items-center justify-between px-4 py-1.5 hover:bg-black/[0.03] dark:hover:bg-white/[0.04]">
+                      <span className="text-zinc-800 dark:text-[#e8e8e8] font-medium">
                         Show snoozed
                       </span>
                       <Toggle
@@ -919,8 +922,8 @@ export default function Inbox() {
                         }
                       />
                     </div>
-                    <div className="flex items-center justify-between px-4 py-1.5 hover:bg-white/[0.04]">
-                      <span className="text-[#e8e8e8] font-medium">
+                    <div className="flex items-center justify-between px-4 py-1.5 hover:bg-black/[0.03] dark:hover:bg-white/[0.04]">
+                      <span className="text-zinc-800 dark:text-[#e8e8e8] font-medium">
                         Show unread first
                       </span>
                       <Toggle
@@ -947,14 +950,14 @@ export default function Inbox() {
               {[1, 2, 3].map((i) => (
                 <div
                   key={i}
-                  className="h-[60px] rounded bg-white/[0.02] animate-pulse"
+                  className="h-[60px] rounded bg-black/[0.02] dark:bg-white/[0.02] animate-pulse"
                 />
               ))}
             </div>
           ) : filteredNotifications.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-[#8a8f98] gap-4">
+            <div className="flex flex-col items-center justify-center h-full text-zinc-500 dark:text-[#8a8f98] gap-4">
               <div className="w-40 h-40 relative overflow-visible">
-                <Lockers theme="dark" intensity={0.5} className="w-full h-full opacity-60" />
+                <Lockers theme={effectiveTheme} intensity={0.5} className="w-full h-full opacity-60" />
               </div>
               <span className="text-[13px]">All caught up</span>
             </div>
@@ -979,16 +982,16 @@ export default function Inbox() {
                         handleSelect(notif, idx);
                       }
                     }}
-                    className={`w-full flex items-start gap-3 px-3.5 py-2.5 text-left transition-colors relative group outline-none cursor-pointer border-b border-white/[0.03] select-none ${
+                    className={`w-full flex items-start gap-3 px-3.5 py-2.5 text-left transition-colors relative group outline-none cursor-pointer border-b border-black/[0.04] dark:border-white/[0.03] select-none ${
                       isSelected || isActive
-                        ? "bg-white/[0.07]"
-                        : "hover:bg-white/[0.035] active:bg-white/[0.05]"
-                    } ${isActive ? "ring-1 ring-inset ring-white/10" : ""}`}
+                        ? "bg-black/[0.04] dark:bg-white/[0.07]"
+                        : "hover:bg-black/[0.02] dark:hover:bg-white/[0.035] active:bg-black/[0.04] dark:active:bg-white/[0.05]"
+                    } ${isActive ? "ring-1 ring-inset ring-black/10 dark:ring-white/10" : ""}`}
                   >
                     {isSelected && (
-                      <div className="absolute left-0 top-0 bottom-0 w-[2.5px] bg-white shadow-[0_0_8px_rgba(255,255,255,0.4)]" />
+                      <div className="absolute left-0 top-0 bottom-0 w-[2.5px] bg-zinc-900 dark:bg-white shadow-[0_0_8px_rgba(0,0,0,0.15)] dark:shadow-[0_0_8px_rgba(255,255,255,0.4)]" />
                     )}
-                    <div className="mt-0.5 flex-shrink-0 text-[#8a8f98] group-hover:text-[#e8e8e8] transition-colors">
+                    <div className="mt-0.5 flex-shrink-0 text-zinc-500 dark:text-[#8a8f98] group-hover:text-zinc-900 dark:group-hover:text-[#e8e8e8] transition-colors">
                       <NotificationIcon notif={notif} size={14} />
                     </div>
                     <div className="flex-1 min-w-0 pr-1">
@@ -996,15 +999,15 @@ export default function Inbox() {
                         <span
                           className={`truncate text-[13px] tracking-tight ${
                             notif.is_read
-                              ? "text-[#8a8f98] font-normal"
-                              : "text-[#e8e8e8] font-medium"
+                              ? "text-zinc-500 dark:text-[#8a8f98] font-normal"
+                              : "text-zinc-900 dark:text-[#e8e8e8] font-medium"
                           }`}
                         >
                           {notif.title}
                         </span>
                         <span
                           className={`text-[12px] flex-shrink-0 tabular-nums transition-opacity duration-150 ${
-                            notif.is_read ? "text-[#8a8f98] opacity-60" : "text-[#8a8f98] opacity-100"
+                            notif.is_read ? "text-zinc-400 dark:text-[#8a8f98] opacity-60" : "text-zinc-500 dark:text-[#8a8f98] opacity-100"
                           } group-hover:opacity-0`}
                         >
                           {new Date(notif.created_at).toLocaleTimeString([], {
@@ -1015,19 +1018,19 @@ export default function Inbox() {
                       </div>
                       <span
                         className={`text-[13px] truncate block mt-0.5 ${
-                          notif.is_read ? "text-[#8a8f98] opacity-70" : "text-[#8a8f98]"
+                          notif.is_read ? "text-zinc-400 dark:text-[#8a8f98] opacity-70" : "text-zinc-600 dark:text-[#8a8f98]"
                         }`}
                       >
                         {notif.message}
                       </span>
                     </div>
                     {!notif.is_read && (
-                      <div className="w-1.5 h-1.5 flex-shrink-0 rounded-full bg-white mt-2 transition-opacity group-hover:opacity-0 shadow-[0_0_6px_rgba(255,255,255,0.7)]" />
+                      <div className="w-1.5 h-1.5 flex-shrink-0 rounded-full bg-blue-600 dark:bg-white mt-2 transition-opacity group-hover:opacity-0 shadow-[0_0_6px_rgba(37,99,235,0.4)] dark:shadow-[0_0_6px_rgba(255,255,255,0.7)]" />
                     )}
 
                     {/* Hover Actions Pill - positioned cleanly at top right aligned with first line */}
                     <div
-                      className="absolute right-2.5 top-2 opacity-0 group-hover:opacity-100 flex items-center gap-0.5 bg-[#1a1b1f] border border-white/10 shadow-[0_4px_12px_rgba(0,0,0,0.5)] rounded-md p-0.5 transition-all duration-150 z-20 pointer-events-none group-hover:pointer-events-auto"
+                      className="absolute right-2.5 top-2 opacity-0 group-hover:opacity-100 flex items-center gap-0.5 bg-white dark:bg-[#1a1b1f] border border-black/10 dark:border-white/10 shadow-[0_4px_12px_rgba(0,0,0,0.08)] dark:shadow-[0_4px_12px_rgba(0,0,0,0.5)] rounded-md p-0.5 transition-all duration-150 z-20 pointer-events-none group-hover:pointer-events-auto"
                       onClick={(e) => e.stopPropagation()}
                     >
                       <button
@@ -1037,10 +1040,10 @@ export default function Inbox() {
                           markAsRead(notif.id, !notif.is_read);
                         }}
                         title={notif.is_read ? "Mark as unread" : "Mark as read"}
-                        className="h-6 w-6 flex items-center justify-center rounded-[4px] hover:bg-white/[0.08] text-[#8a8f98] hover:text-[#e8e8e8] transition-colors"
+                        className="h-6 w-6 flex items-center justify-center rounded-[4px] hover:bg-black/[0.05] dark:hover:bg-white/[0.08] text-zinc-500 hover:text-zinc-900 dark:text-[#8a8f98] dark:hover:text-[#e8e8e8] transition-colors"
                       >
                         {notif.is_read ? (
-                          <CheckCheck size={13} className="text-emerald-400" />
+                          <CheckCheck size={13} className="text-emerald-500 dark:text-emerald-400" />
                         ) : (
                           <Check size={13} />
                         )}
@@ -1051,7 +1054,7 @@ export default function Inbox() {
                           e.stopPropagation();
                         }}
                         title="Snooze"
-                        className="h-6 w-6 flex items-center justify-center rounded-[4px] hover:bg-white/[0.08] text-[#8a8f98] hover:text-[#e8e8e8] transition-colors"
+                        className="h-6 w-6 flex items-center justify-center rounded-[4px] hover:bg-black/[0.05] dark:hover:bg-white/[0.08] text-zinc-500 hover:text-zinc-900 dark:text-[#8a8f98] dark:hover:text-[#e8e8e8] transition-colors"
                       >
                         <Clock size={13} />
                       </button>
@@ -1061,7 +1064,7 @@ export default function Inbox() {
                           e.stopPropagation();
                         }}
                         title="More options"
-                        className="h-6 w-6 flex items-center justify-center rounded-[4px] hover:bg-white/[0.08] text-[#8a8f98] hover:text-[#e8e8e8] transition-colors"
+                        className="h-6 w-6 flex items-center justify-center rounded-[4px] hover:bg-black/[0.05] dark:hover:bg-white/[0.08] text-zinc-500 hover:text-zinc-900 dark:text-[#8a8f98] dark:hover:text-[#e8e8e8] transition-colors"
                       >
                         <MoreHorizontal size={13} />
                       </button>
@@ -1080,29 +1083,29 @@ export default function Inbox() {
       >
         {selectedNotif ? (
           <div className="flex-1 flex flex-col h-full overflow-hidden">
-            {/* Top Bar Navigation & Actions (Linear Header) */}
-            <div className="h-12 border-b border-white/[0.06] flex items-center justify-between px-3 sm:px-6 bg-[#131416]/90 backdrop-blur-md sticky top-0 z-20 flex-shrink-0">
+            {/* Top Bar Navigation & Actions (Inbox Header) */}
+            <div className="h-12 border-b border-black/[0.08] dark:border-white/[0.06] flex items-center justify-between px-3 sm:px-6 bg-white/90 dark:bg-black/90 md:dark:bg-[#131416]/90 backdrop-blur-md sticky top-0 z-20 flex-shrink-0">
               <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 mr-2">
                 <button
                   type="button"
                   onClick={handleBackToList}
-                  className="md:hidden shrink-0 flex items-center gap-1 text-xs text-[#8a8f98] hover:text-white px-2 py-1 -ml-1 rounded-md hover:bg-white/[0.06] transition-colors"
+                  className="md:hidden shrink-0 flex items-center gap-1 text-xs text-zinc-500 hover:text-zinc-900 dark:text-[#8a8f98] dark:hover:text-white px-2 py-1 -ml-1 rounded-md hover:bg-black/[0.05] dark:hover:bg-white/[0.06] transition-colors"
                 >
                   <ArrowLeft size={15} className="shrink-0" />
                   <span className="font-medium">Back</span>
                 </button>
 
-                {/* Linear Breadcrumbs */}
-                <div className="min-w-0 flex items-center gap-1.5 text-[12px] font-medium text-[#8a8f98] truncate">
+                {/* Inbox Breadcrumbs */}
+                <div className="min-w-0 flex items-center gap-1.5 text-[12px] font-medium text-zinc-500 dark:text-[#8a8f98] truncate">
                   {(taskDetail?.project_name || selectedNotif.project_name) && (
                     <>
-                      <span className="hover:text-[#e8e8e8] transition-colors truncate max-w-[85px] sm:max-w-[160px]">
+                      <span className="hover:text-zinc-900 dark:hover:text-[#e8e8e8] transition-colors truncate max-w-[85px] sm:max-w-[160px]">
                         {taskDetail?.project_name || selectedNotif.project_name}
                       </span>
-                      <span className="text-[#4e535e] shrink-0">/</span>
+                      <span className="text-zinc-400 dark:text-[#4e535e] shrink-0">/</span>
                     </>
                   )}
-                  <span className="font-mono text-[#d0d3d9] truncate shrink-0">
+                  <span className="font-mono text-zinc-800 dark:text-[#d0d3d9] truncate shrink-0">
                     {taskDetail?.project_identifier ||
                       selectedNotif.project_identifier ||
                       (selectedNotif.entity_type === "task"
@@ -1117,8 +1120,8 @@ export default function Inbox() {
                 <button
                   type="button"
                   onClick={() => setOptionsMenuOpen((prev) => !prev)}
-                  className={`p-1.5 flex items-center justify-center rounded-md text-[#8a8f98] hover:text-[#e8e8e8] hover:bg-white/[0.06] transition-colors ${
-                    optionsMenuOpen ? "text-[#e8e8e8] bg-white/[0.08]" : ""
+                  className={`p-1.5 flex items-center justify-center rounded-md text-zinc-500 hover:text-zinc-900 dark:text-[#8a8f98] dark:hover:text-[#e8e8e8] hover:bg-black/[0.05] dark:hover:bg-white/[0.06] transition-colors ${
+                    optionsMenuOpen ? "text-zinc-900 bg-black/[0.08] dark:text-[#e8e8e8] dark:bg-white/[0.08]" : ""
                   }`}
                   title="Options"
                 >
@@ -1131,32 +1134,32 @@ export default function Inbox() {
                         className="fixed inset-0 z-40"
                         onClick={() => setOptionsMenuOpen(false)}
                       />
-                      <div className="absolute right-0 top-full mt-1.5 w-52 py-1 bg-[#141517] border border-white/[0.1] rounded-lg shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-100">
+                      <div className="absolute right-0 top-full mt-1.5 w-52 py-1 bg-white dark:bg-[#141517] border border-black/10 dark:border-white/[0.1] rounded-lg shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-100">
                         <button
                           type="button"
                           onClick={handleCopyLink}
-                          className="w-full px-3 py-1.5 text-left text-[12.5px] text-[#d0d3d9] hover:bg-white/[0.06] flex items-center justify-between transition-colors"
+                          className="w-full px-3 py-1.5 text-left text-[12.5px] text-zinc-700 dark:text-[#d0d3d9] hover:bg-black/[0.04] dark:hover:bg-white/[0.06] flex items-center justify-between transition-colors"
                         >
                           <span className="flex items-center gap-2">
-                            <Link size={13} className="text-[#8a8f98]" />
+                            <Link size={13} className="text-zinc-400 dark:text-[#8a8f98]" />
                             <span>Copy issue link</span>
                           </span>
                           {copiedLink && (
-                            <span className="text-[11px] text-emerald-400 font-medium">Copied!</span>
+                            <span className="text-[11px] text-emerald-500 dark:text-emerald-400 font-medium">Copied!</span>
                           )}
                         </button>
 
                         <button
                           type="button"
                           onClick={handleCopyKey}
-                          className="w-full px-3 py-1.5 text-left text-[12.5px] text-[#d0d3d9] hover:bg-white/[0.06] flex items-center justify-between transition-colors"
+                          className="w-full px-3 py-1.5 text-left text-[12.5px] text-zinc-700 dark:text-[#d0d3d9] hover:bg-black/[0.04] dark:hover:bg-white/[0.06] flex items-center justify-between transition-colors"
                         >
                           <span className="flex items-center gap-2">
-                            <Copy size={13} className="text-[#8a8f98]" />
+                            <Copy size={13} className="text-zinc-400 dark:text-[#8a8f98]" />
                             <span>Copy issue ID</span>
                           </span>
                           {copiedKey && (
-                            <span className="text-[11px] text-emerald-400 font-medium">Copied!</span>
+                            <span className="text-[11px] text-emerald-500 dark:text-emerald-400 font-medium">Copied!</span>
                           )}
                         </button>
 
@@ -1170,9 +1173,9 @@ export default function Inbox() {
                               setOptionsMenuOpen(false);
                               navigate(`/kanban?task=${tId}`, { state: { taskId: tId } });
                             }}
-                            className="w-full px-3 py-1.5 text-left text-[12.5px] text-[#d0d3d9] hover:bg-white/[0.06] flex items-center gap-2 transition-colors"
+                            className="w-full px-3 py-1.5 text-left text-[12.5px] text-zinc-700 dark:text-[#d0d3d9] hover:bg-black/[0.04] dark:hover:bg-white/[0.06] flex items-center gap-2 transition-colors"
                           >
-                            <ExternalLink size={13} className="text-[#8a8f98]" />
+                            <ExternalLink size={13} className="text-zinc-400 dark:text-[#8a8f98]" />
                             <span>Open on Board</span>
                           </button>
                         )}
@@ -1187,9 +1190,9 @@ export default function Inbox() {
                               setOptionsMenuOpen(false);
                               navigate(`/tasks?task=${tId}`, { state: { taskId: tId } });
                             }}
-                            className="w-full px-3 py-1.5 text-left text-[12.5px] text-[#d0d3d9] hover:bg-white/[0.06] flex items-center gap-2 transition-colors"
+                            className="w-full px-3 py-1.5 text-left text-[12.5px] text-zinc-700 dark:text-[#d0d3d9] hover:bg-black/[0.04] dark:hover:bg-white/[0.06] flex items-center gap-2 transition-colors"
                           >
-                            <Box size={13} className="text-[#8a8f98]" />
+                            <Box size={13} className="text-zinc-400 dark:text-[#8a8f98]" />
                             <span>Open in Issues</span>
                           </button>
                         )}
@@ -1203,14 +1206,14 @@ export default function Inbox() {
                               const pId = selectedNotif.project_id || taskDetail?.project_id;
                               navigate(`/projects/${pId}`);
                             }}
-                            className="w-full px-3 py-1.5 text-left text-[12.5px] text-[#d0d3d9] hover:bg-white/[0.06] flex items-center gap-2 transition-colors"
+                            className="w-full px-3 py-1.5 text-left text-[12.5px] text-zinc-700 dark:text-[#d0d3d9] hover:bg-black/[0.04] dark:hover:bg-white/[0.06] flex items-center gap-2 transition-colors"
                           >
-                            <FolderKanban size={13} className="text-[#8a8f98]" />
+                            <FolderKanban size={13} className="text-zinc-400 dark:text-[#8a8f98]" />
                             <span>View Project</span>
                           </button>
                         )}
 
-                        <div className="h-px bg-white/[0.08] my-1" />
+                        <div className="h-px bg-black/[0.06] dark:bg-white/[0.08] my-1" />
 
                         <button
                           type="button"
@@ -1218,16 +1221,16 @@ export default function Inbox() {
                             markAsRead(selectedNotif.id, !selectedNotif.is_read);
                             setOptionsMenuOpen(false);
                           }}
-                          className="w-full px-3 py-1.5 text-left text-[12.5px] text-[#d0d3d9] hover:bg-white/[0.06] flex items-center gap-2 transition-colors"
+                          className="w-full px-3 py-1.5 text-left text-[12.5px] text-zinc-700 dark:text-[#d0d3d9] hover:bg-black/[0.04] dark:hover:bg-white/[0.06] flex items-center gap-2 transition-colors"
                         >
                           {selectedNotif.is_read ? (
                             <>
-                              <CheckCheck size={13} className="text-emerald-400" />
+                              <CheckCheck size={13} className="text-emerald-500 dark:text-emerald-400" />
                               <span>Mark as unread</span>
                             </>
                           ) : (
                             <>
-                              <Check size={13} className="text-[#8a8f98]" />
+                              <Check size={13} className="text-zinc-400 dark:text-[#8a8f98]" />
                               <span>Mark as read</span>
                             </>
                           )}
@@ -1236,20 +1239,20 @@ export default function Inbox() {
                         <button
                           type="button"
                           onClick={handleSnooze}
-                          className="w-full px-3 py-1.5 text-left text-[12.5px] text-[#d0d3d9] hover:bg-white/[0.06] flex items-center gap-2 transition-colors"
+                          className="w-full px-3 py-1.5 text-left text-[12.5px] text-zinc-700 dark:text-[#d0d3d9] hover:bg-black/[0.04] dark:hover:bg-white/[0.06] flex items-center gap-2 transition-colors"
                         >
-                          <Clock size={13} className="text-[#8a8f98]" />
+                          <Clock size={13} className="text-zinc-400 dark:text-[#8a8f98]" />
                           <span>Snooze notification</span>
                         </button>
 
-                        <div className="h-px bg-white/[0.08] my-1" />
+                        <div className="h-px bg-black/[0.06] dark:bg-white/[0.08] my-1" />
 
                         <button
                           type="button"
                           onClick={handleDeleteNotif}
-                          className="w-full px-3 py-1.5 text-left text-[12.5px] text-rose-400 hover:bg-rose-500/10 flex items-center gap-2 transition-colors"
+                          className="w-full px-3 py-1.5 text-left text-[12.5px] text-rose-500 dark:text-rose-400 hover:bg-rose-500/10 flex items-center gap-2 transition-colors"
                         >
-                          <Trash2 size={13} className="text-rose-400" />
+                          <Trash2 size={13} className="text-rose-500 dark:text-rose-400" />
                           <span>Delete notification</span>
                         </button>
                       </div>
@@ -1262,7 +1265,7 @@ export default function Inbox() {
             <div className="flex-1 overflow-y-auto px-4 sm:px-8 md:px-12 py-5 sm:py-8">
               <div className="max-w-3xl w-full mx-auto">
                 {/* Issue / Notification Identifier Header */}
-                <div className="flex items-center gap-2 mb-2 text-[12px] font-mono text-[#8a8f98]">
+                <div className="flex items-center gap-2 mb-2 text-[12px] font-mono text-zinc-500 dark:text-[#8a8f98]">
                   <span>
                     {taskDetail?.project_identifier ||
                       selectedNotif.project_identifier ||
@@ -1273,13 +1276,13 @@ export default function Inbox() {
                 </div>
 
                 {/* Title */}
-                <h1 className="text-[20px] sm:text-[25px] font-semibold text-[#f0f0f0] tracking-tight leading-snug">
+                <h1 className="text-[20px] sm:text-[25px] font-semibold text-zinc-900 dark:text-[#f0f0f0] tracking-tight leading-snug">
                   {taskDetail?.title ||
                     selectedNotif.task_title ||
                     selectedNotif.title}
                 </h1>
 
-                {/* Linear Properties Ribbon using Arc Badges (Consistent 22px heights, no redundant project pill) */}
+                {/* Properties Ribbon using Arc Badges (Consistent 22px heights, no redundant project pill) */}
                 <div className="flex items-center gap-2 mt-4 flex-wrap">
                   {/* Status Badge */}
                   <Badge
@@ -1316,12 +1319,12 @@ export default function Inbox() {
                     tone="neutral"
                     size="sm"
                     className="h-[22px] min-h-[22px]"
-                    icon={<Signal size={12} className="text-[#8a8f98] shrink-0" />}
+                    icon={<Signal size={12} className="text-zinc-500 dark:text-[#8a8f98] shrink-0" />}
                   >
                     {taskDetail?.priority || "Medium"}
                   </Badge>
 
-                  {/* Assignee Badge: avatar sits flush in left corner, filling the space snugly with concentric margin */}
+                  {/* Assignee Badge */}
                   <Badge
                     tone="neutral"
                     size="sm"
@@ -1334,8 +1337,8 @@ export default function Inbox() {
                           className="w-[18px] h-[18px] rounded-full object-cover shrink-0 ml-[1px]"
                         />
                       ) : (
-                        <span className="w-[18px] h-[18px] rounded-full bg-white/[0.08] flex items-center justify-center shrink-0 ml-[1px]">
-                          <User size={11} className="text-[#8a8f98]" />
+                        <span className="w-[18px] h-[18px] rounded-full bg-black/[0.06] dark:bg-white/[0.08] flex items-center justify-center shrink-0 ml-[1px]">
+                          <User size={11} className="text-zinc-500 dark:text-[#8a8f98]" />
                         </span>
                       )
                     }
@@ -1345,7 +1348,7 @@ export default function Inbox() {
                 </div>
 
                 {/* Hairline Divider */}
-                <div className="h-px bg-white/[0.06] my-8" />
+                <div className="h-px bg-black/[0.06] dark:bg-white/[0.06] my-8" />
 
                 {/* Activity Timeline Stream (Pure canvas text, NO card boxes) */}
                 <div className="flex flex-col gap-6">
@@ -1359,10 +1362,10 @@ export default function Inbox() {
                     />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-[13.5px] font-medium text-[#f0f0f0]">
+                        <span className="text-[13.5px] font-medium text-zinc-900 dark:text-[#f0f0f0]">
                           {selectedNotif.actor_name || "System"}
                         </span>
-                        <span className="text-[13px] text-[#8a8f98]">
+                        <span className="text-[13px] text-zinc-500 dark:text-[#8a8f98]">
                           {selectedNotif.type === "mention" || selectedNotif.title?.toLowerCase().includes("mentioned")
                             ? "mentioned you in a comment"
                             : selectedNotif.type === "task_comment" || selectedNotif.type === "comment" || selectedNotif.title?.toLowerCase().includes("commented")
@@ -1375,13 +1378,13 @@ export default function Inbox() {
                                     ? "updated status"
                                     : selectedNotif.title}
                         </span>
-                        <span className="text-[12px] text-[#6b6f76]">
+                        <span className="text-[12px] text-zinc-400 dark:text-[#6b6f76]">
                           {formatDetailDate(selectedNotif.created_at)}
                         </span>
                       </div>
 
                       {/* Message Content directly on the flat canvas */}
-                      <div className="mt-2 text-[14px] text-[#d0d3d9] leading-relaxed whitespace-pre-wrap font-sans">
+                      <div className="mt-2 text-[14px] text-zinc-700 dark:text-[#d0d3d9] leading-relaxed whitespace-pre-wrap font-sans">
                         {selectedNotif.message}
                       </div>
                     </div>
@@ -1398,24 +1401,24 @@ export default function Inbox() {
                       />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-[13.5px] font-medium text-[#f0f0f0]">
+                          <span className="text-[13.5px] font-medium text-zinc-900 dark:text-[#f0f0f0]">
                             {c.user_name || "Teammate"}
                           </span>
-                          <span className="text-[12px] text-[#6b6f76]">
+                          <span className="text-[12px] text-zinc-400 dark:text-[#6b6f76]">
                             {formatDetailDate(c.created_at)}
                           </span>
                         </div>
-                        <div className="mt-2 text-[14px] text-[#d0d3d9] leading-relaxed whitespace-pre-wrap font-sans">
+                        <div className="mt-2 text-[14px] text-zinc-700 dark:text-[#d0d3d9] leading-relaxed whitespace-pre-wrap font-sans">
                           {c.content}
                         </div>
                       </div>
                     </div>
                   ))}
 
-                  {/* Inline Reply Box (Linear Style) */}
+                  {/* Inline Reply Box */}
                   {selectedNotif.entity_type === "task" &&
                     selectedNotif.entity_id && (
-                      <div className="mt-6 pt-4 sm:pt-5 border-t border-white/[0.06] flex items-end gap-2.5 sm:gap-3 pb-6 sm:pb-2">
+                      <div className="mt-6 pt-4 sm:pt-5 border-t border-black/[0.06] dark:border-white/[0.06] flex items-end gap-2.5 sm:gap-3 pb-6 sm:pb-2">
                         <Avatar
                           name={user?.fullName || user?.firstName || "You"}
                           src={user?.imageUrl}
@@ -1423,7 +1426,7 @@ export default function Inbox() {
                           className="flex-shrink-0 mb-1"
                         />
                         <div className="flex-1 min-w-0">
-                          <div className="relative flex items-end gap-2 sm:gap-2.5 rounded-[20px] bg-white/[0.02] border border-white/[0.08] focus-within:border-white/20 focus-within:ring-1 focus-within:ring-white/10 transition-all pl-3.5 sm:pl-4 pr-1.5 py-1.5 shadow-sm">
+                          <div className="relative flex items-end gap-2 sm:gap-2.5 rounded-[20px] bg-black/[0.02] dark:bg-white/[0.02] border border-black/[0.08] dark:border-white/[0.08] focus-within:border-black/20 dark:focus-within:border-white/20 focus-within:ring-1 focus-within:ring-black/5 dark:focus-within:ring-white/10 transition-all pl-3.5 sm:pl-4 pr-1.5 py-1.5 shadow-sm">
                             <textarea
                               ref={replyInputRef}
                               rows={1}
@@ -1443,7 +1446,7 @@ export default function Inbox() {
                                 }
                               }}
                               placeholder="Leave a comment..."
-                              className="flex-1 bg-transparent text-[13px] text-[#e8e8e8] placeholder-[#6b6f76] outline-none resize-none leading-relaxed py-1 min-h-[26px] max-h-[160px]"
+                              className="flex-1 bg-transparent text-[13px] text-zinc-900 dark:text-[#e8e8e8] placeholder:text-zinc-400 dark:placeholder-[#6b6f76] outline-none resize-none leading-relaxed py-1 min-h-[26px] max-h-[160px]"
                             />
                             <ActionTooltip label="Send comment" shortcut="⌘ ↵" side="top">
                               <span className="inline-flex mb-0.5 flex-shrink-0">
@@ -1474,15 +1477,15 @@ export default function Inbox() {
           <div className="flex-1 flex flex-col items-center justify-center text-center p-6">
             <div className="w-48 h-48 relative mb-2 overflow-visible">
               <Riffle
-                theme="dark"
+                theme={effectiveTheme}
                 intensity={0.7}
-                className="w-full h-full text-[#8a8f98] opacity-70"
+                className="w-full h-full text-zinc-400 dark:text-[#8a8f98] opacity-70"
               />
             </div>
-            <h3 className="text-xl font-semibold tracking-tight text-white">
+            <h3 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-white">
               Inbox
             </h3>
-            <p className="text-[13px] text-[#8a8f98] mt-1.5 max-w-[200px]">
+            <p className="text-[13px] text-zinc-500 dark:text-[#8a8f98] mt-1.5 max-w-[200px]">
               Select a notification to view its details
             </p>
           </div>

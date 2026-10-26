@@ -51,7 +51,6 @@ import { ProjectsEmptyIcon } from "../../components/EmptyStateIcons";
 import CreateProjectModal from "../../components/CreateProjectModal";
 import { ErrorBoundary } from "../../components/ErrorBoundary";
 import { Button } from "@/registry/components/button/button";
-import { Tabs, TabsList, TabsTrigger } from "@/registry/components/tabs/tabs";
 import * as DropdownPrimitive from "@radix-ui/react-dropdown-menu";
 import DropdownMenu from "@/registry/components/dropdown-menu/dropdown-menu";
 import { Progress } from "@/registry/components/progress/progress";
@@ -69,7 +68,6 @@ import ProgressPicker from "../../components/ProgressPicker";
 import LabelPicker from "../../components/LabelPicker";
 import MemberPicker from "../../components/MemberPicker";
 import PickerWrapper from "../../components/PickerWrapper";
-import SegmentedControl from "@/registry/components/segmented-control/segmented-control";
 
 // ============================================================================
 // TIMELINE VIEW COMPONENT (BUG-FREE ROBUST GANTT RENDERER)
@@ -178,21 +176,21 @@ export default function TimelineViewRenderer({
   };
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 overflow-hidden relative border-t border-white/5 bg-[#18191c]">
+    <div className="flex-1 flex flex-col min-h-0 overflow-hidden relative border-t border-black/[0.08] dark:border-white/5 bg-white dark:bg-[#18191c]">
       {/* Controls Bar */}
-      <div className="flex items-center justify-between px-6 py-2 bg-[#212226]/60 border-b border-white/5 z-20">
-        <div className="flex items-center gap-2 text-[12px] text-[#8a8f98]">
-          <span className="font-semibold text-white">Timeline View</span>
+      <div className="flex items-center justify-between px-6 py-2 bg-zinc-50 dark:bg-[#212226]/60 border-b border-black/[0.08] dark:border-white/5 z-20">
+        <div className="flex items-center gap-2 text-[12px] text-zinc-500 dark:text-[#8a8f98]">
+          <span className="font-semibold text-zinc-900 dark:text-white">Timeline View</span>
           <span>•</span>
           <span>
-            Zoom: <strong className="text-white">{zoom}</strong>
+            Zoom: <strong className="text-zinc-900 dark:text-white">{zoom}</strong>
           </span>
           {grouping !== "none" && (
             <>
               <span>•</span>
               <span>
                 Grouping:{" "}
-                <strong className="text-white capitalize">{grouping}</strong>
+                <strong className="text-zinc-900 dark:text-white capitalize">{grouping}</strong>
               </span>
             </>
           )}
@@ -200,7 +198,7 @@ export default function TimelineViewRenderer({
         <div className="flex items-center gap-3">
           <button
             onClick={handleScrollToToday}
-            className="px-2.5 py-1 bg-white/10 hover:bg-white/20 text-white rounded text-[12px] font-medium transition-colors"
+            className="px-2.5 py-1 bg-black/5 hover:bg-black/10 dark:bg-white/10 dark:hover:bg-white/20 text-zinc-900 dark:text-white rounded text-[12px] font-medium transition-colors"
           >
             Today
           </button>
@@ -211,8 +209,8 @@ export default function TimelineViewRenderer({
       <div className="flex flex-1 min-h-0 overflow-hidden relative">
         {/* Left Project List Column */}
         {config.showProjectList && (
-          <div className="w-[300px] min-w-[300px] border-r border-white/10 bg-[#18191c] flex flex-col z-20">
-            <div className="h-10 px-4 py-2 border-b border-white/10 text-[11px] font-semibold text-[#8a8f98] uppercase tracking-wider flex items-center">
+          <div className="w-[300px] min-w-[300px] border-r border-black/[0.08] dark:border-white/10 bg-white dark:bg-[#18191c] flex flex-col z-20">
+            <div className="h-10 px-4 py-2 border-b border-black/[0.08] dark:border-white/10 text-[11px] font-semibold text-zinc-500 dark:text-[#8a8f98] uppercase tracking-wider flex items-center">
               Project Name
             </div>
             <div className="flex flex-col overflow-y-auto flex-1">
@@ -226,7 +224,7 @@ export default function TimelineViewRenderer({
                           onClick={() =>
                             toggleGroupCollapse(`timeline_${groupTitle}`)
                           }
-                          className="h-8 px-3 bg-[#212226]/50 border-b border-white/5 flex items-center justify-between cursor-pointer text-[11px] font-medium text-[#e8e8e8]"
+                          className="h-8 px-3 bg-zinc-100 dark:bg-[#212226]/50 border-b border-black/[0.06] dark:border-white/5 flex items-center justify-between cursor-pointer text-[11px] font-medium text-zinc-900 dark:text-[#e8e8e8]"
                         >
                           <div className="flex items-center gap-1.5">
                             {isCollapsed ? (
@@ -236,7 +234,7 @@ export default function TimelineViewRenderer({
                             )}
                             <span className="truncate">{groupTitle}</span>
                           </div>
-                          <span className="text-[10px] text-[#8a8f98]">
+                          <span className="text-[10px] text-zinc-500 dark:text-[#8a8f98]">
                             {groupItems.length}
                           </span>
                         </div>
@@ -256,7 +254,7 @@ export default function TimelineViewRenderer({
                                 },
                               })
                             }
-                            className="h-12 px-4 border-b border-white/5 flex items-center justify-between hover:bg-white/[0.04] cursor-pointer text-[13px] group"
+                            className="h-12 px-4 border-b border-black/[0.06] dark:border-white/5 flex items-center justify-between hover:bg-black/[0.02] dark:hover:bg-white/[0.04] cursor-pointer text-[13px] group"
                           >
                             <div className="flex items-center gap-2 min-w-0 pr-4 flex-1">
                               <div className="w-3.5 h-3.5 rounded bg-[#e95454]/10 text-[#e95454] flex items-center justify-center flex-shrink-0">
@@ -271,7 +269,7 @@ export default function TimelineViewRenderer({
                                   <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
                                 </svg>
                               </div>
-                              <span className="font-medium text-white group-hover:text-white truncate">
+                              <span className="font-medium text-zinc-900 group-hover:text-black dark:text-white dark:group-hover:text-white truncate">
                                 {project.name}
                               </span>
                             </div>
@@ -293,7 +291,7 @@ export default function TimelineViewRenderer({
                                 </Badge>
                               )}
                               {config.properties?.status && (
-                                <div className="text-[10px] bg-white/[0.04] text-[#8a8f98] px-1.5 py-0.5 rounded-sm whitespace-nowrap">
+                                <div className="text-[10px] bg-black/[0.04] dark:bg-white/[0.04] text-zinc-600 dark:text-[#8a8f98] px-1.5 py-0.5 rounded-sm whitespace-nowrap">
                                   {project.status || "Planned"}
                                 </div>
                               )}
@@ -312,7 +310,7 @@ export default function TimelineViewRenderer({
                                 />
                               )}
                               {config.properties?.progress && (
-                                <div className="text-[11px] text-[#8a8f98] font-mono w-8 text-right">
+                                <div className="text-[11px] text-zinc-600 dark:text-[#8a8f98] font-mono w-8 text-right">
                                   {project.progress || 0}%
                                 </div>
                               )}
@@ -333,20 +331,20 @@ export default function TimelineViewRenderer({
           className="flex-1 flex flex-col overflow-x-auto overflow-y-auto relative"
         >
           {/* Header Axis Scale */}
-          <div className="flex border-b border-white/10 bg-[#18191c] min-w-max sticky top-0 z-10">
+          <div className="flex border-b border-black/[0.08] dark:border-white/10 bg-zinc-50 dark:bg-[#18191c] min-w-max sticky top-0 z-10">
             {timelineColumns.map((m, idx) => (
               <div
                 key={idx}
-                className="flex flex-col border-r border-white/10 min-w-[220px]"
+                className="flex flex-col border-r border-black/[0.08] dark:border-white/10 min-w-[220px]"
               >
-                <div className="text-[10px] font-bold text-[#8a8f98] uppercase tracking-wider px-3 py-1 bg-white/[0.02]">
+                <div className="text-[10px] font-bold text-zinc-500 dark:text-[#8a8f98] uppercase tracking-wider px-3 py-1 bg-black/[0.02] dark:bg-white/[0.02]">
                   {m.month}
                 </div>
                 <div className="flex w-full">
                   {m.days.map((d, di) => (
                     <div
                       key={di}
-                      className="flex-1 text-[10px] text-[#5e636e] py-1 text-center border-r border-white/5 last:border-r-0"
+                      className="flex-1 text-[10px] text-zinc-400 dark:text-[#5e636e] py-1 text-center border-r border-black/[0.04] dark:border-white/5 last:border-r-0"
                     >
                       {d}
                     </div>
@@ -357,8 +355,8 @@ export default function TimelineViewRenderer({
           </div>
 
           {/* Today Indicator Line */}
-          <div className="absolute top-0 bottom-0 left-[180px] w-px bg-white/40 z-10 opacity-80 pointer-events-none">
-            <div className="absolute -top-1 -left-5 bg-white/40 text-white text-[9px] font-bold px-1 rounded">
+          <div className="absolute top-0 bottom-0 left-[180px] w-px bg-zinc-900/40 dark:bg-white/40 z-10 opacity-80 pointer-events-none">
+            <div className="absolute -top-1 -left-5 bg-zinc-900/60 dark:bg-white/40 text-white text-[9px] font-bold px-1 rounded">
               TODAY
             </div>
           </div>
@@ -372,7 +370,7 @@ export default function TimelineViewRenderer({
               return (
                 <div key={groupTitle} className="flex flex-col">
                   {grouping !== "none" && (
-                    <div className="h-8 bg-[#212226]/30 border-b border-white/5 px-4 flex items-center text-[11px] font-bold text-[#8a8f98]">
+                    <div className="h-8 bg-zinc-100/60 dark:bg-[#212226]/30 border-b border-black/[0.06] dark:border-white/5 px-4 flex items-center text-[11px] font-bold text-zinc-600 dark:text-[#8a8f98]">
                       {groupTitle}
                     </div>
                   )}
@@ -404,21 +402,21 @@ export default function TimelineViewRenderer({
                             setTooltipPos({ x: e.clientX, y: e.clientY });
                           }}
                           onMouseLeave={() => setHoveredProject(null)}
-                          className="h-12 border-b border-white/5 relative flex items-center min-w-[1300px] hover:bg-white/[0.02] cursor-pointer"
+                          className="h-12 border-b border-black/[0.06] dark:border-white/5 relative flex items-center min-w-[1300px] hover:bg-black/[0.02] dark:hover:bg-white/[0.02] cursor-pointer"
                         >
                           {/* Project Timeline Bar */}
                           <div
-                            className="absolute h-6 rounded-md bg-white/10 border border-white/20 hover:border-white/50 transition-colors flex items-center px-3 gap-2 overflow-hidden shadow-sm"
+                            className="absolute h-6 rounded-md bg-black/5 dark:bg-white/10 border border-black/10 dark:border-white/20 hover:border-black/30 dark:hover:border-white/50 transition-colors flex items-center px-3 gap-2 overflow-hidden shadow-xs"
                             style={posStyle}
                           >
                             <div
-                              className="bg-white h-full absolute left-0 top-0 opacity-20"
+                              className="bg-black/10 dark:bg-white h-full absolute left-0 top-0 opacity-20"
                               style={{ width: `${project.progress || 0}%` }}
                             />
-                            <span className="text-[11px] font-medium text-white truncate relative z-10">
+                            <span className="text-[11px] font-medium text-zinc-900 dark:text-white truncate relative z-10">
                               {project.name}
                             </span>
-                            <span className="text-[10px] text-[#8a8f98] relative z-10 ml-auto font-mono">
+                            <span className="text-[10px] text-zinc-500 dark:text-[#8a8f98] relative z-10 ml-auto font-mono">
                               {project.progress || 0}%
                             </span>
                           </div>
@@ -430,7 +428,7 @@ export default function TimelineViewRenderer({
                               <div
                                 key={m.id || mIdx}
                                 title={`Milestone: ${m.name || "Unnamed"} (${m.due_date || "No date"})`}
-                                className="absolute text-amber-400 text-xs font-bold z-20 transform -translate-x-1/2 hover:scale-125 transition-transform"
+                                className="absolute text-amber-500 dark:text-amber-400 text-xs font-bold z-20 transform -translate-x-1/2 hover:scale-125 transition-transform"
                                 style={{
                                   left: `calc(${posStyle.left} + ${10 + mIdx * 12}%)`,
                                 }}
@@ -451,21 +449,21 @@ export default function TimelineViewRenderer({
       {/* Floating Hover Tooltip */}
       {hoveredProject && (
         <div
-          className="fixed bg-[#212226] border border-white/10 rounded-lg p-3 shadow-2xl z-50 text-[12px] text-white pointer-events-none flex flex-col gap-1.5 w-60"
+          className="fixed bg-white dark:bg-[#212226] border border-black/10 dark:border-white/10 rounded-lg p-3 shadow-2xl z-50 text-[12px] text-zinc-900 dark:text-white pointer-events-none flex flex-col gap-1.5 w-60"
           style={{ left: tooltipPos.x + 15, top: tooltipPos.y - 40 }}
         >
-          <div className="font-bold text-[13px] text-white">
+          <div className="font-bold text-[13px] text-zinc-900 dark:text-white">
             {hoveredProject.name}
           </div>
-          <div className="text-[11px] text-[#8a8f98] line-clamp-2">
+          <div className="text-[11px] text-zinc-500 dark:text-[#8a8f98] line-clamp-2">
             {hoveredProject.description || "No description"}
           </div>
-          <div className="flex justify-between pt-1 border-t border-white/10 text-[11px]">
+          <div className="flex justify-between pt-1 border-t border-black/10 dark:border-white/10 text-[11px] text-zinc-600 dark:text-[#8a8f98]">
             <span>
-              Status: <strong>{hoveredProject.status}</strong>
+              Status: <strong className="text-zinc-900 dark:text-white">{hoveredProject.status}</strong>
             </span>
             <span>
-              Progress: <strong>{hoveredProject.progress}%</strong>
+              Progress: <strong className="text-zinc-900 dark:text-white">{hoveredProject.progress}%</strong>
             </span>
           </div>
         </div>

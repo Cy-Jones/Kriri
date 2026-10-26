@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/registry/components/button/button";
 import SegmentedControl from "@/registry/components/segmented-control/segmented-control";
+import { motion } from "motion/react";
 
 export default function ProjectToolbar({
   canManageProjects,
@@ -66,69 +67,75 @@ export default function ProjectToolbar({
   setCustomDateCategory,
   setIsCustomDateModalOpen,
 }) {
-  const uniqueLeadsMap = new Map();
-  const uniqueMembersMap = new Map();
-  const uniqueCreatorsMap = new Map();
-  const uniqueLabelsSet = new Set();
+  const { dynamicLeads, dynamicMembers, dynamicCreators, dynamicLabels } =
+    React.useMemo(() => {
+      const uniqueLeadsMap = new Map();
+      const uniqueMembersMap = new Map();
+      const uniqueCreatorsMap = new Map();
+      const uniqueLabelsSet = new Set();
 
-  projects.forEach((p) => {
-    if (p.lead) uniqueLeadsMap.set(p.lead.id, p.lead);
-    if (p.creator) uniqueCreatorsMap.set(p.creator.id, p.creator);
-    if (p.members) p.members.forEach((m) => uniqueMembersMap.set(m.id, m));
-    if (p.labels) p.labels.forEach((l) => uniqueLabelsSet.add(l));
-  });
+      projects.forEach((p) => {
+        if (p.lead) uniqueLeadsMap.set(p.lead.id, p.lead);
+        if (p.creator) uniqueCreatorsMap.set(p.creator.id, p.creator);
+        if (p.members) p.members.forEach((m) => uniqueMembersMap.set(m.id, m));
+        if (p.labels) p.labels.forEach((l) => uniqueLabelsSet.add(l));
+      });
 
-  const userColors = [
-    "#f26d78",
-    "#3b82f6",
-    "#f2c94c",
-    "#22c55e",
-    "#a855f7",
-    "#ec4899",
-    "#f97316",
-    "#06b6d4",
-  ];
-  const dynamicLeads = Array.from(uniqueLeadsMap.values()).map((u, i) => ({
-    label: u.name,
-    user: { ...u, color: u.color || userColors[i % userColors.length] },
-  }));
-  const dynamicMembers = Array.from(uniqueMembersMap.values()).map((u, i) => ({
-    label: u.name,
-    user: { ...u, color: u.color || userColors[i % userColors.length] },
-  }));
-  const dynamicCreators = Array.from(uniqueCreatorsMap.values()).map(
-    (u, i) => ({
-      label: u.name,
-      user: { ...u, color: u.color || userColors[i % userColors.length] },
-    }),
-  );
+      const userColors = [
+        "#f26d78",
+        "#3b82f6",
+        "#f2c94c",
+        "#22c55e",
+        "#a855f7",
+        "#ec4899",
+        "#f97316",
+        "#06b6d4",
+      ];
+      const leads = Array.from(uniqueLeadsMap.values()).map((u, i) => ({
+        label: u.name,
+        user: { ...u, color: u.color || userColors[i % userColors.length] },
+      }));
+      const members = Array.from(uniqueMembersMap.values()).map((u, i) => ({
+        label: u.name,
+        user: { ...u, color: u.color || userColors[i % userColors.length] },
+      }));
+      const creators = Array.from(uniqueCreatorsMap.values()).map((u, i) => ({
+        label: u.name,
+        user: { ...u, color: u.color || userColors[i % userColors.length] },
+      }));
 
-  const filteredLabels = Array.from(uniqueLabelsSet).filter((l) =>
-    l.toLowerCase().includes(labelSearchTerm.toLowerCase()),
-  );
-  const dynamicLabels = filteredLabels.map((l) => ({
-    label: l,
-    icon: Tag,
-    color: "text-[#e8e8e8]",
-  }));
+      const filtered = Array.from(uniqueLabelsSet).filter((l) =>
+        l.toLowerCase().includes(labelSearchTerm.toLowerCase()),
+      );
+      const labels = filtered.map((l) => ({
+        label: l,
+        icon: Tag,
+        color: "text-[#e8e8e8]",
+      }));
 
-  if (
-    labelSearchTerm &&
-    !filteredLabels.some(
-      (l) => l.toLowerCase() === labelSearchTerm.toLowerCase(),
-    )
-  ) {
-    dynamicLabels.push({
-      label: `Add "${labelSearchTerm}"`,
-      actualValue: labelSearchTerm,
-      icon: Tag,
-      color: "text-[#3b82f6]",
-      isCustom: true,
-    });
-  }
+      if (
+        labelSearchTerm &&
+        !filtered.some((l) => l.toLowerCase() === labelSearchTerm.toLowerCase())
+      ) {
+        labels.push({
+          label: `Add "${labelSearchTerm}"`,
+          actualValue: labelSearchTerm,
+          icon: Tag,
+          color: "text-[#3b82f6]",
+          isCustom: true,
+        });
+      }
+
+      return {
+        dynamicLeads: leads,
+        dynamicMembers: members,
+        dynamicCreators: creators,
+        dynamicLabels: labels,
+      };
+    }, [projects, labelSearchTerm]);
 
   const [isMobile, setIsMobile] = React.useState(
-    () => typeof window !== "undefined" && window.innerWidth < 768
+    () => typeof window !== "undefined" && window.innerWidth < 768,
   );
 
   React.useEffect(() => {
@@ -138,6 +145,7 @@ export default function ProjectToolbar({
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
+
 
   React.useEffect(() => {
     if (isMobile && activeView === "timeline") {
@@ -153,26 +161,26 @@ export default function ProjectToolbar({
           <button
             type="button"
             onClick={() => window.dispatchEvent(new CustomEvent("open-mobile-nav"))}
-            className="md:hidden p-1.5 -ml-1 text-[#8a8f98] hover:text-white rounded-md hover:bg-white/[0.06] transition-colors shrink-0"
+            className="md:hidden p-1.5 -ml-1 text-zinc-600 dark:text-[#8a8f98] hover:text-zinc-900 dark:hover:text-white rounded-md hover:bg-black/[0.05] dark:hover:bg-white/[0.06] transition-colors shrink-0"
             aria-label="Open menu"
           >
             <Menu size={18} strokeWidth={1.75} />
           </button>
-          <h1 className="text-base font-semibold tracking-tight text-white truncate">
+          <h1 className="text-base font-semibold tracking-tight text-zinc-900 dark:text-white truncate">
             Projects
           </h1>
         </div>
         {canManageProjects && projects.length > 0 && (
           <button
             onClick={() => setIsCreateModalOpen(true)}
-            className="h-[26px] sm:h-[28px] px-3 bg-white text-black hover:bg-zinc-100 transition-all duration-300 text-[11.5px] sm:text-[12px] font-medium rounded-full shadow-[0_0_20px_rgba(255,255,255,0.14)] hover:shadow-[0_0_28px_rgba(255,255,255,0.22)] active:scale-[0.98] shrink-0 flex items-center gap-1.5"
+            className="h-[26px] sm:h-[28px] px-3 bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-100 transition-all duration-300 text-[11.5px] sm:text-[12px] font-medium rounded-full shadow-sm dark:shadow-[0_0_20px_rgba(255,255,255,0.14)] dark:hover:shadow-[0_0_28px_rgba(255,255,255,0.22)] active:scale-[0.98] shrink-0 flex items-center gap-1.5"
           >
             <Plus size={13} strokeWidth={2.2} /> New Project
           </button>
         )}
       </div>
 
-      <div className="h-px bg-white/[0.06] w-full" />
+      <div className="h-px bg-black/[0.06] dark:bg-white/[0.06] w-full" />
 
       {/* ROW 2: Scope Selector & View Controls */}
       <div className="flex items-center justify-between">
@@ -181,10 +189,10 @@ export default function ProjectToolbar({
           <Button
             size="sm"
             variant="secondary"
-            className="text-[12.5px] rounded-full h-[28px] px-3 bg-white/[0.04] hover:bg-white/[0.08] shadow-sm border-0"
+            className="text-[12.5px] rounded-full h-[28px] px-3 bg-black/[0.04] hover:bg-black/[0.08] dark:bg-white/[0.04] dark:hover:bg-white/[0.08] text-zinc-800 dark:text-zinc-200 shadow-sm border-0"
           >
             <span>All projects</span>
-            <Layers size={13} className="text-[#8a8f98]" />
+            <Layers size={13} className="text-zinc-500 dark:text-[#8a8f98]" />
           </Button>
         </div>
 
@@ -206,8 +214,8 @@ export default function ProjectToolbar({
               }}
               className={`flex-shrink-0 w-[28px] h-[28px] rounded-full p-0 flex items-center justify-center ${
                 isFilterOpen
-                  ? "bg-white/[0.1] text-white"
-                  : "bg-white/[0.04] text-[#8a8f98] hover:text-[#e8e8e8]"
+                  ? "bg-zinc-200 text-zinc-900 dark:bg-white/[0.1] dark:text-white"
+                  : "bg-black/[0.04] dark:bg-white/[0.04] text-zinc-600 dark:text-[#8a8f98] hover:text-zinc-900 dark:hover:text-[#e8e8e8]"
               }`}
             >
               <Filter size={13} />
@@ -226,13 +234,13 @@ export default function ProjectToolbar({
               }}
               className={`flex-shrink-0 relative w-[28px] h-[28px] rounded-full p-0 flex items-center justify-center ${
                 isDisplayOptionsOpen
-                  ? "bg-white/[0.1] text-white"
-                  : "bg-white/[0.04] text-[#8a8f98] hover:text-[#e8e8e8]"
+                  ? "bg-zinc-200 text-zinc-900 dark:bg-white/[0.1] dark:text-white"
+                  : "bg-black/[0.04] dark:bg-white/[0.04] text-zinc-600 dark:text-[#8a8f98] hover:text-zinc-900 dark:hover:text-[#e8e8e8]"
               }`}
             >
               <Settings2 size={13} />
               {isNonDefaultDisplay && (
-                <div className="absolute top-[3px] right-[3px] w-[5px] h-[5px] bg-[#3b82f6] rounded-full ring-[2px] ring-[#1a1b1e]" />
+                <div className="absolute top-[3px] right-[3px] w-[5px] h-[5px] bg-[#3b82f6] rounded-full ring-[2px] ring-white dark:ring-[#1a1b1e]" />
               )}
             </Button>
 
@@ -240,9 +248,9 @@ export default function ProjectToolbar({
             {isFilterOpen && (
               <div
                 ref={filterRef}
-                className="absolute top-[calc(100%+16px)] right-0 w-[240px] max-w-[calc(100vw-32px)] bg-[#1c1c1e] border border-white/5 rounded-xl shadow-2xl py-2 z-50 animate-in fade-in zoom-in-95 duration-100 flex flex-col"
+                className="absolute top-[calc(100%+16px)] right-0 w-[240px] max-w-[calc(100vw-32px)] bg-white dark:bg-[#1c1c1e] border border-black/[0.08] dark:border-white/5 rounded-xl shadow-2xl py-2 z-50 animate-in fade-in zoom-in-95 duration-100 flex flex-col text-zinc-900 dark:text-white"
               >
-                <div className="px-2 pb-2 border-b border-white/5 mb-1.5">
+                <div className="px-2 pb-2 border-b border-black/[0.06] dark:border-white/5 mb-1.5">
                   <div className="relative flex items-center">
                     <input
                       type="text"
@@ -260,14 +268,14 @@ export default function ProjectToolbar({
                           }
                         }
                       }}
-                      className="w-full bg-transparent text-[13px] text-white placeholder-[#8a8f98] pl-2 pr-2 py-1.5 outline-none"
+                      className="w-full bg-transparent text-[13px] text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-[#8a8f98] pl-2 pr-2 py-1.5 outline-none"
                       autoFocus
                     />
                   </div>
                 </div>
 
                 <div
-                  className="flex flex-col px-1 pb-1.5 border-b border-white/5 mb-1.5 gap-0.5 relative"
+                  className="flex flex-col px-1 pb-1.5 border-b border-black/[0.06] dark:border-white/5 mb-1.5 gap-0.5 relative"
                   onMouseEnter={() => setActiveFilterMenu("Advanced filter")}
                 >
                   <button
@@ -279,22 +287,22 @@ export default function ProjectToolbar({
                           : "Advanced filter",
                       )
                     }
-                    className="flex items-center gap-2.5 px-2.5 py-1.5 text-[13px] text-[#e8e8e8] hover:bg-white/5 hover:text-white rounded-md w-full transition-colors group cursor-pointer"
+                    className="flex items-center gap-2.5 px-2.5 py-1.5 text-[13px] text-zinc-800 dark:text-[#e8e8e8] hover:bg-black/5 dark:hover:bg-white/5 hover:text-zinc-900 dark:hover:text-white rounded-md w-full transition-colors group cursor-pointer"
                   >
                     <ListFilter
                       size={14}
-                      className="text-[#8a8f98] group-hover:text-[#e8e8e8]"
+                      className="text-zinc-500 dark:text-[#8a8f98] group-hover:text-zinc-900 dark:group-hover:text-[#e8e8e8]"
                     />
                     Advanced filter
                   </button>
                   {activeFilterMenu === "Advanced filter" && (
-                    <div className="absolute top-0 right-0 md:right-[calc(100%+8px)] w-[280px] max-w-[calc(100vw-32px)] bg-[#1c1c1e] border border-white/5 rounded-xl shadow-2xl p-3 z-[60] animate-in fade-in zoom-in-95 flex flex-col gap-3">
-                      <div className="text-[13px] text-white font-medium">
+                    <div className="absolute top-0 right-0 md:right-[calc(100%+8px)] w-[280px] max-w-[calc(100vw-32px)] bg-white dark:bg-[#1c1c1e] border border-black/[0.08] dark:border-white/5 rounded-xl shadow-2xl p-3 z-[60] animate-in fade-in zoom-in-95 flex flex-col gap-3">
+                      <div className="text-[13px] text-zinc-900 dark:text-white font-medium">
                         Advanced filter
                       </div>
                       <input
                         type="text"
-                        className="w-full bg-[#1c1c1e] border border-[#3b82f6] rounded-md px-3 py-1.5 text-[13px] text-white outline-none focus:ring-1 focus:ring-[#3b82f6] shadow-sm transition-shadow"
+                        className="w-full bg-zinc-50 dark:bg-[#1c1c1e] border border-[#3b82f6] rounded-md px-3 py-1.5 text-[13px] text-zinc-900 dark:text-white outline-none focus:ring-1 focus:ring-[#3b82f6] shadow-sm transition-shadow"
                         placeholder="e.g. is:open priority:high"
                         autoFocus
                         defaultValue={activeFilters.advanced || ""}
@@ -313,7 +321,7 @@ export default function ProjectToolbar({
                       <div className="flex justify-end gap-2 mt-1">
                         <button
                           onClick={() => setActiveFilterMenu(null)}
-                          className="px-3 py-1.5 text-[12px] text-[#e8e8e8] hover:bg-white/5 rounded-md transition-colors"
+                          className="px-3 py-1.5 text-[12px] text-zinc-600 dark:text-[#e8e8e8] hover:bg-black/5 dark:hover:bg-white/5 rounded-md transition-colors"
                         >
                           Cancel
                         </button>
@@ -337,7 +345,7 @@ export default function ProjectToolbar({
                   )}
                 </div>
 
-                <div className="flex flex-col px-1 pb-1.5 border-b border-white/5 mb-1.5 gap-0.5 overflow-y-auto max-h-[300px]">
+                <div className="flex flex-col px-1 pb-1.5 border-b border-black/[0.06] dark:border-white/5 mb-1.5 gap-0.5 overflow-y-auto max-h-[300px]">
                   {(() => {
                     const allOptions = [
                       {
@@ -638,7 +646,7 @@ export default function ProjectToolbar({
 
                       if (matches.length === 0) {
                         return (
-                          <div className="px-3 py-2 text-[12px] text-[#8a8f98]">
+                          <div className="px-3 py-2 text-[12px] text-zinc-500 dark:text-[#8a8f98]">
                             No results found
                           </div>
                         );
@@ -665,7 +673,7 @@ export default function ProjectToolbar({
                                 setFilterSearchTerm("");
                               }
                             }}
-                            className={`flex flex-col items-start px-2.5 py-1.5 text-[13px] text-[#e8e8e8] hover:bg-white/5 rounded-md w-full transition-colors group ${
+                            className={`flex flex-col items-start px-2.5 py-1.5 text-[13px] text-zinc-800 dark:text-[#e8e8e8] hover:bg-black/5 dark:hover:bg-white/5 rounded-md w-full transition-colors group ${
                               match.label === "No leads" ||
                               match.label === "No labels" ||
                               match.label === "No members" ||
@@ -675,7 +683,7 @@ export default function ProjectToolbar({
                                 : ""
                             }`}
                           >
-                            <div className="flex items-center gap-1.5 text-[10px] text-[#8a8f98] font-medium uppercase mb-0.5 tracking-wider">
+                            <div className="flex items-center gap-1.5 text-[10px] text-zinc-500 dark:text-[#8a8f98] font-medium uppercase mb-0.5 tracking-wider">
                               <match.parentIcon size={10} />
                               {match.categoryLabel}
                             </div>
@@ -685,7 +693,7 @@ export default function ProjectToolbar({
                                   className={`flex-shrink-0 w-3.5 h-3.5 border rounded flex items-center justify-center transition-colors ${
                                     isSelected
                                       ? "bg-[#3b82f6] border-[#3b82f6]"
-                                      : "bg-transparent border-white/10 group-hover:border-white/20"
+                                      : "bg-transparent border-black/15 group-hover:border-black/30 dark:border-white/10 dark:group-hover:border-white/20"
                                   }`}
                                 >
                                   {isSelected && (
@@ -734,19 +742,19 @@ export default function ProjectToolbar({
                               e.stopPropagation();
                               setActiveFilterMenu(isOpen ? null : item.label);
                             }}
-                            className="flex items-center justify-between px-2.5 py-1.5 text-[13px] text-[#e8e8e8] hover:bg-white/5 hover:text-white rounded-md w-full transition-colors group cursor-pointer"
+                            className="flex items-center justify-between px-2.5 py-1.5 text-[13px] text-zinc-800 dark:text-[#e8e8e8] hover:bg-black/5 dark:hover:bg-white/5 hover:text-zinc-900 dark:hover:text-white rounded-md w-full transition-colors group cursor-pointer"
                           >
                             <div className="flex items-center gap-2.5">
                               <item.icon
                                 size={14}
-                                className="text-[#8a8f98] group-hover:text-[#e8e8e8]"
+                                className="text-zinc-500 dark:text-[#8a8f98] group-hover:text-zinc-900 dark:group-hover:text-[#e8e8e8]"
                               />
                               {item.label}
                             </div>
                             {item.subItems && (
                               <ChevronRight
                                 size={12}
-                                className={`text-[#8a8f98] transition-transform ${isOpen ? "rotate-90 md:rotate-0 opacity-100" : "opacity-50 group-hover:opacity-100"}`}
+                                className={`text-zinc-500 dark:text-[#8a8f98] transition-transform ${isOpen ? "rotate-90 md:rotate-0 opacity-100" : "opacity-50 group-hover:opacity-100"}`}
                               />
                             )}
                           </button>
@@ -754,9 +762,9 @@ export default function ProjectToolbar({
                           {isOpen && item.subItems && (
                             <>
                               {/* Mobile inline accordion */}
-                              <div className="md:hidden flex flex-col py-1 pl-3 pr-1 bg-white/[0.02] border-y border-white/[0.04]">
+                              <div className="md:hidden flex flex-col py-1 pl-3 pr-1 bg-black/[0.02] dark:bg-white/[0.02] border-y border-black/[0.04] dark:border-white/[0.04]">
                                 {item.category === "label" && (
-                                  <div className="px-1 py-1 pb-1.5 border-b border-white/5 mb-1">
+                                  <div className="px-1 py-1 pb-1.5 border-b border-black/[0.06] dark:border-white/5 mb-1">
                                     <input
                                       type="text"
                                       placeholder="Search or add custom label..."
@@ -764,7 +772,7 @@ export default function ProjectToolbar({
                                       onChange={(e) =>
                                         setLabelSearchTerm(e.target.value)
                                       }
-                                      className="w-full bg-[#2a2a2c] text-[#e8e8e8] placeholder:text-[#8a8f98] text-[12px] rounded-md px-2 py-1 outline-none border border-transparent focus:border-white/10"
+                                      className="w-full bg-zinc-100 dark:bg-[#2a2a2c] text-zinc-900 dark:text-[#e8e8e8] placeholder:text-zinc-400 dark:placeholder:text-[#8a8f98] text-[12px] rounded-md px-2 py-1 outline-none border border-black/10 dark:border-transparent focus:border-black/20 dark:focus:border-white/10"
                                       onClick={(e) => e.stopPropagation()}
                                     />
                                   </div>
@@ -798,7 +806,7 @@ export default function ProjectToolbar({
                                             setIsFilterOpen(false);
                                           }
                                         }}
-                                        className={`flex items-center justify-between px-2 py-1.5 text-[12.5px] text-[#e8e8e8] hover:bg-white/5 rounded-md w-full text-left ${
+                                        className={`flex items-center justify-between px-2 py-1.5 text-[12.5px] text-zinc-800 dark:text-[#e8e8e8] hover:bg-black/5 dark:hover:bg-white/5 rounded-md w-full text-left ${
                                           subItem.label === "No leads" ||
                                           subItem.label === "No labels" ||
                                           subItem.label === "No members" ||
@@ -813,7 +821,7 @@ export default function ProjectToolbar({
                                               className={`flex-shrink-0 w-3.5 h-3.5 border rounded flex items-center justify-center transition-colors ${
                                                 isSelected
                                                   ? "bg-[#3b82f6] border-[#3b82f6]"
-                                                  : "bg-transparent border-white/10"
+                                                  : "bg-transparent border-black/15 dark:border-white/10"
                                               }`}
                                             >
                                               {isSelected && (
@@ -846,7 +854,7 @@ export default function ProjectToolbar({
                                         {subItem.nestedItems && (
                                           <ChevronRight
                                             size={12}
-                                            className={`text-[#8a8f98] transition-transform ${isNestedOpen ? "rotate-90" : ""}`}
+                                            className={`text-zinc-500 dark:text-[#8a8f98] transition-transform ${isNestedOpen ? "rotate-90" : ""}`}
                                           />
                                         )}
                                       </button>
@@ -880,10 +888,10 @@ export default function ProjectToolbar({
                                                     setIsFilterOpen(false);
                                                   }
                                                 }}
-                                                className="flex items-center gap-2 px-2 py-1 text-[12px] text-[#8a8f98] hover:text-white"
+                                                className="flex items-center gap-2 px-2 py-1 text-[12px] text-zinc-600 dark:text-[#8a8f98] hover:text-zinc-900 dark:hover:text-white"
                                               >
                                                 <div
-                                                  className={`w-3 h-3 border rounded flex items-center justify-center shrink-0 ${isNestedSelected ? "bg-[#3b82f6] border-[#3b82f6]" : "border-white/10"}`}
+                                                  className={`w-3 h-3 border rounded flex items-center justify-center shrink-0 ${isNestedSelected ? "bg-[#3b82f6] border-[#3b82f6]" : "border-black/15 dark:border-white/10"}`}
                                                 >
                                                   {isNestedSelected && (
                                                     <Check size={8} className="text-white" />
@@ -901,9 +909,9 @@ export default function ProjectToolbar({
                               </div>
 
                               {/* Desktop floating flyout */}
-                              <div className="hidden md:flex absolute top-0 right-[calc(100%+8px)] min-w-[180px] w-max bg-[#1c1c1e] border border-white/5 rounded-xl shadow-2xl p-1 z-[60] animate-in fade-in zoom-in-95 flex-col gap-0.5 before:absolute before:-right-[8px] before:top-0 before:w-[8px] before:h-full">
+                              <div className="hidden md:flex absolute top-0 right-[calc(100%+8px)] min-w-[180px] w-max bg-white dark:bg-[#1c1c1e] border border-black/[0.08] dark:border-white/5 rounded-xl shadow-2xl p-1 z-[60] animate-in fade-in zoom-in-95 flex-col gap-0.5 before:absolute before:-right-[8px] before:top-0 before:w-[8px] before:h-full">
                                 {item.category === "label" && (
-                                  <div className="px-1 py-1 pb-1.5 border-b border-white/5 mb-1">
+                                  <div className="px-1 py-1 pb-1.5 border-b border-black/[0.06] dark:border-white/5 mb-1">
                                     <input
                                       type="text"
                                       placeholder="Search or add custom label..."
@@ -911,7 +919,7 @@ export default function ProjectToolbar({
                                       onChange={(e) =>
                                         setLabelSearchTerm(e.target.value)
                                       }
-                                      className="w-full bg-[#2a2a2c] text-[#e8e8e8] placeholder:text-[#8a8f98] text-[12px] rounded-md px-2 py-1 outline-none border border-transparent focus:border-white/10"
+                                      className="w-full bg-zinc-100 dark:bg-[#2a2a2c] text-zinc-900 dark:text-[#e8e8e8] placeholder:text-zinc-400 dark:placeholder:text-[#8a8f98] text-[12px] rounded-md px-2 py-1 outline-none border border-black/10 dark:border-transparent focus:border-black/20 dark:focus:border-white/10"
                                       onClick={(e) => e.stopPropagation()}
                                     />
                                   </div>
@@ -948,7 +956,7 @@ export default function ProjectToolbar({
                                             );
                                           }
                                         }}
-                                        className={`flex items-center justify-between px-2.5 py-1.5 text-[13px] text-[#e8e8e8] hover:bg-white/5 rounded-md w-full transition-colors group ${
+                                        className={`flex items-center justify-between px-2.5 py-1.5 text-[13px] text-zinc-800 dark:text-[#e8e8e8] hover:bg-black/5 dark:hover:bg-white/5 rounded-md w-full transition-colors group ${
                                           subItem.label === "No leads" ||
                                           subItem.label === "No labels" ||
                                           subItem.label === "No members" ||
@@ -962,7 +970,7 @@ export default function ProjectToolbar({
                                             className={`flex-shrink-0 w-3.5 h-3.5 border rounded flex items-center justify-center transition-colors ${
                                               isSelected
                                                 ? "bg-[#3b82f6] border-[#3b82f6]"
-                                                : "bg-transparent border-white/10 group-hover:border-white/20"
+                                                : "bg-transparent border-black/15 group-hover:border-black/30 dark:border-white/10 dark:group-hover:border-white/20"
                                             }`}
                                           >
                                             {isSelected && (
@@ -995,26 +1003,26 @@ export default function ProjectToolbar({
                                           </span>
                                         </div>
                                         {subItem.count && !subItem.nestedItems && (
-                                          <span className="text-[#8a8f98] text-[11px] ml-3">
+                                          <span className="text-zinc-500 dark:text-[#8a8f98] text-[11px] ml-3">
                                             {subItem.count}
                                           </span>
                                         )}
                                         {subItem.nestedItems && (
                                           <ChevronRight
                                             size={12}
-                                            className="text-[#8a8f98] opacity-50 group-hover:opacity-100 flex-shrink-0 ml-3"
+                                            className="text-zinc-500 dark:text-[#8a8f98] opacity-50 group-hover:opacity-100 flex-shrink-0 ml-3"
                                           />
                                         )}
                                       </button>
 
                                       {activeNestedFilterMenu === subItem.label &&
                                         subItem.nestedItems && (
-                                          <div className="absolute top-0 right-[calc(100%+8px)] min-w-[200px] w-max bg-[#1c1c1e] border border-white/5 rounded-xl shadow-2xl p-1 z-[70] animate-in fade-in zoom-in-95 flex flex-col gap-0.5 before:absolute before:-right-[8px] before:top-0 before:w-[8px] before:h-full">
-                                            <div className="px-2 py-1.5 border-b border-white/5 mb-0.5">
+                                          <div className="absolute top-0 right-[calc(100%+8px)] min-w-[200px] w-max bg-white dark:bg-[#1c1c1e] border border-black/[0.08] dark:border-white/5 rounded-xl shadow-2xl p-1 z-[70] animate-in fade-in zoom-in-95 flex flex-col gap-0.5 before:absolute before:-right-[8px] before:top-0 before:w-[8px] before:h-full">
+                                            <div className="px-2 py-1.5 border-b border-black/[0.06] dark:border-white/5 mb-0.5">
                                               <input
                                                 type="text"
                                                 placeholder="Filter..."
-                                                className="w-full bg-transparent text-[13px] text-white placeholder-[#8a8f98] outline-none"
+                                                className="w-full bg-transparent text-[13px] text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-[#8a8f98] outline-none"
                                                 onClick={(e) => e.stopPropagation()}
                                               />
                                             </div>
@@ -1047,14 +1055,14 @@ export default function ProjectToolbar({
                                                         );
                                                       }
                                                     }}
-                                                    className="flex items-center justify-between px-2.5 py-1.5 text-[13px] text-[#e8e8e8] hover:bg-white/5 rounded-md w-full transition-colors group"
+                                                    className="flex items-center justify-between px-2.5 py-1.5 text-[13px] text-zinc-800 dark:text-[#e8e8e8] hover:bg-black/5 dark:hover:bg-white/5 rounded-md w-full transition-colors group"
                                                   >
                                                     <div className="flex items-center gap-2.5">
                                                       <div
                                                         className={`flex-shrink-0 w-3.5 h-3.5 border rounded flex items-center justify-center transition-colors ${
                                                           isNestedSelected
                                                             ? "bg-[#3b82f6] border-[#3b82f6]"
-                                                            : "bg-transparent border-white/10 group-hover:border-white/20"
+                                                            : "bg-transparent border-black/15 group-hover:border-black/30 dark:border-white/10 dark:group-hover:border-white/20"
                                                         }`}
                                                       >
                                                         {isNestedSelected && (
@@ -1069,7 +1077,7 @@ export default function ProjectToolbar({
                                                       </span>
                                                     </div>
                                                     {nestedItem.count && (
-                                                      <span className="text-[#8a8f98] text-[11px] ml-3">
+                                                      <span className="text-zinc-500 dark:text-[#8a8f98] text-[11px] ml-3">
                                                         {nestedItem.count}
                                                       </span>
                                                     )}
@@ -1091,7 +1099,7 @@ export default function ProjectToolbar({
                   })()}
                 </div>
 
-                <div className="flex flex-col px-1 pb-1.5 border-b border-white/5 mb-1.5 gap-0.5">
+                <div className="flex flex-col px-1 pb-1.5 border-b border-black/[0.06] dark:border-white/5 mb-1.5 gap-0.5">
                   {[
                     {
                       label: "Title & summary",
@@ -1114,12 +1122,12 @@ export default function ProjectToolbar({
                             e.stopPropagation();
                             setActiveFilterMenu(isOpen ? null : item.label);
                           }}
-                          className="flex items-center justify-between px-2.5 py-1.5 text-[13px] text-[#e8e8e8] hover:bg-white/5 hover:text-white rounded-md w-full transition-colors group cursor-pointer"
+                          className="flex items-center justify-between px-2.5 py-1.5 text-[13px] text-zinc-800 dark:text-[#e8e8e8] hover:bg-black/5 dark:hover:bg-white/5 hover:text-zinc-900 dark:hover:text-white rounded-md w-full transition-colors group cursor-pointer"
                         >
                           <div className="flex items-center gap-2.5">
                             <item.icon
                               size={14}
-                              className="text-[#8a8f98] group-hover:text-[#e8e8e8]"
+                              className="text-zinc-500 dark:text-[#8a8f98] group-hover:text-zinc-900 dark:group-hover:text-[#e8e8e8]"
                             />
                             {item.label}
                           </div>
@@ -1127,13 +1135,13 @@ export default function ProjectToolbar({
 
                         {isOpen &&
                           item.isCustomInput && (
-                            <div className="absolute top-0 right-0 md:right-[calc(100%+8px)] w-[280px] max-w-[calc(100vw-32px)] bg-[#1c1c1e] border border-white/5 rounded-xl shadow-2xl p-3 z-[60] animate-in fade-in zoom-in-95 flex flex-col gap-3">
-                            <div className="text-[13px] text-white font-medium">
+                            <div className="absolute top-0 right-0 md:right-[calc(100%+8px)] w-[280px] max-w-[calc(100vw-32px)] bg-white dark:bg-[#1c1c1e] border border-black/[0.08] dark:border-white/5 rounded-xl shadow-2xl p-3 z-[60] animate-in fade-in zoom-in-95 flex flex-col gap-3">
+                            <div className="text-[13px] text-zinc-900 dark:text-white font-medium">
                               {item.placeholder}
                             </div>
                             <input
                               type="text"
-                              className="w-full bg-[#1c1c1e] border border-[#3b82f6] rounded-md px-3 py-1.5 text-[13px] text-white outline-none focus:ring-1 focus:ring-[#3b82f6] shadow-sm transition-shadow"
+                              className="w-full bg-zinc-50 dark:bg-[#1c1c1e] border border-[#3b82f6] rounded-md px-3 py-1.5 text-[13px] text-zinc-900 dark:text-white outline-none focus:ring-1 focus:ring-[#3b82f6] shadow-sm transition-shadow"
                               autoFocus
                               defaultValue={
                                 activeFilters[item.category]?.[0] || ""
@@ -1156,7 +1164,7 @@ export default function ProjectToolbar({
                                   e.stopPropagation();
                                   setActiveFilterMenu(null);
                                 }}
-                                className="px-3 py-1.5 text-[12px] text-[#e8e8e8] hover:bg-white/5 rounded-md transition-colors"
+                                className="px-3 py-1.5 text-[12px] text-zinc-600 dark:text-[#e8e8e8] hover:bg-black/5 dark:hover:bg-white/5 rounded-md transition-colors"
                               >
                                 Cancel
                               </button>
@@ -1192,50 +1200,73 @@ export default function ProjectToolbar({
             {isDisplayOptionsOpen && (
               <div
                 ref={displayOptionsRef}
-                className="absolute top-[calc(100%+16px)] right-0 w-[310px] max-w-[calc(100vw-32px)] bg-[#1c1c1e] border border-white/5 rounded-xl shadow-2xl p-3 z-50 animate-in fade-in zoom-in-95 duration-100 flex flex-col gap-3"
+                className="absolute top-[calc(100%+16px)] right-0 w-[310px] max-w-[calc(100vw-32px)] bg-white dark:bg-[#1c1c1e] border border-black/[0.08] dark:border-white/5 rounded-xl shadow-2xl p-3 z-50 animate-in fade-in zoom-in-95 duration-100 flex flex-col gap-3"
               >
-                <SegmentedControl
-                  value={activeView}
-                  onValueChange={setActiveView}
-                  className="w-full bg-[#2c2d30] border border-white/5 rounded-lg"
-                  options={[
+                <div className="flex items-center gap-1 p-1 rounded-full bg-black/[0.04] dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/[0.06] w-full">
+                  {[
                     {
                       value: "list",
                       label: "List",
-                      accessory: (
-                        <AlignJustify
-                          size={14}
-                          className="ml-1 text-[#8a8f98]"
-                        />
-                      ),
+                      icon: <AlignJustify size={14} />,
                     },
                     {
                       value: "board",
                       label: "Board",
-                      accessory: (
-                        <LayoutGrid size={14} className="ml-1 text-[#8a8f98]" />
-                      ),
+                      icon: <LayoutGrid size={14} />,
                     },
                     ...(!isMobile
                       ? [
                           {
                             value: "timeline",
                             label: "Timeline",
-                            accessory: (
-                              <AlignLeft
-                                size={14}
-                                className="ml-1 text-[#8a8f98]"
-                              />
-                            ),
+                            icon: <AlignLeft size={14} />,
                           },
                         ]
                       : []),
-                  ]}
-                />
+                  ].map((tab) => {
+                    const isActive = activeView === tab.value;
+                    return (
+                      <button
+                        key={tab.value}
+                        type="button"
+                        onClick={() => setActiveView(tab.value)}
+                        className={`relative flex-1 flex items-center justify-center gap-1.5 py-1.5 text-[12px] font-medium rounded-full transition-colors cursor-pointer select-none ${
+                          isActive
+                            ? "text-zinc-900 dark:text-white"
+                            : "text-zinc-600 hover:text-zinc-900 dark:text-[#8a8f98] dark:hover:text-white"
+                        }`}
+                      >
+                        {isActive && (
+                          <motion.div
+                            layoutId="projectsViewActivePill"
+                            className="absolute inset-0 bg-white dark:bg-white/[0.12] border border-black/10 dark:border-white/10 rounded-full shadow-xs pointer-events-none"
+                            transition={{
+                              type: "spring",
+                              stiffness: 450,
+                              damping: 35,
+                            }}
+                          />
+                        )}
+                        <span className="relative z-10 flex items-center gap-1.5">
+                          <span>{tab.label}</span>
+                          <span
+                            className={
+                              isActive
+                                ? "text-zinc-900 dark:text-white"
+                                : "text-zinc-500 dark:text-[#8a8f98]"
+                            }
+                          >
+                            {tab.icon}
+                          </span>
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
 
-                <div className="px-1 flex flex-col gap-3 pb-3 border-b border-white/5">
+                <div className="px-1 flex flex-col gap-3 pb-3 border-b border-black/[0.06] dark:border-white/5">
                   <div className="flex items-center justify-between">
-                    <label className="text-[12px] font-medium text-[#8a8f98]">
+                    <label className="text-[12px] font-medium text-zinc-600 dark:text-[#8a8f98]">
                       {activeView === "board"
                         ? "Columns Grouping"
                         : activeView === "timeline"
@@ -1258,7 +1289,7 @@ export default function ProjectToolbar({
                             e.target.value,
                           )
                         }
-                        className="bg-[#2c2d30] border border-transparent hover:border-white/10 rounded-md pl-2.5 pr-6 py-1 text-[12px] text-white outline-none h-[26px] w-[130px] appearance-none cursor-pointer"
+                        className="bg-zinc-100 dark:bg-[#2c2d30] border border-black/[0.08] dark:border-transparent dark:hover:border-white/10 rounded-md pl-2.5 pr-6 py-1 text-[12px] text-zinc-900 dark:text-white outline-none h-[26px] w-[130px] appearance-none cursor-pointer"
                       >
                         <option value="none">No grouping</option>
                         <option value="status">Status</option>
@@ -1267,7 +1298,7 @@ export default function ProjectToolbar({
                         <option value="health">Health</option>
                       </select>
                       <ChevronDown
-                        className="absolute right-2 top-1/2 -translate-y-1/2 text-[#8a8f98] pointer-events-none"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-500 dark:text-[#8a8f98] pointer-events-none"
                         size={13}
                       />
                     </div>
@@ -1275,7 +1306,7 @@ export default function ProjectToolbar({
 
                   {activeView === "list" && (
                     <div className="flex items-center justify-between">
-                      <label className="text-[12px] font-medium text-[#8a8f98]">
+                      <label className="text-[12px] font-medium text-zinc-600 dark:text-[#8a8f98]">
                         Ordering
                       </label>
                       <div className="relative">
@@ -1288,14 +1319,14 @@ export default function ProjectToolbar({
                               e.target.value,
                             )
                           }
-                          className="bg-[#2c2d30] border border-transparent hover:border-white/10 rounded-md pl-2.5 pr-6 py-1 text-[12px] text-white outline-none h-[26px] w-[130px] appearance-none cursor-pointer"
+                          className="bg-zinc-100 dark:bg-[#2c2d30] border border-black/[0.08] dark:border-transparent dark:hover:border-white/10 rounded-md pl-2.5 pr-6 py-1 text-[12px] text-zinc-900 dark:text-white outline-none h-[26px] w-[130px] appearance-none cursor-pointer"
                         >
                           <option value="manual">Manual</option>
                           <option value="status">Status</option>
                           <option value="priority">Priority</option>
                         </select>
                         <ChevronDown
-                          className="absolute right-2 top-1/2 -translate-y-1/2 text-[#8a8f98] pointer-events-none"
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-500 dark:text-[#8a8f98] pointer-events-none"
                           size={13}
                         />
                       </div>
@@ -1304,7 +1335,7 @@ export default function ProjectToolbar({
 
                   {activeView === "board" && (
                     <div className="flex items-center justify-between">
-                      <label className="text-[12px] font-medium text-[#8a8f98]">
+                      <label className="text-[12px] font-medium text-zinc-600 dark:text-[#8a8f98]">
                         Swimlanes
                       </label>
                       <div className="relative">
@@ -1317,14 +1348,14 @@ export default function ProjectToolbar({
                               e.target.value,
                             )
                           }
-                          className="bg-[#2c2d30] border border-transparent hover:border-white/10 rounded-md pl-2.5 pr-6 py-1 text-[12px] text-white outline-none h-[26px] w-[130px] appearance-none cursor-pointer"
+                          className="bg-zinc-100 dark:bg-[#2c2d30] border border-black/[0.08] dark:border-transparent dark:hover:border-white/10 rounded-md pl-2.5 pr-6 py-1 text-[12px] text-zinc-900 dark:text-white outline-none h-[26px] w-[130px] appearance-none cursor-pointer"
                         >
                           <option value="none">None</option>
                           <option value="lead">Lead</option>
                           <option value="priority">Priority</option>
                         </select>
                         <ChevronDown
-                          className="absolute right-2 top-1/2 -translate-y-1/2 text-[#8a8f98] pointer-events-none"
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-500 dark:text-[#8a8f98] pointer-events-none"
                           size={13}
                         />
                       </div>
@@ -1333,7 +1364,7 @@ export default function ProjectToolbar({
 
                   {activeView === "timeline" && (
                     <div className="flex items-center justify-between">
-                      <label className="text-[12px] font-medium text-[#8a8f98]">
+                      <label className="text-[12px] font-medium text-zinc-600 dark:text-[#8a8f98]">
                         Zoom Level
                       </label>
                       <div className="relative">
@@ -1346,7 +1377,7 @@ export default function ProjectToolbar({
                               e.target.value,
                             )
                           }
-                          className="bg-[#2c2d30] border border-transparent hover:border-white/10 rounded-md pl-2.5 pr-6 py-1 text-[12px] text-white outline-none h-[26px] w-[130px] appearance-none cursor-pointer"
+                          className="bg-zinc-100 dark:bg-[#2c2d30] border border-black/[0.08] dark:border-transparent dark:hover:border-white/10 rounded-md pl-2.5 pr-6 py-1 text-[12px] text-zinc-900 dark:text-white outline-none h-[26px] w-[130px] appearance-none cursor-pointer"
                         >
                           <option value="Year">Year</option>
                           <option value="Quarter">Quarter</option>
@@ -1354,7 +1385,7 @@ export default function ProjectToolbar({
                           <option value="Week">Week</option>
                         </select>
                         <ChevronDown
-                          className="absolute right-2 top-1/2 -translate-y-1/2 text-[#8a8f98] pointer-events-none"
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-500 dark:text-[#8a8f98] pointer-events-none"
                           size={13}
                         />
                       </div>
@@ -1362,10 +1393,10 @@ export default function ProjectToolbar({
                   )}
                 </div>
 
-                <div className="px-1 flex flex-col gap-3 pb-3 border-b border-white/5">
+                <div className="px-1 flex flex-col gap-3 pb-3 border-b border-black/[0.06] dark:border-white/5">
                   {activeView !== "timeline" && (
                     <div className="flex items-center justify-between">
-                      <label className="text-[12px] font-medium text-[#8a8f98]">
+                      <label className="text-[12px] font-medium text-zinc-600 dark:text-[#8a8f98]">
                         Show closed projects
                       </label>
                       <div className="relative">
@@ -1378,13 +1409,13 @@ export default function ProjectToolbar({
                               e.target.value,
                             )
                           }
-                          className="bg-[#2c2d30] border border-transparent hover:border-white/10 rounded-md pl-2.5 pr-6 py-1 text-[12px] text-white outline-none h-[26px] w-[130px] appearance-none cursor-pointer"
+                          className="bg-zinc-100 dark:bg-[#2c2d30] border border-black/[0.08] dark:border-transparent dark:hover:border-white/10 rounded-md pl-2.5 pr-6 py-1 text-[12px] text-zinc-900 dark:text-white outline-none h-[26px] w-[130px] appearance-none cursor-pointer"
                         >
                           <option value="all">All</option>
                           <option value="none">None</option>
                         </select>
                         <ChevronDown
-                          className="absolute right-2 top-1/2 -translate-y-1/2 text-[#8a8f98] pointer-events-none"
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-500 dark:text-[#8a8f98] pointer-events-none"
                           size={13}
                         />
                       </div>
@@ -1394,7 +1425,7 @@ export default function ProjectToolbar({
                   {activeView === "timeline" && (
                     <>
                       <div className="flex items-center justify-between">
-                        <span className="text-[12px] font-medium text-[#8a8f98]">
+                        <span className="text-[12px] font-medium text-zinc-600 dark:text-[#8a8f98]">
                           Show project list
                         </span>
                         <input
@@ -1407,11 +1438,11 @@ export default function ProjectToolbar({
                               e.target.checked,
                             )
                           }
-                          className="rounded border-white/20 bg-white/5 text-[#6e8eeb] checked:bg-[#6e8eeb] focus:ring-0 w-3.5 h-3.5 cursor-pointer transition-colors"
+                          className="rounded border-zinc-300 dark:border-white/20 bg-zinc-100 dark:bg-white/5 text-[#6e8eeb] checked:bg-[#6e8eeb] focus:ring-0 w-3.5 h-3.5 cursor-pointer transition-colors"
                         />
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-[12px] font-medium text-[#8a8f98]">
+                        <span className="text-[12px] font-medium text-zinc-600 dark:text-[#8a8f98]">
                           Show milestones
                         </span>
                         <input
@@ -1424,11 +1455,11 @@ export default function ProjectToolbar({
                               e.target.checked,
                             )
                           }
-                          className="rounded border-white/20 bg-white/5 text-[#6e8eeb] checked:bg-[#6e8eeb] focus:ring-0 w-3.5 h-3.5 cursor-pointer transition-colors"
+                          className="rounded border-zinc-300 dark:border-white/20 bg-zinc-100 dark:bg-white/5 text-[#6e8eeb] checked:bg-[#6e8eeb] focus:ring-0 w-3.5 h-3.5 cursor-pointer transition-colors"
                         />
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-[12px] font-medium text-[#8a8f98]">
+                        <span className="text-[12px] font-medium text-zinc-600 dark:text-[#8a8f98]">
                           Show dependencies
                         </span>
                         <input
@@ -1441,7 +1472,7 @@ export default function ProjectToolbar({
                               e.target.checked,
                             )
                           }
-                          className="rounded border-white/20 bg-white/5 text-[#6e8eeb] checked:bg-[#6e8eeb] focus:ring-0 w-3.5 h-3.5 cursor-pointer transition-colors"
+                          className="rounded border-zinc-300 dark:border-white/20 bg-zinc-100 dark:bg-white/5 text-[#6e8eeb] checked:bg-[#6e8eeb] focus:ring-0 w-3.5 h-3.5 cursor-pointer transition-colors"
                         />
                       </div>
                     </>
@@ -1449,14 +1480,14 @@ export default function ProjectToolbar({
                 </div>
 
                 <div className="px-1 flex flex-col gap-2">
-                  <div className="text-[13px] font-medium text-[#e8e8e8] mb-0.5">
+                  <div className="text-[13px] font-medium text-zinc-900 dark:text-[#e8e8e8] mb-0.5">
                     {activeView.charAt(0).toUpperCase() + activeView.slice(1)}{" "}
                     options
                   </div>
                   {activeView === "board" && (
                     <>
                       <div className="flex items-center justify-between mb-2">
-                        <span className="text-[12px] font-medium text-[#8a8f98]">
+                        <span className="text-[12px] font-medium text-zinc-600 dark:text-[#8a8f98]">
                           Show empty columns
                         </span>
                         <button
@@ -1469,21 +1500,21 @@ export default function ProjectToolbar({
                           }
                           className={`w-7 h-4 rounded-full transition-colors flex items-center px-[2px] ${
                             currentViewConfig.showEmptyColumns
-                              ? "bg-white/40"
-                              : "bg-white/10"
+                              ? "bg-zinc-900 dark:bg-white/40"
+                              : "bg-zinc-200 dark:bg-white/10"
                           }`}
                         >
                           <div
-                            className={`w-3 h-3 rounded-full bg-white transition-transform ${
+                            className={`w-3 h-3 rounded-full transition-transform ${
                               currentViewConfig.showEmptyColumns
-                                ? "translate-x-3"
-                                : "translate-x-0"
+                                ? "translate-x-3 bg-white"
+                                : "translate-x-0 bg-zinc-400 dark:bg-white"
                             }`}
                           />
                         </button>
                       </div>
                       <div className="flex items-center justify-between mb-2">
-                        <span className="text-[12px] font-medium text-[#8a8f98]">
+                        <span className="text-[12px] font-medium text-zinc-600 dark:text-[#8a8f98]">
                           Column backgrounds
                         </span>
                         <button
@@ -1496,22 +1527,22 @@ export default function ProjectToolbar({
                           }
                           className={`w-7 h-4 rounded-full transition-colors flex items-center px-[2px] ${
                             currentViewConfig.showColumnBackgrounds
-                              ? "bg-white/40"
-                              : "bg-white/10"
+                              ? "bg-zinc-900 dark:bg-white/40"
+                              : "bg-zinc-200 dark:bg-white/10"
                           }`}
                         >
                           <div
-                            className={`w-3 h-3 rounded-full bg-white transition-transform ${
+                            className={`w-3 h-3 rounded-full transition-transform ${
                               currentViewConfig.showColumnBackgrounds
-                                ? "translate-x-3"
-                                : "translate-x-0"
+                                ? "translate-x-3 bg-white"
+                                : "translate-x-0 bg-zinc-400 dark:bg-white"
                             }`}
                           />
                         </button>
                       </div>
                     </>
                   )}
-                  <div className="text-[12px] font-medium text-[#8a8f98] mb-1.5">
+                  <div className="text-[12px] font-medium text-zinc-600 dark:text-[#8a8f98] mb-1.5">
                     Display properties
                   </div>
                   <div className="flex flex-wrap gap-1.5">
@@ -1522,8 +1553,8 @@ export default function ProjectToolbar({
                           onClick={() => toggleProperty(activeView, propKey)}
                           className={`px-3 py-1 text-[11px] rounded-full transition-colors font-medium border ${
                             isChecked
-                              ? "bg-white text-black border-transparent"
-                              : "bg-transparent text-[#8a8f98] border-white/10 hover:bg-white/5 hover:text-[#e8e8e8]"
+                              ? "bg-zinc-900 text-white dark:bg-white dark:text-black border-transparent shadow-sm"
+                              : "bg-transparent text-zinc-600 dark:text-[#8a8f98] border-black/10 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/5 hover:text-zinc-900 dark:hover:text-[#e8e8e8]"
                           }`}
                         >
                           {propKey
@@ -1537,10 +1568,10 @@ export default function ProjectToolbar({
                 </div>
 
                 {isNonDefaultDisplay && (
-                  <div className="flex items-center justify-between pt-3 mt-3 border-t border-white/5">
+                  <div className="flex items-center justify-between pt-3 mt-3 border-t border-black/[0.06] dark:border-white/5">
                     <button
                       onClick={resetToDefaults}
-                      className="text-[12px] font-medium text-[#8a8f98] hover:text-[#e8e8e8] px-1"
+                      className="text-[12px] font-medium text-zinc-500 dark:text-[#8a8f98] hover:text-zinc-900 dark:hover:text-[#e8e8e8] px-1"
                     >
                       Reset
                     </button>

@@ -377,7 +377,7 @@ exports.updateProject = async (req, res) => {
             `DELETE FROM milestones WHERE project_id = $1 AND id NOT IN (${placeholders})`,
             [id, ...incomingIds],
           );
-        } else {
+        } else if (milestones.length === 0 && req.body.clear_milestones === true) {
           await client.query("DELETE FROM milestones WHERE project_id = $1", [
             id,
           ]);

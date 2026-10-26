@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useId, useLayoutEffect, useRef } from "react";
-import { LayoutGroup, motion, useReducedMotion } from "motion/react";
-import { motionTokens } from "@/registry/motion-tokens";
+import { useEffect, useId, useRef, useState } from "react";
+import { motion, useReducedMotion } from "motion/react";
 import styles from "./segmented-control.module.css";
 
 export default function SegmentedControl({
@@ -13,63 +12,32 @@ export default function SegmentedControl({
   onOptionIntent,
   className,
   fullWidth = false,
+  layoutId: customLayoutId,
 }) {
   const isFullWidth = fullWidth || className?.includes("w-full");
   const id = useId();
+  const activeLayoutId = customLayoutId || `${id}-pill`;
   const reduced = useReducedMotion();
   const track = useRef(null);
 
-  // When the options are wider than the container, the track scrolls inside itself. Edges fade only on the side with more to see.
-  useLayoutEffect(() => {
-    const node = track.current;
-    if (!node) return;
-    const edges = () => {
-      const rest = node.scrollWidth - node.clientWidth - node.scrollLeft;
-      node.toggleAttribute("data-fade-start", node.scrollLeft > 1);
-      node.toggleAttribute("data-fade-end", rest > 1);
-    };
-    edges();
-    node.addEventListener("scroll", edges, { passive: true });
-    const observer =
-      typeof ResizeObserver === "undefined" ? null : new ResizeObserver(edges);
-    observer?.observe(node);
-    return () => {
-      node.removeEventListener("scroll", edges);
-      observer?.disconnect();
-    };
-  }, [options.length]);
+  // Optimistic local state so the pill glides immediately on click without waiting for heavy parent renders
+  const [activeVal, setActiveVal] = useState(value);
 
-  // The selected option is always scrolled fully into view, with a little room so it clears the fade.
-  const first = useRef(true);
   useEffect(() => {
-    const node = track.current;
-    const button = node?.querySelector('[aria-pressed="true"]');
-    if (!node || !button || node.scrollWidth <= node.clientWidth) {
-      first.current = false;
-      return;
-    }
-    const room = 20,
-      start = button.offsetLeft - room,
-      end = button.offsetLeft + button.offsetWidth + room - node.clientWidth;
-    const left =
-      node.scrollLeft > start
-        ? start
-        : node.scrollLeft < end
-          ? end
-          : node.scrollLeft;
-    if (left !== node.scrollLeft)
-      node.scrollTo({
-        left: Math.max(0, left),
-        behavior: first.current || reduced ? "auto" : "smooth",
-      });
-    first.current = false;
-  }, [value, reduced]);
+    setActiveVal(value);
+  }, [value]);
 
-  // Arrow keys, Home and End move the selection like a tab list; only the selected option is a tab stop.
+  const handleSelect = (val) => {
+    if (val === activeVal) return;
+    setActiveVal(val);
+    onValueChange?.(val);
+  };
+
   const selectedIndex = Math.max(
     0,
-    options.findIndex((option) => option.value === value),
+    options.findIndex((option) => option.value === (activeVal ?? value)),
   );
+
   const onKeyDown = (event) => {
     const last = options.length - 1;
     const target =
@@ -88,7 +56,7 @@ export default function SegmentedControl({
               : -1;
     if (target < 0 || !options[target]) return;
     event.preventDefault();
-    onValueChange(options[target].value);
+    handleSelect(options[target].value);
     track.current
       ?.querySelector(`[data-value="${CSS.escape(options[target].value)}"]`)
       ?.focus({ preventScroll: true });
@@ -100,22 +68,26 @@ export default function SegmentedControl({
       role="group"
       aria-label={label}
     >
-      <LayoutGroup id={id}>
-        <motion.div
-          ref={track}
-          layoutScroll
-          className={`${styles.track} ${isFullWidth ? "w-full" : ""}`}
-        >
-          {options.map((option, index) => (
+      <div
+        ref={track}
+        className={`${styles.track} ${isFullWidth ? "w-full" : ""}`}
+      >
+        {options.map((option, index) => {
+          const isActive = (activeVal ?? value) === option.value;
+          return (
             <button
               key={option.value}
               id={`${id}-${option.value}`}
-              className={`${styles.button} ${isFullWidth ? "flex-1 justify-center text-center" : ""}`}
+              className={`relative ${styles.button} ${isFullWidth ? "flex-1 justify-center text-center" : ""} ${
+                isActive
+                  ? "text-zinc-900 dark:text-white font-medium"
+                  : "text-zinc-500 hover:text-zinc-900 dark:text-[#8a8f98] dark:hover:text-white"
+              }`}
               type="button"
               data-value={option.value}
-              aria-pressed={value === option.value}
+              aria-pressed={isActive}
               tabIndex={index === selectedIndex ? 0 : -1}
-              onClick={() => onValueChange(option.value)}
+              onClick={() => handleSelect(option.value)}
               onKeyDown={onKeyDown}
               onPointerEnter={
                 onOptionIntent ? () => onOptionIntent(option.value) : undefined
@@ -124,27 +96,27 @@ export default function SegmentedControl({
                 onOptionIntent ? () => onOptionIntent(option.value) : undefined
               }
             >
-              {value === option.value && (
-                <motion.span
-                  className={styles.selection}
-                  layoutId="selection"
-                  layoutDependency={value}
+              {isActive && (
+                <motion.div
+                  layoutId={activeLayoutId}
+                  className="absolute inset-0 bg-white dark:bg-white/[0.12] border border-black/10 dark:border-white/10 rounded-full shadow-xs pointer-events-none"
                   transition={
-                    reduced ? { duration: 0 } : motionTokens.spring.morph
+                    reduced
+                      ? { duration: 0 }
+                      : { type: "spring", stiffness: 450, damping: 35 }
                   }
-                  aria-hidden="true"
                 />
               )}
               <span
-                className={`${styles.label} ${isFullWidth ? "justify-center w-full" : ""}`}
+                className={`relative z-10 flex items-center justify-center gap-1.5 ${isFullWidth ? "w-full" : ""}`}
               >
                 {option.label}
                 {option.accessory}
               </span>
             </button>
-          ))}
-        </motion.div>
-      </LayoutGroup>
+          );
+        })}
+      </div>
     </div>
   );
 }

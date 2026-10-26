@@ -1,8 +1,9 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useDeferredValue } from "react";
 import { useNavigate } from "react-router-dom";
 import { useUser, useOrganization } from "@clerk/clerk-react";
 import { Plus, Settings2, X } from "lucide-react";
 import { Loupe } from "@lucasmarkes/hairline/react";
+import { useTheme } from "../contexts/ThemeContext";
 
 import CreateProjectModal from "../components/CreateProjectModal";
 import ConfirmModal from "../components/ConfirmModal";
@@ -21,6 +22,7 @@ import { useProjectFilters } from "../hooks/useProjectFilters";
 
 export default function Projects() {
   const navigate = useNavigate();
+  const { effectiveTheme } = useTheme();
   const { user } = useUser();
   const { organization } = useOrganization();
 
@@ -85,6 +87,31 @@ export default function Projects() {
   } = useProjectFilters(projects);
 
   const activeView = viewConfig?.activeView || "list";
+
+  // Keep visited views preserved in the DOM so switching between List/Board/Timeline is 0ms instantaneous
+  const [visitedViews, setVisitedViews] = useState(() => new Set([activeView]));
+
+  useEffect(() => {
+    setVisitedViews((prev) => {
+      if (prev.has(activeView)) return prev;
+      const next = new Set(prev);
+      next.add(activeView);
+      return next;
+    });
+  }, [activeView]);
+
+  // Pre-warm Board view in idle time so switching to Board has zero mount delay
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setVisitedViews((prev) => {
+        if (prev.has("board")) return prev;
+        const next = new Set(prev);
+        next.add("board");
+        return next;
+      });
+    }, 400);
+    return () => clearTimeout(timer);
+  }, []);
 
   // 3. Selection & Command Palette State
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -244,7 +271,7 @@ export default function Projects() {
     JSON.stringify(workspaceDefaultConfig[activeView]);
 
   return (
-    <div className="w-full flex flex-col h-full min-h-0 min-w-0 animate-in fade-in duration-300 select-none text-[#e8e8e8]">
+    <div className="w-full flex flex-col min-h-full md:h-full min-w-0 animate-in fade-in duration-300 select-none text-zinc-900 dark:text-[#e8e8e8]">
       {/* 1. TOP TOOLBAR & CONTROLS */}
       <ProjectToolbar
         canManageProjects={canManageProjects}
@@ -287,13 +314,13 @@ export default function Projects() {
         {filteredProjects.length === 0 ? (
           <div className="flex flex-col items-center justify-center flex-1 max-w-sm mx-auto text-center gap-6 mt-10 animate-in fade-in zoom-in-95 duration-500">
             <div className="w-64 h-64 flex items-center justify-center relative overflow-visible">
-              <Loupe theme="dark" intensity={0.7} className="w-full h-full text-[#8a8f98] opacity-80" />
+              <Loupe theme={effectiveTheme} intensity={0.7} className="w-full h-full text-zinc-500 dark:text-[#8a8f98] opacity-80" />
             </div>
             <div className="flex flex-col gap-1.5">
-              <h2 className="text-base font-semibold text-white">
+              <h2 className="text-base font-semibold text-zinc-900 dark:text-white">
                 No projects found
               </h2>
-              <p className="text-[13px] text-[#8a8f98] leading-relaxed">
+              <p className="text-[13px] text-zinc-500 dark:text-[#8a8f98] leading-relaxed">
                 Try adjusting your search keywords or active filters to view
                 existing projects.
               </p>
@@ -301,7 +328,7 @@ export default function Projects() {
             {canManageProjects && (
               <button
                 onClick={() => setIsCreateModalOpen(true)}
-                className="h-8 px-4 bg-white text-black rounded-full font-medium text-[13px] hover:bg-zinc-100 transition-all duration-300 shadow-[0_0_20px_rgba(255,255,255,0.14)] hover:shadow-[0_0_28px_rgba(255,255,255,0.22)] active:scale-[0.98] flex items-center gap-2"
+                className="h-8 px-4 bg-zinc-900 text-white dark:bg-white dark:text-black rounded-full font-medium text-[13px] hover:bg-zinc-800 dark:hover:bg-zinc-100 transition-all duration-300 shadow-sm dark:shadow-[0_0_20px_rgba(255,255,255,0.14)] active:scale-[0.98] flex items-center gap-2"
               >
                 <Plus size={14} strokeWidth={2.2} /> New Project
               </button>
@@ -309,61 +336,67 @@ export default function Projects() {
           </div>
         ) : (
           <>
-            {activeView === "list" && (
-              <ListViewRenderer
-                projects={filteredProjects}
-                config={currentViewConfig}
-                groupProjects={groupProjects}
-                sortProjects={sortProjects}
-                collapsedGroups={collapsedGroups}
-                toggleGroupCollapse={toggleGroupCollapse}
-                onUpdateProject={handleUpdateProject}
-                onDeleteProject={handleDeleteProject}
-                navigate={navigate}
-                activePicker={activePicker}
-                setActivePicker={canManageProjects ? setActivePicker : () => {}}
-                canManageProjects={canManageProjects}
-              />
-            )}
-
-            {activeView === "board" && (
-              <BoardViewRenderer
-                projects={filteredProjects}
-                config={currentViewConfig}
-                groupProjects={groupProjects}
-                sortProjects={sortProjects}
-                onUpdateProject={handleUpdateProject}
-                onDeleteProject={handleDeleteProject}
-                draggedProject={draggedProject}
-                setDraggedProject={setDraggedProject}
-                navigate={navigate}
-                setIsCreateModalOpen={setIsCreateModalOpen}
-                selectedProjects={selectedProjects}
-                setSelectedProjects={setSelectedProjects}
-                activePicker={activePicker}
-                setActivePicker={canManageProjects ? setActivePicker : () => {}}
-                canManageProjects={canManageProjects}
-              />
-            )}
-
-            {activeView === "timeline" && typeof window !== "undefined" && window.innerWidth >= 768 && (
-              <ErrorBoundary>
-                <TimelineViewRenderer
+            {visitedViews.has("list") && (
+              <div className={`flex-1 flex flex-col min-h-0 ${activeView === "list" ? "" : "hidden"}`}>
+                <ListViewRenderer
                   projects={filteredProjects}
-                  config={currentViewConfig}
+                  config={viewConfig.list || workspaceDefaultConfig.list}
                   groupProjects={groupProjects}
+                  sortProjects={sortProjects}
                   collapsedGroups={collapsedGroups}
                   toggleGroupCollapse={toggleGroupCollapse}
                   onUpdateProject={handleUpdateProject}
-                  timelineScrollRef={timelineScrollRef}
-                  hoveredProject={hoveredProject}
-                  setHoveredProject={setHoveredProject}
-                  tooltipPos={tooltipPos}
-                  setTooltipPos={setTooltipPos}
+                  onDeleteProject={handleDeleteProject}
                   navigate={navigate}
+                  activePicker={activePicker}
+                  setActivePicker={canManageProjects ? setActivePicker : () => {}}
                   canManageProjects={canManageProjects}
                 />
-              </ErrorBoundary>
+              </div>
+            )}
+
+            {visitedViews.has("board") && (
+              <div className={`flex-1 flex flex-col min-h-0 ${activeView === "board" ? "" : "hidden"}`}>
+                <BoardViewRenderer
+                  projects={filteredProjects}
+                  config={viewConfig.board || workspaceDefaultConfig.board}
+                  groupProjects={groupProjects}
+                  sortProjects={sortProjects}
+                  onUpdateProject={handleUpdateProject}
+                  onDeleteProject={handleDeleteProject}
+                  draggedProject={draggedProject}
+                  setDraggedProject={setDraggedProject}
+                  navigate={navigate}
+                  setIsCreateModalOpen={setIsCreateModalOpen}
+                  selectedProjects={selectedProjects}
+                  setSelectedProjects={setSelectedProjects}
+                  activePicker={activePicker}
+                  setActivePicker={canManageProjects ? setActivePicker : () => {}}
+                  canManageProjects={canManageProjects}
+                />
+              </div>
+            )}
+
+            {visitedViews.has("timeline") && typeof window !== "undefined" && window.innerWidth >= 768 && (
+              <div className={`flex-1 flex flex-col min-h-0 ${activeView === "timeline" ? "" : "hidden"}`}>
+                <ErrorBoundary>
+                  <TimelineViewRenderer
+                    projects={filteredProjects}
+                    config={viewConfig.timeline || workspaceDefaultConfig.timeline}
+                    groupProjects={groupProjects}
+                    collapsedGroups={collapsedGroups}
+                    toggleGroupCollapse={toggleGroupCollapse}
+                    onUpdateProject={handleUpdateProject}
+                    timelineScrollRef={timelineScrollRef}
+                    hoveredProject={hoveredProject}
+                    setHoveredProject={setHoveredProject}
+                    tooltipPos={tooltipPos}
+                    setTooltipPos={setTooltipPos}
+                    navigate={navigate}
+                    canManageProjects={canManageProjects}
+                  />
+                </ErrorBoundary>
+              </div>
             )}
           </>
         )}
@@ -371,19 +404,19 @@ export default function Projects() {
 
       {/* 3. SELECTION BOTTOM BAR */}
       {selectedProjects && selectedProjects.length > 0 && (
-        <div className="fixed bottom-10 left-1/2 -translate-x-1/2 flex items-center gap-3 bg-[#141517]/90 backdrop-blur-xl border border-white/[0.08] rounded-full px-4 py-2.5 shadow-[0_16px_40px_-8px_rgba(0,0,0,0.8),_0_0_0_1px_rgba(255,255,255,0.02)] z-[100] animate-in slide-in-from-bottom-8 duration-300">
-          <span className="text-[13px] font-medium text-white px-2">
+        <div className="fixed bottom-10 left-1/2 -translate-x-1/2 flex items-center gap-3 bg-white/95 dark:bg-[#141517]/90 backdrop-blur-xl border border-black/10 dark:border-white/[0.08] rounded-full px-4 py-2.5 shadow-[0_16px_40px_-8px_rgba(0,0,0,0.15)] dark:shadow-[0_16px_40px_-8px_rgba(0,0,0,0.8)] z-[100] animate-in slide-in-from-bottom-8 duration-300">
+          <span className="text-[13px] font-medium text-zinc-900 dark:text-white px-2">
             {selectedProjects.length} selected
           </span>
           <button
             onClick={() => setIsBulkActionMenuOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-full text-[13px] text-white font-medium transition-all active:scale-[0.98]"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-black/5 hover:bg-black/10 dark:bg-white/10 dark:hover:bg-white/20 rounded-full text-[13px] text-zinc-900 dark:text-white font-medium transition-all active:scale-[0.98]"
           >
             <Settings2 size={14} /> Actions
           </button>
           <button
             onClick={() => setSelectedProjects([])}
-            className="p-1.5 hover:bg-white/10 rounded-full text-[#8a8f98] hover:text-white transition-all ml-1 active:scale-[0.95]"
+            className="p-1.5 hover:bg-black/5 dark:hover:bg-white/10 rounded-full text-zinc-500 hover:text-zinc-900 dark:text-[#8a8f98] dark:hover:text-white transition-all ml-1 active:scale-[0.95]"
           >
             <X size={14} />
           </button>

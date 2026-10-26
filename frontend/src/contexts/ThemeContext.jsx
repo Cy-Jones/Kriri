@@ -18,14 +18,28 @@ function getInitialTheme() {
   return "dark";
 }
 
+function resolveEffectiveTheme(theme) {
+  if (theme === "system") {
+    if (
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-color-scheme: dark)").matches
+    ) {
+      return "dark";
+    }
+    return "light";
+  }
+  return theme === "light" ? "light" : "dark";
+}
+
 function syncDomTheme(theme) {
   if (typeof document === "undefined") return;
-  const isDark = theme === "dark";
+  const effectiveTheme = resolveEffectiveTheme(theme);
+  const isDark = effectiveTheme === "dark";
   const root = document.documentElement;
-  root.setAttribute("data-theme", theme);
+  root.setAttribute("data-theme", effectiveTheme);
   root.classList.toggle("dark", isDark);
   root.classList.toggle("light", !isDark);
-  root.style.colorScheme = theme;
+  root.style.colorScheme = effectiveTheme;
   root.style.backgroundColor = isDark ? "#000000" : "#ffffff";
   if (document.body) {
     document.body.style.backgroundColor = isDark ? "#000000" : "#ffffff";
@@ -69,6 +83,13 @@ export function ThemeProvider({ children, defaultTheme }) {
 
   useEffect(() => {
     syncDomTheme(theme);
+
+    if (theme === "system" && typeof window !== "undefined") {
+      const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+      const handleChange = () => syncDomTheme("system");
+      mediaQuery.addEventListener("change", handleChange);
+      return () => mediaQuery.removeEventListener("change", handleChange);
+    }
   }, [theme]);
 
   const applyTheme = useCallback((nextTheme) => {
@@ -94,16 +115,20 @@ export function ThemeProvider({ children, defaultTheme }) {
 
   const toggleTheme = useCallback(
     (variant = "eclipse", trigger) => {
-      const nextTheme = theme === "dark" ? "light" : "dark";
+      const effectiveTheme = resolveEffectiveTheme(theme);
+      const nextTheme = effectiveTheme === "dark" ? "light" : "dark";
       onThemeChange(nextTheme, variant, trigger);
     },
     [theme, onThemeChange]
   );
 
+  const effectiveTheme = resolveEffectiveTheme(theme);
+
   return (
     <ThemeContext.Provider
       value={{
         theme,
+        effectiveTheme,
         setTheme: applyTheme,
         toggleTheme,
         onThemeChange,
