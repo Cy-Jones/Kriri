@@ -101,8 +101,6 @@ Kriri's architecture is designed around **Workspaces**, **Projects**, and **Task
 ## Documentation
 
 - [Academic Project Progress Report & Weekly Logbook](PROJECT_PROGRESS_REPORT.md)
-- [Product & Architecture Blueprint](docs/architecture/BLUEPRINT.md)
-- [Technical Instructions & Guidelines](docs/architecture/INSTRUCTIONS.md)
 - [PostHog AI Observability Setup Report](docs/reports/POSTHOG_AI_OBSERVABILITY.md)
 - [Docs Index](docs/README.md)
 

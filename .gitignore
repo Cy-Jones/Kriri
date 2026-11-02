@@ -59,6 +59,8 @@ hairline-*.html
 hairline-*.png
 .tempmediaStorage/
 
-# Local Academic Documents (Keep local, do not push to public repo)
+# Local Academic Documents & Internal Specs (Keep local, do not push to public repo)
 PROJECT_PROGRESS_REPORT.md
 KRIRI_DESIGN_SYSTEM.md
+docs/architecture/BLUEPRINT.md
+docs/architecture/INSTRUCTIONS.md
