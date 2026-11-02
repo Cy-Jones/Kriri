@@ -1,7 +1,6 @@
 # Kriri Documentation
 
-Welcome to the documentation repository for **Kriri** — High-Velocity Engineering Workspace.
-
+Welcome to the documentation repository for **Kriri** 
 ## Directory Structure
 
 ```
