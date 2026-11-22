@@ -24,7 +24,10 @@ exports.projectSchema = z.object({
     .optional(),
   start_date: z.string().optional().nullable(),
   due_date: z.string().optional().nullable(),
-  lead: z.object({ id: z.number() }).optional().nullable(),
+  lead: z
+    .object({ id: z.number().optional(), assign_current: z.boolean().optional() })
+    .optional()
+    .nullable(),
   members: z
     .array(z.object({ id: z.number(), role: z.string().optional() }))
     .optional(),
@@ -63,11 +66,21 @@ exports.taskSchema = z.object({
   due_date: z.string().optional().nullable(),
   progress: z.number().min(0).max(100).optional(),
   position: z.number().optional(),
+  parent_task_id: z.number().optional().nullable(),
+});
+
+exports.taskUpdateSchema = exports.taskSchema.partial();
+
+exports.dependencySchema = z.object({
+  depends_on_task_id: z.number({ required_error: "depends_on_task_id is required" }),
+  type: z.enum(["blocks", "blocked_by", "relates_to"]).optional(),
 });
 
 exports.milestoneSchema = z.object({
   name: z.string().min(1, "Name is required"),
+  description: z.string().optional().nullable(),
   due_date: z.string().optional().nullable(),
+  status: z.string().optional(),
   project_id: z.number().optional().nullable(),
 });
 

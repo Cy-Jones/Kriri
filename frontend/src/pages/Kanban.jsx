@@ -1,8 +1,9 @@
-import { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback, memo } from "react";
 import {
   useOutletContext,
   useLocation,
   useSearchParams,
+  useNavigate,
 } from "react-router-dom";
 import {
   DndContext,
@@ -29,14 +30,29 @@ import {
   MoreHorizontal,
   Clock,
   Menu,
+  CheckSquare,
+  AlertCircle,
+  Box,
+  Calendar,
+  User,
+  FileText,
 } from "lucide-react";
-import { getPriorityIcon } from "../components/PriorityPicker";
+import ActionTooltip from "../components/ActionTooltip";
+import StatusPicker, { getStatusIcon } from "../components/StatusPicker";
+import PriorityPicker, { getPriorityIcon } from "../components/PriorityPicker";
+import LeadPicker from "../components/LeadPicker";
+import DatePicker from "../components/DatePicker";
+import PickerWrapper from "../components/PickerWrapper";
+import { playUiSound } from "../lib/sound";
+import { getAvatarColor, getInitial } from "../lib/avatarUtils";
 import { api } from "../lib/api";
 import TaskDetailsModal from "../components/TaskDetailsModal";
 import CreateTaskModal from "../components/CreateTaskModal";
-import PageLoading from "../components/PageLoading";
+import { TasksBoardSkeleton } from "../components/skeletons/PageSkeletons";
+import { useDeferredSkeleton } from "../hooks/useDeferredSkeleton";
+import ViewSwitcher from "../components/ViewSwitcher";
 import { Cabinet as Abacus } from "@lucasmarkes/hairline/react";
-import { useUser, useOrganization } from "@clerk/clerk-react";
+import { useUser, useOrganization } from "@clerk/react";
 import { useSocket } from "../contexts/SocketContext";
 import { useTheme } from "../contexts/ThemeContext";
 
@@ -51,6 +67,8 @@ const COLUMNS = [
   { id: "In Review", label: "In Review", dotColor: "#38bdf8" },
   { id: "Done", label: "Done", dotColor: "#10b981" },
 ];
+
+import { formatKririDate, formatMemberDisplayName } from "../lib/userPreferences";
 
 function getTaskProgressDetails(task) {
   const isDone = task.status === "Done";
@@ -75,7 +93,31 @@ function getTaskProgressDetails(task) {
   return { isDone, progressPct, progressColor };
 }
 
-function SortableTaskItem({ task, index, onClick, isSelected, isHighlighted }) {
+const DEFAULT_VISIBLE_PROPERTIES = {
+  id: true,
+  status: true,
+  assignee: true,
+  priority: true,
+  project: true,
+  dueDate: true,
+  subtasks: true,
+};
+
+const SortableTaskItem = memo(function SortableTaskItem({
+  task,
+  index,
+  onClick,
+  onTaskClick,
+  isSelected,
+  isHighlighted,
+  activePickerType,
+  setActivePicker,
+  onUpdateTaskProperty,
+  onUpdateTaskAssignee,
+  availableMembers = [],
+  visibleProperties = DEFAULT_VISIBLE_PROPERTIES,
+}) {
+  const navigate = useNavigate();
   const {
     attributes,
     listeners,
@@ -98,104 +140,379 @@ function SortableTaskItem({ task, index, onClick, isSelected, isHighlighted }) {
     new Date(task.due_date).getTime() < new Date().setHours(0, 0, 0, 0);
 
   const formattedDue = task.due_date
-    ? new Date(task.due_date).toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-      })
+    ? formatKririDate(task.due_date)
     : "No due date";
+
+  const taskIdentifier = task.project_identifier
+    ? `${task.project_identifier}-${task.id}`
+    : task.project_slug
+      ? `${task.project_slug}-${task.id}`
+      : `TASK-${task.id}`;
+
+  const assigneeAvatarUrl = task.assignee_avatar_url || task.assignee_avatar;
 
   return (
     <article
       ref={setNodeRef}
       id={`task-card-${task.id}`}
-      style={style}
+      style={{ ...style, contentVisibility: "auto", containIntrinsicSize: "0 90px" }}
       {...attributes}
       {...listeners}
-      onClick={onClick}
-      className={`kriri-task-card relative rounded-2xl p-3.5 flex flex-col justify-between cursor-grab active:cursor-grabbing select-none transition-all duration-200 ${
+      onClick={onClick || (() => onTaskClick?.(task.id))}
+      className={`kriri-task-card group relative rounded-xl p-3.5 flex flex-col gap-2.5 cursor-grab active:cursor-grabbing select-none transition-all duration-200 ${
         isDragging
-          ? "opacity-20 border-2 border-dashed border-black/20 dark:border-white/20 bg-zinc-100/50 dark:bg-[#16171a]/50 scale-[0.98]"
+          ? "opacity-30 border-2 border-dashed border-black/20 dark:border-white/20 bg-transparent scale-[0.98]"
           : isHighlighted
-            ? "bg-zinc-50 dark:bg-[#1f2127] border-black/20 dark:border-white/[0.22] shadow-[0_12px_32px_rgba(0,0,0,0.1)] dark:shadow-[0_12px_32px_rgba(0,0,0,0.6)] before:absolute before:left-0 before:top-3 before:bottom-3 before:w-[3px] before:rounded-r-full before:bg-emerald-500"
+            ? "bg-surface-hover border-border shadow-[0_12px_32px_rgba(0,0,0,0.1)] dark:shadow-[0_12px_32px_rgba(0,0,0,0.6)] before:absolute before:left-0 before:top-3 before:bottom-3 before:w-[3px] before:rounded-r-full before:bg-emerald-500"
             : isSelected
-              ? "bg-zinc-50 dark:bg-[#1c1d22] border-black/15 dark:border-white/15 shadow-sm"
-              : "bg-white dark:bg-[#16171a] border border-black/[0.08] dark:border-white/[0.08] shadow-xs hover:border-black/20 dark:hover:border-white/15 hover:shadow-sm"
+              ? "bg-[#3b82f6]/10 border border-[#3b82f6]/40 shadow-sm"
+              : "bg-white dark:bg-[#18191c] hover:bg-zinc-50 dark:hover:bg-[#1c1d21] border border-black/[0.08] dark:border-[var(--border,rgba(255,255,255,0.05))] shadow-xs hover:shadow-md text-zinc-900 dark:text-zinc-100"
       }`}
     >
-      <div>
-        {/* Top Tag & Priority */}
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <span className="font-mono text-[11px] font-semibold text-zinc-600 dark:text-[#8a8f98] bg-black/[0.04] dark:bg-white/[0.04] px-2 py-0.5 rounded-md border border-black/[0.06] dark:border-white/[0.06]">
-              {task.project_identifier
-                ? `${task.project_identifier}-${task.id}`
-                : task.project_slug
-                  ? `${task.project_slug}-${task.id}`
-                  : `TASK-${task.id}`}
-            </span>
-            <div className="inline-flex items-center gap-1.5 text-[11px] text-zinc-600 dark:text-[#8a8f98]">
-              {getPriorityIcon(task.priority || "No priority")}
-              {task.priority && task.priority !== "No priority" && (
-                <span className="font-medium text-zinc-800 dark:text-[#d1d2d5]">{task.priority}</span>
-              )}
-            </div>
-          </div>
-
-          <button
-            type="button"
-            className="text-zinc-500 hover:text-zinc-900 dark:text-text-muted dark:hover:text-white opacity-80 hover:opacity-100 transition-opacity flex items-center justify-center h-6 w-6 rounded-md hover:bg-black/[0.05] dark:hover:bg-white/[0.06] cursor-pointer"
-            aria-label="Task options"
+      {/* Top Header: Identifier, Interactive Priority, Options (No duplicate avatar, No text) */}
+      <div className="flex items-center justify-between gap-2">
+        {visibleProperties?.id !== false ? (
+          <div
+            className="font-mono text-[11px] text-zinc-400 dark:text-[#8a8f98] font-medium tracking-wider pt-0.5 whitespace-nowrap shrink-0 rounded px-1 -ml-1 hover:text-zinc-900 dark:hover:text-white hover:bg-black/[0.04] dark:hover:bg-white/[0.04] transition-colors cursor-pointer"
+            title={taskIdentifier}
           >
-            <MoreHorizontal size={14} />
-          </button>
-        </div>
+            {taskIdentifier}
+          </div>
+        ) : (
+          <div />
+        )}
 
-        {/* Task Title */}
-        <p
-          className={`text-[13.5px] font-semibold tracking-tight leading-snug line-clamp-2 my-2.5 transition-colors ${
-            isDone ? "text-text-muted line-through" : "text-zinc-900 dark:text-white/95"
+        <div className="flex items-center gap-1.5 -mr-1 shrink-0">
+          {visibleProperties?.priority !== false && (
+            <PickerWrapper
+              open={activePickerType === "priority"}
+              onOpenChange={(open) => {
+                if (open) {
+                  setActivePicker({ type: "priority", taskId: task.id });
+                } else {
+                  setActivePicker({ type: null, taskId: null });
+                }
+              }}
+              trigger={
+                <ActionTooltip
+                  label={task.priority ? `Priority: ${task.priority}` : "Change priority"}
+                  shortcut="P"
+                >
+                  <button
+                    type="button"
+                    className="relative text-zinc-500 hover:text-zinc-900 dark:text-[#8a8f98] dark:hover:text-[#e8e8e8] transition-colors flex items-center justify-center w-5 h-5 rounded hover:bg-black/[0.06] dark:hover:bg-white/[0.08] cursor-pointer outline-none active:scale-95"
+                    aria-label="Change priority"
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActivePicker({ type: "priority", taskId: task.id });
+                    }}
+                  >
+                    {getPriorityIcon(task.priority || "No priority")}
+                  </button>
+                </ActionTooltip>
+              }
+            >
+              <PriorityPicker
+                value={task.priority || "No priority"}
+                onChange={(val) => {
+                  onUpdateTaskProperty?.(task.id, "priority", val);
+                  setActivePicker({ type: null, taskId: null });
+                }}
+                onClose={() => setActivePicker({ type: null, taskId: null })}
+              />
+            </PickerWrapper>
+          )}
+
+          <ActionTooltip label="Task actions">
+            <button
+              type="button"
+              className="text-zinc-400 hover:text-zinc-900 dark:text-[#8a8f98] dark:hover:text-[#e8e8e8] opacity-60 group-hover:opacity-100 transition-opacity flex items-center justify-center h-5 w-5 rounded-md hover:bg-black/[0.06] dark:hover:bg-white/[0.08] cursor-pointer outline-none ml-0.5 active:scale-95"
+              aria-label="Task options"
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+              }}
+            >
+              <MoreHorizontal size={13} />
+            </button>
+          </ActionTooltip>
+        </div>
+      </div>
+
+      {/* Title with Status / Red Box Icon */}
+      <div className="flex items-start gap-2">
+        {visibleProperties?.status !== false && (
+          <PickerWrapper
+            open={activePickerType === "status"}
+            onOpenChange={(open) => {
+              if (open) {
+                setActivePicker({ type: "status", taskId: task.id });
+              } else {
+                setActivePicker({ type: null, taskId: null });
+              }
+            }}
+            trigger={
+              <ActionTooltip label={task.status ? `Status: ${task.status}` : "Change status"} shortcut="S">
+                <button
+                  type="button"
+                  className="mt-0.5 shrink-0 cursor-pointer outline-none p-1 -m-1 rounded hover:bg-black/[0.06] dark:hover:bg-white/[0.08] hover:scale-105 active:scale-95 transition-all flex items-center justify-center"
+                  aria-label="Change status"
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setActivePicker({ type: "status", taskId: task.id });
+                  }}
+                >
+                  <Box
+                    size={16}
+                    className={`min-w-[16px] ${
+                      isDone ? "text-zinc-400 dark:text-[#8a8f98]" : "text-[#f87171]"
+                    }`}
+                  />
+                </button>
+              </ActionTooltip>
+            }
+          >
+            <StatusPicker
+              value={task.status || "Todo"}
+              onChange={(val) => {
+                onUpdateTaskProperty?.(task.id, "status", val);
+                setActivePicker({ type: null, taskId: null });
+              }}
+              onClose={() => setActivePicker({ type: null, taskId: null })}
+            />
+          </PickerWrapper>
+        )}
+        <span
+          className={`text-[14px] font-medium leading-snug line-clamp-2 cursor-pointer hover:text-blue-500 dark:hover:text-blue-400 transition-colors ${
+            isDone
+              ? "text-zinc-400 dark:text-[#8a8f98] line-through"
+              : "text-zinc-900 dark:text-[#e8e8e8]"
           }`}
+          title={task.title}
         >
           {task.title}
-        </p>
-
-        {/* Meter progress bar */}
-        <div
-          className="w-full h-1.5 rounded-full bg-black/[0.06] dark:bg-white/[0.06] overflow-hidden my-2"
-          aria-hidden="true"
-        >
-          <div
-            className={`h-full rounded-full transition-all duration-300 ${progressColor}`}
-            style={{ width: `${progressPct}%` }}
-          />
-        </div>
+        </span>
       </div>
 
-      {/* Task Footer: Due Date & Assignee */}
-      <div className="flex items-center justify-between mt-2 pt-2 border-t border-black/[0.06] dark:border-white/[0.04] text-[11.5px]">
-        <span
-          className={`inline-flex items-center gap-1.5 font-medium ${
-            isOverdue ? "text-rose-600 dark:text-rose-400 font-semibold" : "text-text-muted"
-          }`}
-        >
-          <Clock size={12} />
-          {isOverdue ? `${formattedDue} (Overdue)` : formattedDue}
-        </span>
+      {/* Description if present */}
+      {task.description && (
+        <div className="text-[13px] text-zinc-500 dark:text-[#8a8f98] leading-relaxed line-clamp-2">
+          {task.description}
+        </div>
+      )}
 
-        {task.assignee_name && (
-          <Avatar
-            name={task.assignee_name}
-            src={task.assignee_avatar}
-            size="xs"
-            className="shrink-0"
-          />
+      {/* Status-colored Progress Meter */}
+      <div
+        className="w-full h-1.5 rounded-full bg-black/[0.06] dark:bg-white/[0.06] overflow-hidden"
+        aria-hidden="true"
+      >
+        <div
+          className={`h-full rounded-full transition-all duration-300 ${progressColor}`}
+          style={{ width: `${progressPct}%` }}
+        />
+      </div>
+
+      {/* Dates, Subtask count, Project badge, and Blocked indicators */}
+      <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-[12px] text-zinc-600 dark:text-[#8a8f98]">
+        {visibleProperties?.dueDate !== false && (
+          <PickerWrapper
+            open={activePickerType === "dueDate"}
+            onOpenChange={(open) => {
+              if (open) {
+                setActivePicker({ type: "dueDate", taskId: task.id });
+              } else {
+                setActivePicker({ type: null, taskId: null });
+              }
+            }}
+            trigger={
+              <ActionTooltip label={isOverdue ? "Overdue - click to reschedule" : "Change due date"} shortcut="D">
+                <span
+                  className={`inline-flex items-center gap-1.5 font-medium rounded px-1.5 py-0.5 -ml-1 cursor-pointer hover:bg-black/[0.06] dark:hover:bg-white/[0.08] hover:text-zinc-900 dark:hover:text-white active:scale-95 transition-all ${
+                    isOverdue
+                      ? "text-rose-600 dark:text-rose-400 font-semibold"
+                      : "text-zinc-500 dark:text-[#8a8f98]"
+                  }`}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setActivePicker({ type: "dueDate", taskId: task.id });
+                  }}
+                >
+                  <Clock
+                    size={12}
+                    className={isOverdue ? "text-rose-500 shrink-0" : "text-[#5e636e] shrink-0"}
+                  />
+                  <span>{isOverdue ? `${formattedDue} (Overdue)` : formattedDue}</span>
+                </span>
+              </ActionTooltip>
+            }
+          >
+            <DatePicker
+              value={task.due_date}
+              onChange={(date) => {
+                onUpdateTaskProperty?.(
+                  task.id,
+                  "due_date",
+                  date ? (date instanceof Date ? date.toISOString() : date) : null
+                );
+                setActivePicker({ type: null, taskId: null });
+              }}
+              onClose={() => setActivePicker({ type: null, taskId: null })}
+              placeholder="Due date"
+            />
+          </PickerWrapper>
+        )}
+
+        {visibleProperties?.project !== false && (task.project_name || task.project_identifier) && (
+          <ActionTooltip label={`Project: ${task.project_name || task.project_identifier}`}>
+            <span
+              className="inline-flex items-center gap-1 text-[11px] text-zinc-500 dark:text-[#8a8f98] hover:text-zinc-900 dark:hover:text-white rounded px-1.5 py-0.5 -ml-1 cursor-pointer hover:bg-black/[0.06] dark:hover:bg-white/[0.08] transition-colors truncate max-w-[150px]"
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                if (task.project_id) {
+                  e.stopPropagation();
+                  navigate(`/projects/${task.project_id}`);
+                }
+              }}
+            >
+              <FileText size={11} className="text-zinc-400 dark:text-[#6e737d] shrink-0" />
+              <span className="truncate">{task.project_name || task.project_identifier}</span>
+            </span>
+          </ActionTooltip>
+        )}
+
+        {task.created_at && (
+          <ActionTooltip label="Created date">
+            <span className="inline-flex items-center gap-1.5 text-zinc-500 dark:text-[#8a8f98] hover:text-zinc-900 dark:hover:text-white rounded px-1.5 py-0.5 hover:bg-black/[0.04] dark:hover:bg-white/[0.04] transition-colors cursor-default">
+              <Calendar size={12} className="text-[#5e636e] shrink-0" />
+              <span>
+                {new Date(task.created_at).toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                })}
+              </span>
+            </span>
+          </ActionTooltip>
+        )}
+
+        {visibleProperties?.subtasks !== false && task.subtask_count > 0 && (
+          <ActionTooltip label={`${task.completed_subtask_count || 0} of ${task.subtask_count} subtasks completed`}>
+            <span
+              className="inline-flex items-center gap-1 text-[10.5px] font-mono text-zinc-500 dark:text-[#8a8f98] hover:text-zinc-900 dark:hover:text-white bg-black/[0.03] dark:bg-white/[0.04] hover:bg-black/[0.08] dark:hover:bg-white/[0.1] px-1.5 py-0.5 rounded border border-black/[0.06] dark:border-white/[0.06] transition-colors cursor-pointer"
+            >
+              <CheckSquare size={10} className="shrink-0" />
+              <span>
+                {task.completed_subtask_count || 0}/{task.subtask_count}
+              </span>
+            </span>
+          </ActionTooltip>
+        )}
+
+        {task.blocked_by_count > 0 && !isDone && (
+          <ActionTooltip label={`Blocked by ${task.blocked_by_count} incomplete task(s)`}>
+            <span
+              className="inline-flex items-center gap-1 text-[10px] font-medium text-amber-500 bg-amber-500/10 hover:bg-amber-500/20 px-1.5 py-0.5 rounded border border-amber-500/20 transition-colors cursor-pointer"
+            >
+              <AlertCircle size={10} className="shrink-0" />
+              <span>Blocked</span>
+            </span>
+          </ActionTooltip>
         )}
       </div>
+
+      {/* Footer: Assignee with Name on Left, Subtasks (if any) on Right - No "0 issues" */}
+      {(visibleProperties?.assignee !== false || (visibleProperties?.subtasks !== false && task.subtask_count > 0)) && (
+        <div className="flex items-center justify-between pt-1 border-t border-black/[0.06] dark:border-white/[0.04] text-[12.5px] text-zinc-600 dark:text-[#8a8f98]">
+          {visibleProperties?.assignee !== false ? (
+            <div className="relative min-w-0">
+              <PickerWrapper
+                open={activePickerType === "assignee"}
+                onOpenChange={(open) => {
+                  if (open) {
+                    setActivePicker({ type: "assignee", taskId: task.id });
+                  } else {
+                    setActivePicker({ type: null, taskId: null });
+                  }
+                }}
+                trigger={
+                  <ActionTooltip label={task.assignee_name ? `Assigned to ${task.assignee_name}` : "Assign task"} shortcut="A">
+                    <div
+                      className="flex items-center gap-2 px-1.5 py-0.5 -ml-1 rounded-md transition-all w-fit cursor-pointer hover:bg-black/[0.06] dark:hover:bg-white/[0.08] hover:text-zinc-900 dark:hover:text-[#e8e8e8] active:scale-95"
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActivePicker({ type: "assignee", taskId: task.id });
+                      }}
+                    >
+                      {task.assignee_name ? (
+                        <>
+                          <div
+                            className={`flex items-center justify-center w-5 h-5 rounded-full text-[9px] font-bold text-white uppercase overflow-hidden shrink-0 ${getAvatarColor(task.assignee_name, task.assignee_email)}`}
+                          >
+                            {assigneeAvatarUrl ? (
+                              <img
+                                src={assigneeAvatarUrl}
+                                alt={task.assignee_name}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              getInitial(task.assignee_name, task.assignee_email)
+                            )}
+                          </div>
+                          <span className="text-[13px] text-zinc-600 dark:text-[#8a8f98] truncate max-w-[150px]">
+                            {task.assignee_name}
+                          </span>
+                        </>
+                      ) : (
+                        <div className="flex items-center gap-1.5 text-zinc-400 dark:text-[#8a8f98]">
+                          <div className="flex items-center justify-center w-4 h-4 rounded-[4px] border border-zinc-400 dark:border-white/20 bg-transparent">
+                            <User size={10} />
+                          </div>
+                          <span className="text-[12px]">Unassigned</span>
+                        </div>
+                      )}
+                    </div>
+                  </ActionTooltip>
+                }
+              >
+                <LeadPicker
+                  value={
+                    task.assignee_id
+                      ? {
+                          id: task.assignee_id,
+                          name: task.assignee_name,
+                          email: task.assignee_email,
+                          avatar_url: assigneeAvatarUrl,
+                        }
+                      : null
+                  }
+                  availableMembers={availableMembers}
+                  onChange={(member) => {
+                    onUpdateTaskAssignee?.(task.id, member);
+                    setActivePicker({ type: null, taskId: null });
+                  }}
+                  onClose={() => setActivePicker({ type: null, taskId: null })}
+                />
+              </PickerWrapper>
+            </div>
+          ) : (
+            <div />
+          )}
+
+          {visibleProperties?.subtasks !== false && task.subtask_count > 0 && (
+            <div className="text-[12.5px] text-zinc-500 dark:text-[#8a8f98] shrink-0 font-normal">
+              {task.subtask_count} subtask{task.subtask_count === 1 ? "" : "s"}
+            </div>
+          )}
+        </div>
+      )}
     </article>
   );
-}
+});
 
-function TaskCardPreview({ task }) {
+function TaskCardPreview({ task, visibleProperties = DEFAULT_VISIBLE_PROPERTIES }) {
   const { isDone, progressPct, progressColor } = getTaskProgressDetails(task);
   const isOverdue =
     task.due_date &&
@@ -203,158 +520,437 @@ function TaskCardPreview({ task }) {
     new Date(task.due_date).getTime() < new Date().setHours(0, 0, 0, 0);
 
   const formattedDue = task.due_date
-    ? new Date(task.due_date).toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-      })
+    ? formatKririDate(task.due_date)
     : "No due date";
 
+  const taskIdentifier = task.project_identifier
+    ? `${task.project_identifier}-${task.id}`
+    : task.project_slug
+      ? `${task.project_slug}-${task.id}`
+      : `TASK-${task.id}`;
+
+  const assigneeAvatarUrl = task.assignee_avatar_url || task.assignee_avatar;
+
   return (
-    <article className="kriri-task-card relative rounded-2xl p-3.5 flex flex-col justify-between select-none cursor-grabbing rotate-2 scale-[1.03] w-[280px] sm:w-[290px] bg-white dark:bg-[#1a1b20] border border-black/10 dark:border-white/10 shadow-[0_20px_45px_rgba(0,0,0,0.18)] dark:shadow-[0_20px_45px_rgba(0,0,0,0.7)] pointer-events-none">
+    <article className="kriri-task-card group relative rounded-xl p-3.5 flex flex-col gap-2.5 select-none cursor-grabbing rotate-2 scale-[1.03] w-[320px] bg-white dark:bg-[#18191c] border border-black/[0.08] dark:border-white/[0.08] shadow-[0_20px_45px_rgba(0,0,0,0.18)] dark:shadow-[0_20px_45px_rgba(0,0,0,0.7)] text-zinc-900 dark:text-zinc-100 pointer-events-none">
+      {/* Top Header: Identifier, Priority Icon, Options (No duplicate avatar, No text) */}
       <div className="flex items-center justify-between gap-2">
-        <span className="font-mono text-[11px] font-semibold text-zinc-600 dark:text-[#8a8f98] bg-black/[0.04] dark:bg-white/[0.04] px-2 py-0.5 rounded-md border border-black/[0.06] dark:border-white/[0.06]">
-          {task.project_identifier
-            ? `${task.project_identifier}-${task.id}`
-            : `TASK-${task.id}`}
-        </span>
-        <div className="inline-flex items-center gap-1.5 text-[11px] text-zinc-600 dark:text-[#8a8f98]">
-          {getPriorityIcon(task.priority || "No priority")}
-          {task.priority && task.priority !== "No priority" && (
-            <span className="font-medium text-zinc-800 dark:text-[#d1d2d5]">
-              {task.priority}
-            </span>
+        {visibleProperties?.id !== false ? (
+          <div className="font-mono text-[11px] text-zinc-400 dark:text-[#8a8f98] font-medium tracking-wider pt-0.5 whitespace-nowrap shrink-0">
+            {taskIdentifier}
+          </div>
+        ) : (
+          <div />
+        )}
+
+        <div className="flex items-center gap-1.5 -mr-1 shrink-0">
+          {visibleProperties?.priority !== false && (
+            <div className="inline-flex items-center text-[11px] text-zinc-500 dark:text-[#8a8f98]">
+              {getPriorityIcon(task.priority || "No priority")}
+            </div>
           )}
+
+          <div className="text-zinc-400 dark:text-[#8a8f98] flex items-center justify-center h-5 w-5 rounded-md ml-0.5">
+            <MoreHorizontal size={13} />
+          </div>
         </div>
       </div>
 
-      <div className="text-[13.5px] font-semibold text-zinc-900 dark:text-white leading-snug my-2 line-clamp-2">
-        {task.title}
+      {/* Title with Red Box Icon */}
+      <div className="flex items-start gap-2">
+        {visibleProperties?.status !== false && (
+          <Box
+            size={16}
+            className={`min-w-[16px] mt-0.5 shrink-0 ${
+              isDone ? "text-zinc-400 dark:text-[#8a8f98]" : "text-[#f87171]"
+            }`}
+          />
+        )}
+        <span
+          className={`text-[14px] font-medium leading-snug line-clamp-2 ${
+            isDone
+              ? "text-zinc-400 dark:text-[#8a8f98] line-through"
+              : "text-zinc-900 dark:text-[#e8e8e8]"
+          }`}
+        >
+          {task.title}
+        </span>
       </div>
 
-      {/* Progress Bar preserving real section status color */}
-      <div className="w-full h-1.5 rounded-full bg-black/[0.06] dark:bg-white/[0.08] overflow-hidden my-1">
+      {/* Description if present */}
+      {task.description && (
+        <div className="text-[13px] text-zinc-500 dark:text-[#8a8f98] leading-relaxed line-clamp-2">
+          {task.description}
+        </div>
+      )}
+
+      {/* Status-colored Progress Meter */}
+      <div
+        className="w-full h-1.5 rounded-full bg-black/[0.06] dark:bg-white/[0.08] overflow-hidden"
+        aria-hidden="true"
+      >
         <div
           className={`h-full rounded-full transition-all duration-300 ${progressColor}`}
           style={{ width: `${progressPct}%` }}
         />
       </div>
 
-      {/* Task Footer: Due Date & Assignee */}
-      <div className="flex items-center justify-between mt-2 pt-2 border-t border-black/[0.06] dark:border-white/[0.04] text-[11.5px]">
-        <span
-          className={`inline-flex items-center gap-1.5 font-medium ${
-            isOverdue
-              ? "text-rose-600 dark:text-rose-400 font-semibold"
-              : "text-text-muted"
-          }`}
-        >
-          <Clock size={12} />
-          {isOverdue ? `${formattedDue} (Overdue)` : formattedDue}
-        </span>
+      {/* Dates, Subtask count, Project badge, and Blocked indicators */}
+      <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-[12px] text-zinc-600 dark:text-[#8a8f98]">
+        {visibleProperties?.dueDate !== false && (
+          <span
+            className={`inline-flex items-center gap-1.5 font-medium ${
+              isOverdue ? "text-rose-600 dark:text-rose-400 font-semibold" : "text-zinc-500 dark:text-[#8a8f98]"
+            }`}
+          >
+            <Clock size={12} className={isOverdue ? "text-rose-500 shrink-0" : "text-[#5e636e] shrink-0"} />
+            <span>{isOverdue ? `${formattedDue} (Overdue)` : formattedDue}</span>
+          </span>
+        )}
 
-        {task.assignee_name && (
-          <Avatar
-            name={task.assignee_name}
-            src={task.assignee_avatar}
-            size="xs"
-            className="shrink-0"
-          />
+        {visibleProperties?.project !== false && (task.project_name || task.project_identifier) && (
+          <span className="inline-flex items-center gap-1 text-[11px] text-zinc-500 dark:text-[#8a8f98] truncate max-w-[150px]">
+            <FileText size={11} className="text-zinc-400 dark:text-[#6e737d] shrink-0" />
+            <span className="truncate">{task.project_name || task.project_identifier}</span>
+          </span>
+        )}
+
+        {task.created_at && (
+          <span className="inline-flex items-center gap-1.5 text-zinc-500 dark:text-[#8a8f98]">
+            <Calendar size={12} className="text-[#5e636e] shrink-0" />
+            <span>
+              {new Date(task.created_at).toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+              })}
+            </span>
+          </span>
+        )}
+
+        {visibleProperties?.subtasks !== false && task.subtask_count > 0 && (
+          <span className="inline-flex items-center gap-1 text-[10.5px] font-mono text-zinc-500 dark:text-[#8a8f98] bg-black/[0.03] dark:bg-white/[0.04] px-1.5 py-0.5 rounded border border-black/[0.06] dark:border-white/[0.06]">
+            <CheckSquare size={10} className="shrink-0" />
+            <span>
+              {task.completed_subtask_count || 0}/{task.subtask_count}
+            </span>
+          </span>
+        )}
+
+        {task.blocked_by_count > 0 && !isDone && (
+          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">
+            <AlertCircle size={10} className="shrink-0" />
+            <span>Blocked</span>
+          </span>
         )}
       </div>
+
+      {/* Footer: Assignee with Name on Left, Subtasks (if any) on Right - No "0 issues" */}
+      {(visibleProperties?.assignee !== false || (visibleProperties?.subtasks !== false && task.subtask_count > 0)) && (
+        <div className="flex items-center justify-between pt-1 border-t border-black/[0.06] dark:border-white/[0.04] text-[12.5px] text-zinc-600 dark:text-[#8a8f98]">
+          {visibleProperties?.assignee !== false ? (
+            <div className="flex items-center gap-2 min-w-0">
+              {task.assignee_name ? (
+                <>
+                  <div
+                    className={`flex items-center justify-center w-5 h-5 rounded-full text-[9px] font-bold text-white uppercase overflow-hidden shrink-0 ${getAvatarColor(task.assignee_name, task.assignee_email)}`}
+                  >
+                    {assigneeAvatarUrl ? (
+                      <img
+                        src={assigneeAvatarUrl}
+                        alt={task.assignee_name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      getInitial(task.assignee_name, task.assignee_email)
+                    )}
+                  </div>
+                  <span className="text-[13px] text-zinc-600 dark:text-[#8a8f98] truncate max-w-[150px]">
+                    {task.assignee_name}
+                  </span>
+                </>
+              ) : (
+                <div className="flex items-center gap-1.5 text-zinc-400 dark:text-[#8a8f98]">
+                  <div className="flex items-center justify-center w-4 h-4 rounded-[4px] border border-zinc-400 dark:border-white/20 bg-transparent">
+                    <User size={10} />
+                  </div>
+                  <span className="text-[12px]">Unassigned</span>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div />
+          )}
+
+          {visibleProperties?.subtasks !== false && task.subtask_count > 0 && (
+            <div className="text-[12.5px] text-zinc-500 dark:text-[#8a8f98] shrink-0 font-normal">
+              {task.subtask_count} subtask{task.subtask_count === 1 ? "" : "s"}
+            </div>
+          )}
+        </div>
+      )}
     </article>
   );
 }
 
-function KanbanColumn({
+const KanbanColumn = memo(function KanbanColumn({
   col,
   colIndex,
   tasks,
   selectedTaskId,
   highlightedTaskId,
+  showColumnBackgrounds = false,
   onTaskClick,
   onCreateTask,
+  activePicker,
+  setActivePicker,
+  onUpdateTaskProperty,
+  onUpdateTaskAssignee,
+  availableMembers = [],
+  visibleProperties,
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: col.id });
+
+  const [renderLimit, setRenderLimit] = useState(25);
+
+  useEffect(() => {
+    if (tasks.length <= 25) {
+      setRenderLimit(tasks.length);
+    } else {
+      setRenderLimit((prev) => Math.min(Math.max(prev, 25), tasks.length));
+    }
+  }, [tasks.length]);
+
+  const handleScroll = (e) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+    if (scrollTop + clientHeight >= scrollHeight - 350) {
+      if (renderLimit < tasks.length) {
+        setRenderLimit((prev) => Math.min(prev + 25, tasks.length));
+      }
+    }
+  };
+
+  const targetIndex = useMemo(() => {
+    if (!highlightedTaskId) return -1;
+    return tasks.findIndex((t) => String(t.id) === String(highlightedTaskId));
+  }, [tasks, highlightedTaskId]);
+
+  const effectiveLimit = Math.max(renderLimit, targetIndex >= 0 ? targetIndex + 5 : 0);
+  const visibleTasks = tasks.slice(0, effectiveLimit);
 
   return (
     <section
       ref={setNodeRef}
       id={`kanban-column-${col.id}`}
       style={{ "--col-stagger": colIndex }}
-      className={`kriri-kanban-col flex flex-col h-full max-h-full min-h-0 w-[84vw] sm:w-[300px] md:flex-1 md:min-w-[260px] md:max-w-[360px] shrink-0 md:shrink rounded-[20px] p-3.5 snap-center shadow-xs overflow-hidden transition-all duration-200 ${
+      className={`kriri-kanban-col flex flex-col h-full max-h-full min-h-0 w-[320px] min-w-[320px] max-w-[320px] shrink-0 snap-center transition-all duration-300 ${
+        showColumnBackgrounds
+          ? "has-bg bg-black/[0.02] dark:bg-white/[0.02] border border-black/[0.06] dark:border-white/[0.05] rounded-2xl px-3 pt-3 pb-0 overflow-hidden"
+          : "bg-transparent p-0 border border-transparent"
+      } ${
         isOver
-          ? "bg-emerald-500/[0.05] dark:bg-emerald-500/[0.07] border-2 border-emerald-500/70 dark:border-emerald-400/60 ring-4 ring-emerald-500/10 dark:ring-emerald-400/15"
-          : "bg-[#fbfbfb] dark:bg-[#121316] border border-black/[0.08] dark:border-white/[0.07]"
+          ? "!border-emerald-500/70 !bg-emerald-500/[0.05] dark:!bg-emerald-500/[0.07] ring-4 ring-emerald-500/10 rounded-2xl"
+          : ""
       }`}
     >
       {/* Column Header */}
-      <div className="flex items-center justify-between px-1.5 pb-2.5 mb-2 border-b border-black/[0.06] dark:border-white/[0.05] shrink-0">
-        <div className="flex items-center gap-2.5">
+      <div
+        className={`flex items-center justify-between pb-2.5 mb-2 shrink-0 ${
+          showColumnBackgrounds
+            ? "px-1 border-b border-black/[0.06] dark:border-white/[0.05]"
+            : "px-0.5"
+        }`}
+      >
+        <div className="flex items-center gap-2">
           <span
             className="w-2.5 h-2.5 rounded-full shrink-0 shadow-xs"
             style={{ backgroundColor: col.dotColor }}
             aria-hidden="true"
           />
-          <h2 className="text-[14px] font-semibold text-zinc-900 dark:text-white tracking-tight">
+          <h2 className="text-[13.5px] font-medium text-zinc-900 dark:text-[#e8e8e8] tracking-tight">
             {col.label}
           </h2>
-          <span className="text-[11.5px] font-semibold text-zinc-600 dark:text-[#8a8f98] bg-black/[0.05] dark:bg-white/[0.05] px-2 py-0.5 rounded-full border border-black/[0.06] dark:border-white/[0.06]">
+          <span className="text-[12px] font-normal text-zinc-500 dark:text-[#8a8f98]">
             {tasks.length}
           </span>
         </div>
 
         <button
           type="button"
-          className="w-6 h-6 rounded-lg flex items-center justify-center text-zinc-500 hover:text-zinc-900 dark:text-[#8a8f98] dark:hover:text-white hover:bg-black/[0.05] dark:hover:bg-white/[0.08] transition-colors cursor-pointer"
+          className="w-6 h-6 rounded-lg flex items-center justify-center text-zinc-400 hover:text-zinc-900 dark:text-[#8a8f98] dark:hover:text-[#e8e8e8] hover:bg-black/[0.04] dark:hover:bg-white/[0.04] transition-colors cursor-pointer"
           onClick={() => onCreateTask(col.id)}
           aria-label={`Add task to ${col.label}`}
         >
-          <Plus size={13} strokeWidth={2.4} />
+          <Plus size={13} strokeWidth={2} />
         </button>
       </div>
 
       {/* Droppable Task List */}
-      <div className="flex-1 min-h-0 flex flex-col overflow-y-auto overflow-x-hidden gap-2.5 p-1 pr-1.5 pb-6 sm:pb-1 rounded-xl custom-scrollbar">
+      <div
+        onScroll={handleScroll}
+        className="flex-1 min-h-0 flex flex-col overflow-y-auto overflow-x-hidden gap-3 pb-24 scrollbar-hide"
+      >
         <SortableContext
           id={col.id}
-          items={tasks.map((t) => t.id)}
+          items={visibleTasks.map((t) => t.id)}
           strategy={verticalListSortingStrategy}
         >
-          {tasks.map((task, taskIdx) => (
+          {visibleTasks.map((task, taskIdx) => (
             <SortableTaskItem
               key={task.id}
               task={task}
               index={taskIdx}
               isSelected={String(selectedTaskId) === String(task.id)}
               isHighlighted={String(highlightedTaskId) === String(task.id)}
-              onClick={() => onTaskClick(task.id)}
+              onTaskClick={onTaskClick}
+              activePickerType={activePicker?.taskId === task.id ? activePicker.type : null}
+              setActivePicker={setActivePicker}
+              onUpdateTaskProperty={onUpdateTaskProperty}
+              onUpdateTaskAssignee={onUpdateTaskAssignee}
+              availableMembers={availableMembers}
+              visibleProperties={visibleProperties}
             />
           ))}
         </SortableContext>
         {tasks.length === 0 && (
-          <div className="flex-1 flex items-center justify-center border border-dashed border-black/[0.08] dark:border-white/[0.08] rounded-xl min-h-[140px] text-[12px] font-medium text-zinc-400 dark:text-text-muted">
+          <div className="flex-1 flex items-center justify-center border border-dashed border-black/10 dark:border-white/10 rounded-xl min-h-[140px] text-[12px] font-medium text-zinc-400 dark:text-[#8a8f98]">
             Drop a task here
           </div>
         )}
       </div>
     </section>
   );
-}
+});
 
-export default function Kanban() {
+export default memo(function Kanban({
+  embedded = false,
+  activeFilter: propActiveFilter,
+  searchQuery: propSearchQuery = "",
+  showColumnBackgrounds: propShowColumnBackgrounds,
+  showEmptyColumns: propShowEmptyColumns,
+  onSelectTask,
+  tasks: propTasks,
+  setTasks: propSetTasks,
+  availableMembers: propAvailableMembers,
+  onUpdateTaskProperty: propOnUpdateTaskProperty,
+  onUpdateTaskAssignee: propOnUpdateTaskAssignee,
+  visibleProperties: propVisibleProperties,
+}) {
+  const navigate = useNavigate();
+  const visibleProperties = useMemo(() => {
+    if (propVisibleProperties) return propVisibleProperties;
+    try {
+      const saved = localStorage.getItem("kriri_tasks_display_properties");
+      if (saved) return { ...DEFAULT_VISIBLE_PROPERTIES, ...JSON.parse(saved) };
+    } catch {}
+    return DEFAULT_VISIBLE_PROPERTIES;
+  }, [propVisibleProperties]);
+  const [activePicker, setActivePicker] = useState({ type: null, taskId: null });
+  const [internalMembers, setInternalMembers] = useState([]);
+  const isAuditMock = typeof window !== "undefined" && import.meta.env.DEV && (window.__AUDIT_MOCK_AUTH__ || window.localStorage?.getItem("audit_mock_auth") === "true");
+  const { user } = useUser();
+  const { organization } = useOrganization();
+
+  useEffect(() => {
+    if (propAvailableMembers && propAvailableMembers.length > 0) return;
+    if (organization?.id) {
+      const cached = api.getCached(`/workspaces/${organization.id}/members`);
+      if (Array.isArray(cached) && cached.length > 0) {
+        setInternalMembers(cached);
+        return;
+      }
+      api
+        .get(`/workspaces/${organization.id}/members`, { ttl: 300000 })
+        .then((res) => {
+          const list = Array.isArray(res) ? res : res.members || [];
+          setInternalMembers(list);
+        })
+        .catch(() => {});
+    }
+  }, [propAvailableMembers, organization?.id]);
+
+  const availableMembers = propAvailableMembers || internalMembers;
+  const scopeKey = user?.id ? `${user.id}:${organization?.id || "personal"}` : (isAuditMock ? "mock_user:personal" : null);
+  const boardCacheKey = scopeKey ? `kriri:cache:board_tasks_${scopeKey}` : null;
+
+  const [localShowColumnBackgrounds, setLocalShowColumnBackgrounds] = useState(() => {
+    try {
+      return localStorage.getItem("kriri-task-show-column-backgrounds") === "true";
+    } catch {
+      return false;
+    }
+  });
+  const showColumnBackgrounds =
+    propShowColumnBackgrounds !== undefined
+      ? propShowColumnBackgrounds
+      : localShowColumnBackgrounds;
+
+  const [localShowEmptyColumns, setLocalShowEmptyColumns] = useState(() => {
+    try {
+      const val = localStorage.getItem("kriri-task-show-empty-columns");
+      return val !== null ? val === "true" : true;
+    } catch {
+      return true;
+    }
+  });
+  const showEmptyColumns =
+    propShowEmptyColumns !== undefined
+      ? propShowEmptyColumns
+      : localShowEmptyColumns;
+
+  const [hiddenColumnsRevealed, setHiddenColumnsRevealed] = useState(false);
+
+  const saveBoardTasksCache = (taskList) => {
+    if (!boardCacheKey || typeof window === "undefined") return;
+    try {
+      localStorage.setItem(boardCacheKey, JSON.stringify(taskList));
+    } catch {}
+  };
+
+  const isControlled = Array.isArray(propTasks);
+
   // Zero-latency instant hydration from in-memory and local cache
-  const [tasks, setTasks] = useState(() => {
+  const [internalTasks, setInternalTasks] = useState(() => {
+    if (isControlled) return propTasks;
+    if (!boardCacheKey) return [];
     const fromApiCache = api.getCached("/tasks");
     if (Array.isArray(fromApiCache) && fromApiCache.length > 0) return fromApiCache;
     try {
-      const cached = localStorage.getItem("kriri:cache:board_tasks");
+      localStorage.removeItem("kriri:cache:board_tasks");
+      const cached = localStorage.getItem(boardCacheKey);
       return cached ? JSON.parse(cached) : [];
     } catch {
       return [];
     }
   });
 
-  const [loading, setLoading] = useState(tasks.length === 0);
+  const tasks = isControlled ? propTasks : internalTasks;
+
+  const updateTasks = (updater) => {
+    if (propSetTasks) {
+      propSetTasks(updater);
+    }
+    setInternalTasks(updater);
+  };
+
+  useEffect(() => {
+    if (isControlled) return;
+    if (!boardCacheKey) {
+      setInternalTasks([]);
+      return;
+    }
+    try {
+      localStorage.removeItem("kriri:cache:board_tasks");
+      const cached = localStorage.getItem(boardCacheKey);
+      setInternalTasks(cached ? JSON.parse(cached) : []);
+    } catch {
+      setInternalTasks([]);
+    }
+  }, [boardCacheKey, isControlled]);
+
+  const [loading, setLoading] = useState(() => {
+    if (isControlled) return false;
+    return isAuditMock ? false : internalTasks.length === 0;
+  });
   const [activeTask, setActiveTask] = useState(null);
   const [selectedTaskId, setSelectedTaskId] = useState(null);
   const [highlightedTaskId, setHighlightedTaskId] = useState(null);
@@ -365,16 +961,13 @@ export default function Kanban() {
   const outletCtx = useOutletContext();
   const location = useLocation();
   const [searchParams] = useSearchParams();
-  const { user } = useUser();
-  const { organization } = useOrganization();
   const socket = useSocket();
   const { effectiveTheme } = useTheme();
 
   const filterOptions = [
     { value: "all", label: "All" },
-    { value: "mine", label: "My tasks", shortLabel: "Mine" },
-    { value: "high", label: "High priority", shortLabel: "High" },
-    { value: "week", label: "Due this week", shortLabel: "This week" },
+    { value: "assigned", label: "Assigned to me", shortLabel: "Assigned", mobileLabel: "Assigned" },
+    { value: "created", label: "Created by me", shortLabel: "Created", mobileLabel: "Created" },
   ];
 
   useEffect(() => {
@@ -428,46 +1021,32 @@ export default function Kanban() {
   };
 
   useEffect(() => {
-    if (!socket) return;
+    if (!socket || isControlled) return;
 
     const handleTaskCreated = (newTask) => {
-      setTasks((prev) => {
+      updateTasks((prev) => {
         if (prev.some((t) => t.id === newTask.id)) return prev;
         const updated = [newTask, ...prev];
-        try {
-          localStorage.setItem(
-            "kriri:cache:board_tasks",
-            JSON.stringify(updated),
-          );
-        } catch {}
+        saveBoardTasksCache(updated);
         return updated;
       });
     };
 
     const handleTaskUpdated = (updatedTask) => {
-      setTasks((prev) => {
+      updateTasks((prev) => {
         const updated = prev.map((t) =>
           t.id === updatedTask.id ? { ...t, ...updatedTask } : t,
         );
-        try {
-          localStorage.setItem(
-            "kriri:cache:board_tasks",
-            JSON.stringify(updated),
-          );
-        } catch {}
+        saveBoardTasksCache(updated);
         return updated;
       });
     };
 
-    const handleTaskDeleted = ({ id }) => {
-      setTasks((prev) => {
-        const updated = prev.filter((t) => t.id !== id);
-        try {
-          localStorage.setItem(
-            "kriri:cache:board_tasks",
-            JSON.stringify(updated),
-          );
-        } catch {}
+    const handleTaskDeleted = (data) => {
+      const deletedId = typeof data === "object" && data !== null ? (data.id ?? data.taskId) : data;
+      updateTasks((prev) => {
+        const updated = prev.filter((t) => t.id !== deletedId && String(t.id) !== String(deletedId));
+        saveBoardTasksCache(updated);
         return updated;
       });
     };
@@ -481,24 +1060,19 @@ export default function Kanban() {
       socket.off("TASK_UPDATED", handleTaskUpdated);
       socket.off("TASK_DELETED", handleTaskDeleted);
     };
-  }, [socket]);
+  }, [socket, boardCacheKey, isControlled]);
 
-  // Fetch tasks with background revalidation
+  // Fetch tasks with background revalidation (only if uncontrolled)
   useEffect(() => {
-    if (!user) return;
+    if (isControlled || (!user && !isAuditMock)) return;
     if (tasks.length === 0) setLoading(true);
 
     api
       .get("/tasks")
       .then((data) => {
         const list = Array.isArray(data) ? data : data.tasks || [];
-        setTasks(list);
-        try {
-          localStorage.setItem(
-            "kriri:cache:board_tasks",
-            JSON.stringify(list),
-          );
-        } catch {}
+        updateTasks(list);
+        saveBoardTasksCache(list);
       })
       .catch((err) => {
         console.error(err);
@@ -506,7 +1080,7 @@ export default function Kanban() {
       .finally(() => {
         setLoading(false);
       });
-  }, [user?.id, organization?.id]);
+  }, [user?.id, organization?.id, isControlled]);
 
   const sensors = useSensors(
     useSensor(MouseSensor, {
@@ -564,7 +1138,7 @@ export default function Kanban() {
     if (!targetStatus || activeTaskData.status === targetStatus) return;
 
     // Fluid real-time column shift: update local state so cards slide out of the way smoothly
-    setTasks((prev) => {
+    updateTasks((prev) => {
       const activeIndex = prev.findIndex((t) => t.id === activeId);
       if (activeIndex === -1) return prev;
 
@@ -602,27 +1176,28 @@ export default function Kanban() {
 
     // If reordering within the same column
     if (activeId !== overId && overTaskData && activeTaskData.status === overTaskData.status) {
-      setTasks((prev) => {
+      updateTasks((prev) => {
         const activeIndex = prev.findIndex((t) => t.id === activeId);
         const overIndex = prev.findIndex((t) => t.id === overId);
         if (activeIndex === -1 || overIndex === -1) return prev;
         const reordered = arrayMove(prev, activeIndex, overIndex);
-        try {
-          localStorage.setItem("kriri:cache:board_tasks", JSON.stringify(reordered));
-        } catch {}
+        saveBoardTasksCache(reordered);
         return reordered;
       });
     }
 
     // Persist final status to backend and cache
     if (activeTaskData.status !== targetStatus) {
-      setTasks((prev) => {
+      if (targetStatus === "Done") {
+        playUiSound("success");
+      } else {
+        playUiSound("toggle");
+      }
+      updateTasks((prev) => {
         const updated = prev.map((t) =>
           t.id === activeId ? { ...t, status: targetStatus } : t,
         );
-        try {
-          localStorage.setItem("kriri:cache:board_tasks", JSON.stringify(updated));
-        } catch {}
+        saveBoardTasksCache(updated);
         return updated;
       });
       api.put(`/tasks/${activeId}`, { status: targetStatus }).catch(console.error);
@@ -631,34 +1206,121 @@ export default function Kanban() {
     }
   };
 
-  // Filter tasks based on activeFilter
+  const currentFilter = propActiveFilter !== undefined ? propActiveFilter : activeFilter;
+  const currentSearch = propSearchQuery !== undefined ? propSearchQuery : "";
+
+  // Filter tasks based on currentFilter and currentSearch
   const filteredTasks = useMemo(() => {
-    if (activeFilter === "mine") {
-      const userEmail = user?.primaryEmailAddress?.emailAddress;
-      const userName = user?.fullName;
-      return tasks.filter(
+    let list = tasks;
+    if (currentSearch.trim()) {
+      const q = currentSearch.toLowerCase();
+      list = list.filter(
         (t) =>
-          (t.assignee_email && t.assignee_email === userEmail) ||
-          (t.assignee_name && t.assignee_name === userName) ||
-          t.assignee_id === user?.id,
+          (t.title || "").toLowerCase().includes(q) ||
+          (t.assignee_name || "").toLowerCase().includes(q) ||
+          (t.project_identifier || "").toLowerCase().includes(q) ||
+          String(t.id).includes(q),
       );
     }
-    if (activeFilter === "high") {
-      return tasks.filter(
-        (t) => t.priority === "High" || t.priority === "Urgent",
+    if (currentFilter === "assigned" || currentFilter === "mine") {
+      const userEmail = user?.primaryEmailAddress?.emailAddress?.toLowerCase();
+      const userName = user?.fullName?.toLowerCase();
+      return list.filter(
+        (t) =>
+          (user?.id && (t.assignee_id === user.id || t.assignee_id === "personal")) ||
+          (t.assignee_email && t.assignee_email.toLowerCase() === userEmail) ||
+          (t.assignee_name && userName && t.assignee_name.toLowerCase() === userName),
       );
     }
-    if (activeFilter === "week") {
-      const now = new Date();
-      const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-      return tasks.filter((t) => {
-        if (!t.due_date) return false;
-        const d = new Date(t.due_date);
-        return d <= nextWeek;
-      });
+    if (currentFilter === "created") {
+      const userEmail = user?.primaryEmailAddress?.emailAddress?.toLowerCase();
+      const userName = user?.fullName?.toLowerCase();
+      return list.filter(
+        (t) =>
+          (user?.id && (t.reporter_id === user.id || t.reporter_id === "personal")) ||
+          (t.reporter_email && t.reporter_email.toLowerCase() === userEmail) ||
+          (t.reporter_name && userName && t.reporter_name.toLowerCase() === userName),
+      );
     }
-    return tasks;
-  }, [tasks, activeFilter, user]);
+    return list;
+  }, [tasks, currentFilter, currentSearch, user]);
+
+  const visibleColumns = useMemo(() => {
+    if (showEmptyColumns || hiddenColumnsRevealed) return COLUMNS;
+    return COLUMNS.filter((col) => {
+      const columnTasks = filteredTasks.filter((t) => t.status === col.id);
+      return columnTasks.length > 0;
+    });
+  }, [showEmptyColumns, hiddenColumnsRevealed, filteredTasks]);
+
+  const hiddenColumns = useMemo(() => {
+    if (showEmptyColumns || hiddenColumnsRevealed) return [];
+    return COLUMNS.filter((col) => {
+      const columnTasks = filteredTasks.filter((t) => t.status === col.id);
+      return columnTasks.length === 0;
+    });
+  }, [showEmptyColumns, hiddenColumnsRevealed, filteredTasks]);
+
+  const handleUpdateTaskProperty = useCallback(async (taskId, property, value) => {
+    setActivePicker({ type: null, taskId: null });
+    if (propOnUpdateTaskProperty) {
+      return propOnUpdateTaskProperty(taskId, property, value);
+    }
+    if (property === "status" && (value === "Done" || value === "Completed")) {
+      playUiSound("success");
+    } else {
+      playUiSound("toggle");
+    }
+    updateTasks((prev) =>
+      prev.map((t) => (t.id === taskId ? { ...t, [property]: value } : t))
+    );
+    try {
+      const updated = await api.put(`/tasks/${taskId}`, { [property]: value });
+      updateTasks((prev) =>
+        prev.map((t) => (t.id === taskId ? { ...t, ...updated } : t))
+      );
+    } catch (err) {
+      console.error(`Failed to update task ${property}:`, err);
+    }
+  }, [propOnUpdateTaskProperty]);
+
+  const handleUpdateTaskAssignee = useCallback(async (taskId, member) => {
+    setActivePicker({ type: null, taskId: null });
+    if (propOnUpdateTaskAssignee) {
+      return propOnUpdateTaskAssignee(taskId, member);
+    }
+    playUiSound("toggle");
+    const patch = {
+      assignee_id: member ? member.id : null,
+      assignee_name: member ? member.name : null,
+      assignee_username: member ? member.username : null,
+      assignee_avatar_url: member ? member.avatar_url : null,
+    };
+    updateTasks((prev) =>
+      prev.map((t) => (t.id === taskId ? { ...t, ...patch } : t))
+    );
+    try {
+      const updated = await api.put(`/tasks/${taskId}`, patch);
+      updateTasks((prev) =>
+        prev.map((t) => (t.id === taskId ? { ...t, ...updated } : t))
+      );
+    } catch (err) {
+      console.error("Failed to update task assignee:", err);
+    }
+  }, [propOnUpdateTaskAssignee]);
+
+  const handleTaskClick = useCallback((id) => {
+    if (onSelectTask) {
+      onSelectTask(id);
+    } else {
+      navigate(`/tasks/${id}`);
+    }
+  }, [onSelectTask, navigate]);
+
+  const handleCreateTask = useCallback((status) => {
+    setCreateModalStatus(status);
+    setIsCreateModalOpen(true);
+  }, []);
 
   const renderColumn = (col, colIndex) => {
     const columnTasks = filteredTasks.filter((t) => t.status === col.id);
@@ -671,55 +1333,60 @@ export default function Kanban() {
         tasks={columnTasks}
         selectedTaskId={selectedTaskId}
         highlightedTaskId={highlightedTaskId}
-        onTaskClick={(id) => {
-          setSelectedTaskId(id);
-          setHighlightedTaskId(id);
-        }}
-        onCreateTask={(status) => {
-          setCreateModalStatus(status);
-          setIsCreateModalOpen(true);
-        }}
+        showColumnBackgrounds={showColumnBackgrounds}
+        onTaskClick={handleTaskClick}
+        onCreateTask={handleCreateTask}
+        activePicker={activePicker}
+        setActivePicker={setActivePicker}
+        onUpdateTaskProperty={handleUpdateTaskProperty}
+        onUpdateTaskAssignee={handleUpdateTaskAssignee}
+        availableMembers={availableMembers}
+        visibleProperties={visibleProperties}
       />
     );
   };
 
-  if (loading && tasks.length === 0) {
-    return <PageLoading label="Board" />;
+  const showSkeleton = useDeferredSkeleton(loading && tasks.length === 0, 180);
+
+  if (showSkeleton) {
+    return <TasksBoardSkeleton />;
   }
 
   return (
-    <div className="w-full flex-1 flex flex-col h-full min-h-0 min-w-0 overflow-hidden animate-in fade-in duration-500">
-      {/* Top Header Row matching Kriri Board Header */}
-      <div className="flex items-center justify-between gap-3 mb-3.5 min-h-[38px] shrink-0">
-        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-          <button
-            type="button"
-            onClick={openMobileNav}
-            className="md:hidden p-1.5 -ml-1 text-zinc-500 hover:text-zinc-900 dark:text-[#8a8f98] dark:hover:text-white rounded-md hover:bg-black/[0.05] dark:hover:bg-white/[0.06] transition-colors shrink-0 cursor-pointer"
-            aria-label="Open menu"
-          >
-            <Menu size={18} strokeWidth={1.75} />
-          </button>
-          <h1 className="text-base font-semibold tracking-tight text-zinc-900 dark:text-white truncate">
-            Board
-          </h1>
-        </div>
+    <div className="w-full flex-1 flex flex-col h-full min-h-0 min-w-0 overflow-hidden">
+      {/* Top Header Row matching Kriri Board Header (hidden if embedded in Tasks page) */}
+      {!embedded && (
+        <div className="flex items-center justify-between gap-3 mb-3.5 min-h-[38px] shrink-0">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <button
+              type="button"
+              onClick={openMobileNav}
+              className="md:hidden p-1.5 -ml-1 text-zinc-500 hover:text-zinc-900 dark:text-[#8a8f98] dark:hover:text-white rounded-md hover:bg-black/[0.05] dark:hover:bg-white/[0.06] transition-colors shrink-0 cursor-pointer"
+              aria-label="Open menu"
+            >
+              <Menu size={18} strokeWidth={1.75} />
+            </button>
+            <h1 className="text-base font-semibold tracking-tight text-foreground truncate">
+              Board
+            </h1>
+          </div>
 
-        <div className="flex items-center gap-2.5 shrink-0">
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={() => {
-              setCreateModalStatus("Todo");
-              setIsCreateModalOpen(true);
-            }}
-            className="h-[28px] px-3 text-[12px] font-medium rounded-full gap-1.5 shadow-xs active:scale-[0.98] transition-all"
-          >
-            <Plus size={13} strokeWidth={2.2} />
-            New Task
-          </Button>
+          <div className="flex items-center gap-2.5 shrink-0">
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => {
+                setCreateModalStatus("Todo");
+                setIsCreateModalOpen(true);
+              }}
+              className="h-[28px] px-3 text-[12px] font-medium rounded-full gap-1.5 shadow-xs active:scale-[0.98] transition-all"
+            >
+              <Plus size={13} strokeWidth={2.2} />
+              New Task
+            </Button>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Empty State vs Kanban Board */}
       {tasks.length === 0 ? (
@@ -733,7 +1400,7 @@ export default function Kanban() {
           </div>
 
           <div className="flex flex-col gap-2">
-            <h2 className="text-lg font-semibold text-zinc-900 dark:text-white tracking-tight">
+            <h2 className="text-lg font-semibold text-foreground tracking-tight">
               Create your first board item
             </h2>
             <p className="text-[14px] text-text-muted leading-relaxed">
@@ -759,49 +1426,51 @@ export default function Kanban() {
         </div>
       ) : (
         <>
-          {/* Toolbar: Fluid Filter Switcher & Tasks Count */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 mb-3.5 shrink-0">
-            <LayoutGroup id="kanbanFilterGroup">
-              <div className="w-full sm:w-fit grid grid-cols-4 sm:flex items-center p-1 rounded-full bg-black/[0.04] dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/[0.06] backdrop-blur-sm relative">
-                {filterOptions.map((opt) => {
-                  const isActive = activeFilter === opt.value;
-                  return (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      onClick={() => setActiveFilter(opt.value)}
-                      className={`relative text-[11px] sm:text-[12px] px-1 sm:px-3 py-1.5 rounded-full font-medium transition-colors cursor-pointer flex items-center justify-center text-center select-none ${
-                        isActive
-                          ? "text-zinc-900 dark:text-white font-semibold"
-                          : "text-zinc-600 hover:text-zinc-900 dark:text-[#8a8f98] dark:hover:text-white"
-                      }`}
-                    >
-                      {isActive && (
-                        <motion.div
-                          layoutId="kanbanFilterActivePill"
-                          className="absolute inset-0 bg-white dark:bg-white/[0.12] border border-black/10 dark:border-white/10 rounded-full shadow-xs pointer-events-none"
-                          transition={{
-                            type: "spring",
-                            stiffness: 450,
-                            damping: 35,
-                          }}
-                        />
-                      )}
-                      <span className="relative z-10 hidden sm:inline whitespace-nowrap">{opt.label}</span>
-                      <span className="relative z-10 sm:hidden truncate">{opt.shortLabel || opt.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </LayoutGroup>
+          {/* Toolbar: Fluid Filter Switcher & Tasks Count (only when not embedded) */}
+          {!embedded && (
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 mb-3.5 shrink-0">
+              <LayoutGroup id="kanbanFilterGroup">
+                <div className="w-full sm:w-fit grid grid-cols-4 sm:flex items-center p-1 rounded-full bg-surface border border-border backdrop-blur-sm relative">
+                  {filterOptions.map((opt) => {
+                    const isActive = activeFilter === opt.value;
+                    return (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => setActiveFilter(opt.value)}
+                        className={`relative text-[11px] sm:text-[12px] px-1 sm:px-3 py-1.5 rounded-full font-medium transition-colors cursor-pointer flex items-center justify-center text-center select-none ${
+                          isActive
+                            ? "text-foreground font-semibold"
+                            : "text-text-muted hover:text-foreground"
+                        }`}
+                      >
+                        {isActive && (
+                          <motion.div
+                            layoutId="kanbanFilterActivePill"
+                            className="absolute inset-0 bg-surface-elevated border border-border-subtle rounded-full shadow-xs pointer-events-none"
+                            transition={{
+                              type: "spring",
+                              stiffness: 450,
+                              damping: 35,
+                            }}
+                          />
+                        )}
+                        <span className="relative z-10 hidden sm:inline whitespace-nowrap">{opt.label}</span>
+                        <span className="relative z-10 sm:hidden truncate">{opt.shortLabel || opt.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </LayoutGroup>
 
-            <div className="flex items-center justify-between px-0.5 text-[12px] sm:text-[12.5px] font-medium text-text-muted">
-              <p>
-                <b className="text-zinc-900 dark:text-white font-semibold">{filteredTasks.length}</b>{" "}
-                {filteredTasks.length === 1 ? "task" : "tasks"} shown
-              </p>
+              <div className="flex items-center justify-between px-0.5 text-[12px] sm:text-[12.5px] font-medium text-text-muted">
+                <p>
+                  <b className="text-foreground font-semibold">{filteredTasks.length}</b>{" "}
+                  {filteredTasks.length === 1 ? "task" : "tasks"} shown
+                </p>
+              </div>
             </div>
-          </div>
+          )}
         <DndContext
           sensors={sensors}
           collisionDetection={closestCorners}
@@ -809,12 +1478,32 @@ export default function Kanban() {
           onDragOver={handleDragOver}
           onDragEnd={handleDragEnd}
         >
-          <div className="flex-1 flex gap-3.5 sm:gap-4 overflow-x-auto overflow-y-hidden pb-3 sm:pb-1 min-h-0 min-w-0 snap-x snap-mandatory sm:snap-none custom-scrollbar">
-            {COLUMNS.map((col, index) => renderColumn(col, index))}
+          <div className="flex-1 flex gap-5 overflow-x-auto overflow-y-hidden pb-0 min-h-0 min-w-0 snap-x snap-mandatory sm:snap-none scrollbar-hide">
+            {visibleColumns.map((col, index) => renderColumn(col, index))}
+            {hiddenColumns.length > 0 && (
+              <div className="flex items-start self-start pt-1 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setHiddenColumnsRevealed(true)}
+                  className="text-[13px] font-medium text-zinc-500 dark:text-[#8a8f98] hover:text-zinc-900 dark:hover:text-white flex items-center gap-1.5 py-1 px-2 rounded-md hover:bg-black/[0.04] dark:hover:bg-white/[0.04] transition-colors whitespace-nowrap cursor-pointer"
+                >
+                  <span className="text-[10px]">▶</span>
+                  <span>Hidden columns</span>
+                  <span className="text-zinc-400 dark:text-[#5e636e] ml-0.5">
+                    {hiddenColumns.length}
+                  </span>
+                </button>
+              </div>
+            )}
           </div>
 
           <DragOverlay dropAnimation={dropAnimationConfig}>
-            {activeTask ? <TaskCardPreview task={activeTask} /> : null}
+            {activeTask ? (
+              <TaskCardPreview
+                task={activeTask}
+                visibleProperties={visibleProperties}
+              />
+            ) : null}
           </DragOverlay>
         </DndContext>
       </>
@@ -827,16 +1516,11 @@ export default function Kanban() {
         }}
         taskId={selectedTaskId}
         onTaskUpdated={(updatedTask) => {
-          setTasks((prev) => {
+          updateTasks((prev) => {
             const updated = prev.map((t) =>
               t.id === updatedTask.id ? { ...t, ...updatedTask } : t,
             );
-            try {
-              localStorage.setItem(
-                "kriri:cache:board_tasks",
-                JSON.stringify(updated),
-              );
-            } catch {}
+            saveBoardTasksCache(updated);
             return updated;
           });
         }}
@@ -846,15 +1530,10 @@ export default function Kanban() {
         onClose={() => setIsCreateModalOpen(false)}
         initialStatus={createModalStatus}
         onTaskCreated={(newTask) => {
-          setTasks((prev) => {
+          updateTasks((prev) => {
             if (prev.some((t) => t.id === newTask.id)) return prev;
             const updated = [newTask, ...prev];
-            try {
-              localStorage.setItem(
-                "kriri:cache:board_tasks",
-                JSON.stringify(updated),
-              );
-            } catch {}
+            saveBoardTasksCache(updated);
             return updated;
           });
           setIsCreateModalOpen(false);
@@ -862,4 +1541,4 @@ export default function Kanban() {
       />
     </div>
   );
-}
+});

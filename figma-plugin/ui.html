@@ -1,0 +1,190 @@
+<!doctype html>
+<html>
+<head>
+  <style>
+    :root {
+      --bg: #141517;
+      --surface: #1e1f21;
+      --surface-elevated: #26272b;
+      --border: rgba(255, 255, 255, 0.08);
+      --text: #ffffff;
+      --text-muted: #8a8f98;
+      --accent: #0091ff;
+      --success: #3fb950;
+      --danger: #e5484d;
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: Inter, -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding: 16px;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+    .header {
+      margin-bottom: 12px;
+    }
+    .brand {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      color: var(--accent);
+      text-transform: uppercase;
+      margin-bottom: 2px;
+    }
+    h1 {
+      font-size: 15px;
+      font-weight: 600;
+      color: #fff;
+    }
+    p {
+      color: var(--text-muted);
+      font-size: 11px;
+      margin-top: 2px;
+    }
+    .boards-list {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 12px;
+      margin: 12px 0;
+      font-size: 11px;
+      max-height: 250px;
+      overflow-y: auto;
+    }
+    .board-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 5px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    }
+    .board-item:last-child {
+      border-bottom: none;
+    }
+    .board-num {
+      color: var(--accent);
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      width: 22px;
+      flex-shrink: 0;
+    }
+    .board-name {
+      color: #e6e6e6;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .btn {
+      width: 100%;
+      background: #ffffff;
+      color: #000000;
+      border: none;
+      border-radius: 8px;
+      padding: 11px 16px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: background 0.15s ease;
+    }
+    .btn:hover {
+      background: #e6e6e6;
+    }
+    .btn:disabled {
+      background: #333;
+      color: #888;
+      cursor: not-allowed;
+    }
+    .status {
+      margin-top: 10px;
+      font-size: 11px;
+      color: var(--text-muted);
+      text-align: center;
+      min-height: 18px;
+    }
+    .status.success {
+      color: var(--success);
+      font-weight: 500;
+    }
+    .status.error {
+      color: var(--danger);
+      font-weight: 500;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="brand">Kriri Specification Flow</div>
+    <h1>Application Screens (Landing → Last Page)</h1>
+    <p>15 boards modeled after the Asana Guidelines architecture in the 4-column matrix.</p>
+  </div>
+
+  <div class="boards-list">
+    <div class="board-item"><span class="board-num">28</span><span class="board-name">Landing Page & Public Surfaces</span></div>
+    <div class="board-item"><span class="board-num">29</span><span class="board-name">Authentication & Workspace Onboarding</span></div>
+    <div class="board-item"><span class="board-num">30</span><span class="board-name">Executive Engineering Dashboard</span></div>
+    <div class="board-item"><span class="board-num">31</span><span class="board-name">Tasks & Issue Management</span></div>
+    <div class="board-item"><span class="board-num">32</span><span class="board-name">Sprint Board & Kanban Lanes</span></div>
+    <div class="board-item"><span class="board-num">33</span><span class="board-name">Projects & Portfolio Hub</span></div>
+    <div class="board-item"><span class="board-num">34</span><span class="board-name">Project Details & Milestones</span></div>
+    <div class="board-item"><span class="board-num">35</span><span class="board-name">Velocity & Performance Analytics</span></div>
+    <div class="board-item"><span class="board-num">36</span><span class="board-name">Team Directory & Live Presence Gate</span></div>
+    <div class="board-item"><span class="board-num">37</span><span class="board-name">Autonomous AI Agent Workspace</span></div>
+    <div class="board-item"><span class="board-num">38</span><span class="board-name">Notification Center & Activity Inbox</span></div>
+    <div class="board-item"><span class="board-num">39</span><span class="board-name">Dedicated Workspace Settings</span></div>
+    <div class="board-item"><span class="board-num">40</span><span class="board-name">Product Features & Integrations</span></div>
+    <div class="board-item"><span class="board-num">41</span><span class="board-name">Pricing & Subscription Plans</span></div>
+    <div class="board-item"><span class="board-num">42</span><span class="board-name">Changelog, Company & Support</span></div>
+  </div>
+
+  <button class="btn" id="generateBtn">✨ Generate All 15 Screens (Landing → Last Page)</button>
+  <div class="status" id="statusText">Ready to place into specification matrix</div>
+
+  <script>
+    const btn = document.getElementById('generateBtn');
+    const status = document.getElementById('statusText');
+
+    btn.addEventListener('click', () => {
+      btn.disabled = true;
+      status.textContent = 'Generating 1920×1080 boards in canvas grid...';
+      parent.postMessage({ pluginMessage: { type: 'generate-boards' } }, '*');
+    });
+
+    window.onmessage = (event) => {
+      const msg = event.data.pluginMessage;
+      if (!msg) return;
+      if (msg.type === 'progress') {
+        status.textContent = msg.text;
+      } else if (msg.type === 'complete') {
+        status.textContent = '✅ ' + msg.text;
+        status.className = 'status success';
+        btn.textContent = 'Done! All 15 Boards Created';
+      } else if (msg.type === 'error') {
+        status.textContent = '❌ ' + msg.text;
+        status.className = 'status error';
+        btn.disabled = false;
+        btn.textContent = 'Retry Generation';
+      }
+    };
+
+    // Auto-trigger on launch
+    window.addEventListener("DOMContentLoaded", () => {
+      setTimeout(() => {
+        if (!btn.disabled) {
+          btn.click();
+        }
+      }, 500);
+    });
+  </script>
+</body>
+</html>

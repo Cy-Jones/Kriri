@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { Vault } from "@lucasmarkes/hairline/react";
-import { Check, ArrowRight } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { Button } from "@/registry/components/button/button";
 import { FaqSection } from "@/registry/blocks/faq-section/faq-section";
 import { kririFaqItems } from "@/registry/blocks/faq-section/faq-section-data";
@@ -9,29 +9,16 @@ import { useTheme } from "@/contexts/ThemeContext";
 export default function Pricing() {
   const { theme } = useTheme();
 
-  const includedFeatures = [
-    "Unlimited projects, milestones & issues",
-    "Interactive Kanban board with drag-and-drop",
-    "High-density List view with instant triage",
-    "Gantt Timeline view for sprint planning",
-    "Global ⌘K command palette and hotkeys",
-    "Sub-50ms WebSocket state synchronization",
-    "Live presence indicators and hover cards",
-    "Clerk OAuth (Google & GitHub logins)",
-    "Pure pitch-black (#000000) design system",
-    "Zero credit card required — immediate access",
-  ];
-
   return (
     <div className="py-14 sm:py-24 lg:py-32 relative">
       <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mx-auto max-w-2xl text-center mb-16 sm:mb-20">
           <h1 className="text-3xl sm:text-5xl lg:text-6xl font-medium tracking-tight text-foreground font-display text-balance">
-            Free while in active development.
+            Pricing
           </h1>
           <p className="mt-4 text-sm sm:text-base leading-relaxed text-muted-foreground max-w-lg mx-auto text-pretty">
-            No credit card, no artificial limits, and no paywalls. Experience precision project tracking with everything unlocked.
+            Free while in active development. No credit card, no artificial limits, and no paywalls.
           </p>
         </div>
 
@@ -52,27 +39,13 @@ export default function Pricing() {
                 Full access to the complete Kriri workspace. Designed for builders, independent engineers, and teams that move fast.
               </p>
 
-              <div className="mb-8">
+              <div>
                 <Link to="/register">
                   <Button variant="primary" size="lg" className="flex items-center gap-2">
                     Create free workspace
                     <ArrowRight size={15} />
                   </Button>
                 </Link>
-              </div>
-
-              <div className="space-y-2.5 pt-6 border-t border-border">
-                <span className="font-mono text-xs uppercase tracking-wider text-muted-foreground block mb-4">
-                  Included in your workspace
-                </span>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  {includedFeatures.map((feat) => (
-                    <div key={feat} className="flex items-start gap-2 text-xs text-foreground/90">
-                      <Check size={14} className="text-emerald-500 shrink-0 mt-0.5" />
-                      <span>{feat}</span>
-                    </div>
-                  ))}
-                </div>
               </div>
             </div>
 
@@ -106,4 +79,3 @@ export default function Pricing() {
     </div>
   );
 }
-

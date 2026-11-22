@@ -89,12 +89,18 @@ exports.addComment = async (req, res) => {
       console.error("Error creating notification for comment:", notifErr);
     }
 
-    // Fetch user info to append to response
-    const userRes = await db.query(
-      "SELECT name as user_name, avatar_url FROM users WHERE id = $1",
-      [user_id],
-    );
-    const comment = { ...rows[0], ...userRes.rows[0] };
+    const comment = {
+      ...rows[0],
+      user_name: req.user?.name || "User",
+      avatar_url: req.user?.avatar_url || null,
+    };
+
+    try {
+      const { getIO } = require("../socket");
+      getIO().to(`workspace_${req.workspace.id}`).emit("COMMENT_CREATED", comment);
+    } catch (sockErr) {
+      console.error("Socket error emitting COMMENT_CREATED:", sockErr);
+    }
 
     res.status(201).json(comment);
   } catch (error) {

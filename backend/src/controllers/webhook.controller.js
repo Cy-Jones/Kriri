@@ -25,17 +25,23 @@ exports.handleClerkWebhook = async (req, res) => {
   let evt;
 
   try {
-    evt = wh.verify(payload, {
+    wh.verify(payload, {
       "svix-id": svix_id,
       "svix-timestamp": svix_timestamp,
       "svix-signature": svix_signature,
     });
+    const rawString = Buffer.isBuffer(payload)
+      ? payload.toString("utf8")
+      : typeof payload === "string"
+        ? payload
+        : JSON.stringify(payload);
+    evt = JSON.parse(rawString);
   } catch (err) {
     console.error("Error verifying webhook:", err.message);
     return res.status(400).json({ error: "Error verifying webhook" });
   }
 
-  const { id } = evt.data;
+  const { id } = evt.data || {};
   const eventType = evt.type;
 
   console.log(`Webhook with an ID of ${id} and type of ${eventType}`);
@@ -72,10 +78,22 @@ exports.handleClerkWebhook = async (req, res) => {
       }
     } else if (eventType === "organization.updated") {
       const { id: clerkOrgId, name, slug } = evt.data;
-      await db.query(
-        "UPDATE workspaces SET name = $1, slug = $2 WHERE clerk_org_id = $3",
-        [name, slug, clerkOrgId],
+      const wsRes = await db.query(
+        "SELECT id, name, slug FROM workspaces WHERE clerk_org_id = $1",
+        [clerkOrgId],
       );
+      if (wsRes.rows.length > 0) {
+        const currentWs = wsRes.rows[0];
+        let targetSlug = currentWs.slug;
+        const requestedSlug = slug || name;
+        if (requestedSlug && currentWs.name !== name) {
+          targetSlug = await generateWorkspaceSlug(requestedSlug, db);
+        }
+        await db.query(
+          "UPDATE workspaces SET name = $1, slug = $2 WHERE clerk_org_id = $3",
+          [name, targetSlug, clerkOrgId],
+        );
+      }
     } else if (eventType === "organization.deleted") {
       const { id: clerkOrgId } = evt.data;
       await db.query("DELETE FROM workspaces WHERE clerk_org_id = $1", [
@@ -167,9 +185,10 @@ exports.handleClerkWebhook = async (req, res) => {
         image_url,
         email_addresses,
         primary_email_address_id,
+        username,
       } = evt.data;
       const name =
-        [first_name, last_name].filter(Boolean).join(" ") || "Unknown User";
+        [first_name, last_name].filter(Boolean).join(" ") || username || "Unknown User";
       const primaryEmailObj =
         email_addresses?.find((e) => e.id === primary_email_address_id) ||
         email_addresses?.[0];
@@ -182,19 +201,19 @@ exports.handleClerkWebhook = async (req, res) => {
         );
         if (emailRes.rows.length > 0) {
           await db.query(
-            "UPDATE users SET clerk_user_id = $1, name = COALESCE($2, name), avatar_url = COALESCE($3, avatar_url) WHERE email = $4",
-            [clerkUserId, name, image_url, email],
+            "UPDATE users SET clerk_user_id = $1, name = COALESCE($2, name), avatar_url = COALESCE($3, avatar_url), username = COALESCE($4, username) WHERE email = $5",
+            [clerkUserId, name, image_url, username, email],
           );
         } else {
           await db.query(
-            "INSERT INTO users (clerk_user_id, name, email, avatar_url) VALUES ($1, $2, $3, $4) ON CONFLICT (clerk_user_id) DO UPDATE SET name = $2, email = $3, avatar_url = $4",
-            [clerkUserId, name, email, image_url],
+            "INSERT INTO users (clerk_user_id, name, email, avatar_url, username) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (clerk_user_id) DO UPDATE SET name = $2, email = $3, avatar_url = $4, username = COALESCE($5, users.username)",
+            [clerkUserId, name, email, image_url, username],
           );
         }
       } else {
         await db.query(
-          "UPDATE users SET name = $1, avatar_url = $2 WHERE clerk_user_id = $3",
-          [name, image_url, clerkUserId],
+          "UPDATE users SET name = $1, avatar_url = $2, username = COALESCE($3, username) WHERE clerk_user_id = $4",
+          [name, image_url, username, clerkUserId],
         );
       }
     } else if (eventType === "user.deleted") {

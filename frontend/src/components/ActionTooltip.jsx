@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import * as Tooltip from "@radix-ui/react-tooltip";
 
 function renderShortcutKeys(shortcut) {
@@ -56,10 +56,12 @@ export default function ActionTooltip({
 }) {
   if (!label) return children;
 
+  const [open, setOpen] = useState(false);
+
   return (
-    <Tooltip.Provider delayDuration={120} skipDelayDuration={300}>
-      <Tooltip.Root>
-        <Tooltip.Trigger asChild>{children}</Tooltip.Trigger>
+    <Tooltip.Root open={open} onOpenChange={setOpen}>
+      <Tooltip.Trigger asChild>{children}</Tooltip.Trigger>
+      {open && (
         <Tooltip.Portal>
           <Tooltip.Content
             side={side}
@@ -72,7 +74,7 @@ export default function ActionTooltip({
             <Tooltip.Arrow className="fill-white dark:fill-[#2a2b2d]" />
           </Tooltip.Content>
         </Tooltip.Portal>
-      </Tooltip.Root>
-    </Tooltip.Provider>
+      )}
+    </Tooltip.Root>
   );
 }

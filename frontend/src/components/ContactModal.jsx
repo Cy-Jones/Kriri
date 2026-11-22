@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "motion/react";
 import { X, Paperclip, ArrowUpRight, CheckCircle2 } from "lucide-react";
-import { useUser } from "@clerk/clerk-react";
+import { useUser } from "@clerk/react";
 
 export default function ContactModal({ isOpen, onOpenChange }) {
   const { user } = useUser();
@@ -81,7 +81,7 @@ export default function ContactModal({ isOpen, onOpenChange }) {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: 6 }}
             transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-            className="relative z-[101] w-full max-w-[620px] rounded-2xl border border-black/10 dark:border-white/10 bg-white dark:bg-[#1b1c20] p-6 sm:p-7 shadow-[0_24px_64px_rgba(0,0,0,0.18)] dark:shadow-[0_24px_64px_rgba(0,0,0,0.8)] text-zinc-900 dark:text-white"
+            className="relative z-[101] w-full max-w-[620px] rounded-2xl border border-black/10 dark:border-[var(--border,rgba(255,255,255,0.1))] bg-white dark:bg-[var(--surface-elevated,#1b1c20)] p-6 sm:p-7 shadow-[0_24px_64px_rgba(0,0,0,0.18)] dark:shadow-[0_24px_64px_rgba(0,0,0,0.8)] text-zinc-900 dark:text-white"
           >
             {status === "success" ? (
               <div className="py-10 flex flex-col items-center text-center">
@@ -122,7 +122,7 @@ export default function ContactModal({ isOpen, onOpenChange }) {
                 </div>
 
                 {/* Textarea container */}
-                <div className="rounded-xl border border-black/10 dark:border-white/[0.08] bg-zinc-50 dark:bg-[#141518] p-3.5 focus-within:border-black/20 dark:focus-within:border-white/20 transition-colors">
+                <div className="rounded-xl border border-black/10 dark:border-[var(--border,rgba(255,255,255,0.08))] bg-zinc-50 dark:bg-[var(--surface,#141518)] p-3.5 focus-within:border-black/20 dark:focus-within:border-white/20 transition-colors">
                   <textarea
                     ref={textareaRef}
                     value={message}

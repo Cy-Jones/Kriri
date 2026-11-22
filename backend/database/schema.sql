@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS users (
     clerk_user_id VARCHAR(255) UNIQUE NOT NULL,
     name VARCHAR(255) NOT NULL,
     email VARCHAR(255) UNIQUE NOT NULL,
+    username VARCHAR(100),
     avatar_url VARCHAR(255),
     role VARCHAR(50) DEFAULT 'Member',
     status VARCHAR(50) DEFAULT 'Active',
@@ -87,9 +88,21 @@ CREATE TABLE IF NOT EXISTS tasks (
     actual_hours DECIMAL(5,2),
     progress INTEGER DEFAULT 0,
     position INTEGER DEFAULT 0,
+    parent_task_id INTEGER REFERENCES tasks(id) ON DELETE CASCADE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     completed_at TIMESTAMP WITH TIME ZONE
+);
+
+CREATE TABLE IF NOT EXISTS task_dependencies (
+    id SERIAL PRIMARY KEY,
+    workspace_id INTEGER NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+    task_id INTEGER NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+    depends_on_task_id INTEGER NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+    type VARCHAR(50) DEFAULT 'blocks',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT unique_task_dependency UNIQUE (task_id, depends_on_task_id),
+    CONSTRAINT chk_no_self_dependency CHECK (task_id <> depends_on_task_id)
 );
 
 CREATE TABLE IF NOT EXISTS comments (
@@ -152,13 +165,17 @@ CREATE TABLE IF NOT EXISTS notifications (
 );
 
 -- Performance Indexes
+CREATE UNIQUE INDEX IF NOT EXISTS users_username_lower_idx ON users (LOWER(username));
 CREATE INDEX IF NOT EXISTS idx_tasks_project_id ON tasks(project_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_assignee_id ON tasks(assignee_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
+CREATE INDEX IF NOT EXISTS idx_tasks_parent_status ON tasks(parent_task_id, status);
+CREATE INDEX IF NOT EXISTS idx_tasks_project_assignee_status ON tasks(project_id, assignee_id, status);
 CREATE INDEX IF NOT EXISTS idx_tasks_completed_at ON tasks(completed_at);
 CREATE INDEX IF NOT EXISTS idx_tasks_updated_at ON tasks(updated_at);
 CREATE INDEX IF NOT EXISTS idx_tasks_created_at ON tasks(created_at);
 CREATE INDEX IF NOT EXISTS idx_projects_workspace_id ON projects(workspace_id);
+CREATE INDEX IF NOT EXISTS idx_projects_ws_status ON projects(workspace_id, status);
 CREATE INDEX IF NOT EXISTS idx_workspace_members_user_id ON workspace_members(user_id);
 CREATE INDEX IF NOT EXISTS idx_workspace_members_workspace_id ON workspace_members(workspace_id);
 CREATE INDEX IF NOT EXISTS idx_project_members_project_id ON project_members(project_id);

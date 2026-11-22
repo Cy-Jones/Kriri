@@ -52,7 +52,9 @@ export function Avatar({
                 ? "48px"
                 : size === "md"
                   ? "36px"
-                  : "28px"
+                  : size === "xs"
+                    ? "22px"
+                    : "28px"
           }
           onLoad={(event) => {
             delete event.currentTarget.dataset.loading;

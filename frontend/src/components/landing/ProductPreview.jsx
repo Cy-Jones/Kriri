@@ -525,7 +525,7 @@ export function ProductPreview() {
                     {issueTab === "backlog" ? (
                       <div className="flex-1 flex flex-col items-center justify-center p-8 sm:p-12 text-center gap-4 border border-white/[0.05] bg-white/[0.01] rounded-xl">
                         <div className="w-48 h-48 flex items-center justify-center relative overflow-visible">
-                          <Checklist theme={effectiveTheme} intensity={0.7} className="w-full h-full text-[#8a8f98] opacity-80" />
+                          <Checklist theme="dark" intensity={0.7} className="w-full h-full text-[#8a8f98] opacity-80" />
                         </div>
                         <div>
                           <h2 className="text-sm sm:text-base font-semibold text-white tracking-tight">
@@ -997,7 +997,7 @@ export function ProductPreview() {
                     {notifications.length === 0 ? (
                       <div className="flex-1 flex flex-col items-center justify-center h-full text-[#8a8f98] gap-3 sm:gap-4 my-auto select-none">
                         <div className="w-32 h-32 relative overflow-visible">
-                          <Lockers theme={effectiveTheme} intensity={0.5} className="w-full h-full opacity-60" />
+                          <Lockers theme="dark" intensity={0.5} className="w-full h-full opacity-60" />
                         </div>
                         <span className="text-[13px] text-[#8a8f98] font-medium">
                           All caught up
@@ -1065,7 +1065,7 @@ export function ProductPreview() {
 
                     <div className="flex-1 flex flex-col items-center justify-center max-w-sm mx-auto text-center gap-3.5 sm:gap-4.5 lg:gap-6 my-auto select-none">
                       <div className="w-48 h-48 flex items-center justify-center relative overflow-visible">
-                        <Chart theme={effectiveTheme} intensity={0.7} className="w-full h-full text-[#8a8f98] opacity-80" />
+                        <Chart theme="dark" intensity={0.7} className="w-full h-full text-[#8a8f98] opacity-80" />
                       </div>
 
                       <div className="flex flex-col gap-2">

@@ -279,7 +279,7 @@ export default function BulkActionModal({
         }}
       ></div>
       <div
-        className="relative w-full max-w-[540px] bg-white dark:bg-[#18191b]/95 backdrop-blur-2xl border border-black/10 dark:border-white/[0.08] shadow-[0_32px_80px_-16px_rgba(0,0,0,0.2),_inset_0_1px_0_rgba(255,255,255,0.05)] rounded-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+        className="relative w-full max-w-[540px] bg-surface-elevated text-foreground border border-border shadow-[0_32px_80px_-16px_rgba(0,0,0,0.45)] rounded-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center px-4 py-3 border-b border-black/[0.06] dark:border-white/[0.06]">

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, memo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Plus,
@@ -72,7 +72,7 @@ import PickerWrapper from "../../components/PickerWrapper";
 // ============================================================================
 // TIMELINE VIEW COMPONENT (BUG-FREE ROBUST GANTT RENDERER)
 // ============================================================================
-export default function TimelineViewRenderer({
+export default memo(function TimelineViewRenderer({
   projects,
   config,
   groupProjects,
@@ -176,9 +176,9 @@ export default function TimelineViewRenderer({
   };
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 overflow-hidden relative border-t border-black/[0.08] dark:border-white/5 bg-white dark:bg-[#18191c]">
+    <div className="flex-1 flex flex-col min-h-0 overflow-hidden relative border-t border-border bg-[var(--card-bg)]">
       {/* Controls Bar */}
-      <div className="flex items-center justify-between px-6 py-2 bg-zinc-50 dark:bg-[#212226]/60 border-b border-black/[0.08] dark:border-white/5 z-20">
+      <div className="flex items-center justify-between px-6 py-2 bg-zinc-50 dark:bg-[var(--surface,#212226)]/60 border-b border-black/[0.08] dark:border-[var(--border,rgba(255,255,255,0.05))] z-20">
         <div className="flex items-center gap-2 text-[12px] text-zinc-500 dark:text-[#8a8f98]">
           <span className="font-semibold text-zinc-900 dark:text-white">Timeline View</span>
           <span>•</span>
@@ -209,7 +209,7 @@ export default function TimelineViewRenderer({
       <div className="flex flex-1 min-h-0 overflow-hidden relative">
         {/* Left Project List Column */}
         {config.showProjectList && (
-          <div className="w-[300px] min-w-[300px] border-r border-black/[0.08] dark:border-white/10 bg-white dark:bg-[#18191c] flex flex-col z-20">
+          <div className="w-[300px] min-w-[300px] border-r border-border bg-[var(--card-bg)] flex flex-col z-20">
             <div className="h-10 px-4 py-2 border-b border-black/[0.08] dark:border-white/10 text-[11px] font-semibold text-zinc-500 dark:text-[#8a8f98] uppercase tracking-wider flex items-center">
               Project Name
             </div>
@@ -331,7 +331,7 @@ export default function TimelineViewRenderer({
           className="flex-1 flex flex-col overflow-x-auto overflow-y-auto relative"
         >
           {/* Header Axis Scale */}
-          <div className="flex border-b border-black/[0.08] dark:border-white/10 bg-zinc-50 dark:bg-[#18191c] min-w-max sticky top-0 z-10">
+          <div className="flex border-b border-black/[0.08] dark:border-[var(--border,rgba(255,255,255,0.1))] bg-zinc-50 dark:bg-[var(--surface,#18191c)] min-w-max sticky top-0 z-10">
             {timelineColumns.map((m, idx) => (
               <div
                 key={idx}
@@ -470,4 +470,4 @@ export default function TimelineViewRenderer({
       )}
     </div>
   );
-}
+});

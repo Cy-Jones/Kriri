@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
+import { syncLandingTheme } from "@/contexts/ThemeContext";
 import { SiteHeader } from "@/registry/blocks/site-header/site-header";
 import { Footer } from "@/components/landing/Footer";
 
@@ -9,6 +10,7 @@ export default function MarketingLayout() {
 
   useEffect(() => {
     window.scrollTo(0, 0);
+    syncLandingTheme();
   }, [location.pathname]);
 
   const brand = {
@@ -60,12 +62,15 @@ export default function MarketingLayout() {
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground font-sans selection:bg-white/20 relative flex flex-col">
+    <div
+      className="dark min-h-screen bg-[#08090a] text-white font-sans selection:bg-white/20 relative flex flex-col"
+      style={{ colorScheme: "dark" }}
+    >
       {/* Background Dot Grid */}
       <div
-        className="fixed inset-0 pointer-events-none opacity-[0.035] [data-theme=light]:opacity-[0.05] z-0"
+        className="fixed inset-0 pointer-events-none opacity-[0.035] z-0"
         style={{
-          backgroundImage: `radial-gradient(circle at 1px 1px, currentColor 1px, transparent 0)`,
+          backgroundImage: `radial-gradient(circle at 1px 1px, #ffffff 1px, transparent 0)`,
           backgroundSize: "28px 28px",
         }}
       />

@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../lib/api";
-import { useUser, useOrganization } from "@clerk/clerk-react";
+import { useUser, useOrganization } from "@clerk/react";
 import {
   Check,
   CheckCheck,
@@ -31,7 +31,8 @@ import {
   Trash2,
 } from "lucide-react";
 import { useListShortcuts } from "../hooks/useListShortcuts";
-import PageLoading from "../components/PageLoading";
+import { InboxSkeleton } from "../components/skeletons/PageSkeletons";
+import { useDeferredSkeleton } from "../hooks/useDeferredSkeleton";
 import { useTheme } from "../contexts/ThemeContext";
 import { Lockers, Riffle } from "@lucasmarkes/hairline/react";
 import { Avatar } from "@/registry/components/avatar/avatar";
@@ -164,7 +165,7 @@ const SelectDropdown = ({ value, options = [], onChange }) => {
               setIsOpen(false);
             }}
           />
-          <div className="absolute top-full right-0 mt-1 z-[70] min-w-[140px] bg-white dark:bg-[#232429] border border-black/10 dark:border-white/[0.08] rounded-xl shadow-lg dark:shadow-[0_8px_30px_rgb(0,0,0,0.5)] py-1 flex flex-col text-[13px]">
+          <div className="absolute top-full right-0 mt-1 z-[70] min-w-[140px] bg-white dark:bg-[var(--surface-floating,#232429)] border border-black/10 dark:border-[var(--border,rgba(255,255,255,0.08))] rounded-xl shadow-lg dark:shadow-[0_8px_30px_rgb(0,0,0,0.5)] py-1 flex flex-col text-[13px]">
             {options.map((opt, idx) => (
               <button
                 key={idx}
@@ -197,8 +198,19 @@ const SelectDropdown = ({ value, options = [], onChange }) => {
 
 export default function Inbox() {
   const { effectiveTheme } = useTheme();
-  const [notifications, setNotifications] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const isAuditMock = typeof window !== "undefined" && import.meta.env.DEV && (window.__AUDIT_MOCK_AUTH__ || window.localStorage?.getItem("audit_mock_auth") === "true");
+  const [notifications, setNotifications] = useState(() => {
+    const cached = api.getCached("/workspaces/current/notifications");
+    if (Array.isArray(cached) && cached.length > 0) return cached;
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("kriri:cache:notifications");
+        if (stored) return JSON.parse(stored);
+      } catch {}
+    }
+    return [];
+  });
+  const [loading, setLoading] = useState(isAuditMock ? false : notifications.length === 0);
   const [selectedNotifId, setSelectedNotifId] = useState(null);
   const [activeIndex, setActiveIndex] = useState(null);
 
@@ -261,11 +273,17 @@ export default function Inbox() {
 
   const fetchNotifications = async () => {
     try {
-      setLoading(true);
-      const data = await api.get("/workspaces/current/notifications", { noCache: true });
-      setNotifications(Array.isArray(data) ? data : []);
+      if (notifications.length === 0) setLoading(true);
+      const data = await api.get("/workspaces/current/notifications");
+      const list = Array.isArray(data) ? data : [];
+      setNotifications(list);
+      api.setCached("/workspaces/current/notifications", list);
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem("kriri:cache:notifications", JSON.stringify(list));
+        } catch {}
+      }
     } catch (error) {
-      setNotifications([]);
       if (!error?.message?.includes("Unauthorized")) {
         console.error("Failed to fetch notifications", error);
       }
@@ -275,15 +293,13 @@ export default function Inbox() {
   };
 
   useEffect(() => {
-    setNotifications([]);
-    setSelectedNotifId(null);
-    setActiveIndex(null);
-
     if (isLoaded && isSignedIn && user) {
       fetchNotifications();
       fetchFilterData();
+    } else if (isAuditMock) {
+      setLoading(false);
     }
-  }, [organization?.id, isLoaded, isSignedIn, user?.id]);
+  }, [organization?.id, isLoaded, isSignedIn, user?.id, isAuditMock]);
 
   const markAsRead = async (id, status = true) => {
     try {
@@ -430,7 +446,7 @@ export default function Inbox() {
   const handleCopyLink = async () => {
     const url =
       selectedNotif?.entity_type === "task" && selectedNotif?.entity_id
-        ? `${window.location.origin}/kanban?task=${selectedNotif.entity_id}`
+        ? `${window.location.origin}/tasks?task=${selectedNotif.entity_id}`
         : `${window.location.origin}/inbox`;
     await copyTextToClipboard(url);
     setCopiedLink(true);
@@ -536,12 +552,14 @@ export default function Inbox() {
     onOpenItem: (notif) => handleSelect(notif),
   });
 
-  if (loading) {
-    return <PageLoading label="Inbox" />;
+  const showSkeleton = useDeferredSkeleton(loading && notifications.length === 0, 180);
+
+  if (showSkeleton) {
+    return <InboxSkeleton />;
   }
 
   return (
-    <div className="flex h-full w-full bg-white dark:bg-black md:dark:bg-[#131416] text-zinc-900 dark:text-[#e8e8e8] text-[13px] font-sans antialiased">
+    <div className="flex h-full w-full bg-[var(--card-bg)] text-foreground text-[13px] font-sans antialiased">
       {/* Left Sidebar */}
       <div
         className={`w-full md:w-[320px] md:flex-shrink-0 border-r border-black/[0.08] dark:border-white/[0.06] flex flex-col bg-transparent relative z-10 ${selectedNotif ? "hidden md:flex" : "flex"}`}
@@ -585,7 +603,7 @@ export default function Inbox() {
                 <InboxIconLucide size={14} strokeWidth={2} />
               </button>
               <div
-                className={`absolute top-full mt-1.5 items-center whitespace-nowrap px-2 py-1 bg-white dark:bg-[#232429] border border-black/10 dark:border-white/[0.08] rounded shadow-lg dark:shadow-xl z-50 ${filter === "unread" ? "hidden" : "hidden group-hover:flex"}`}
+                className={`absolute top-full mt-1.5 items-center whitespace-nowrap px-2 py-1 bg-white dark:bg-[var(--surface-floating,#232429)] border border-black/10 dark:border-[var(--border,rgba(255,255,255,0.08))] rounded shadow-lg dark:shadow-xl z-50 ${filter === "unread" ? "hidden" : "hidden group-hover:flex"}`}
               >
                 <span className="text-[12px] font-medium text-zinc-800 dark:text-[#e8e8e8]">
                   Show unreads only
@@ -609,7 +627,7 @@ export default function Inbox() {
                 <ListFilter size={15} strokeWidth={2} />
               </button>
               <div
-                className={`absolute top-full mt-1.5 items-center gap-1.5 whitespace-nowrap px-2 py-1 bg-white dark:bg-[#232429] border border-black/10 dark:border-white/[0.08] rounded shadow-lg dark:shadow-xl z-50 ${filterOpen ? "hidden" : "hidden group-hover:flex"}`}
+                className={`absolute top-full mt-1.5 items-center gap-1.5 whitespace-nowrap px-2 py-1 bg-white dark:bg-[var(--surface-floating,#232429)] border border-black/10 dark:border-[var(--border,rgba(255,255,255,0.08))] rounded shadow-lg dark:shadow-xl z-50 ${filterOpen ? "hidden" : "hidden group-hover:flex"}`}
               >
                 <span className="text-[12px] font-medium text-zinc-800 dark:text-[#e8e8e8]">
                   Add Filter
@@ -627,7 +645,7 @@ export default function Inbox() {
                       setActiveFilterSubmenu(null);
                     }}
                   />
-                  <div className="absolute top-full right-0 mt-1.5 z-50 w-[240px] max-w-[calc(100vw-24px)] bg-white dark:bg-[#232429] border border-black/10 dark:border-white/[0.08] rounded-xl shadow-lg dark:shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex flex-col text-[13px]">
+                  <div className="absolute top-full right-0 mt-1.5 z-50 w-[240px] max-w-[calc(100vw-24px)] bg-white dark:bg-[var(--surface-floating,#232429)] border border-black/10 dark:border-[var(--border,rgba(255,255,255,0.08))] rounded-xl shadow-lg dark:shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex flex-col text-[13px]">
                     <div className="flex items-center justify-between px-3 py-2 border-b border-black/[0.06] dark:border-white/[0.08]">
                       <input
                         type="text"
@@ -732,7 +750,7 @@ export default function Inbox() {
 
                       {/* Desktop flyout inward */}
                       {activeFilterSubmenu && (
-                        <div className="hidden md:flex absolute top-0 right-[calc(100%+6px)] w-[220px] bg-white dark:bg-[#232429] border border-black/10 dark:border-white/[0.08] rounded-xl shadow-lg dark:shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex-col text-[13px] overflow-hidden z-50">
+                        <div className="hidden md:flex absolute top-0 right-[calc(100%+6px)] w-[220px] bg-white dark:bg-[var(--surface-floating,#232429)] border border-black/10 dark:border-[var(--border,rgba(255,255,255,0.08))] rounded-xl shadow-lg dark:shadow-[0_8px_30px_rgb(0,0,0,0.5)] flex-col text-[13px] overflow-hidden z-50">
                           <div className="flex items-center px-3 py-2 border-b border-black/[0.06] dark:border-white/[0.08]">
                             <input
                               type="text"
@@ -808,7 +826,7 @@ export default function Inbox() {
                 <SlidersHorizontal size={14} strokeWidth={2.2} />
               </button>
               <div
-                className={`absolute top-full mt-1.5 left-0 items-center gap-1.5 whitespace-nowrap px-2 py-1 bg-white dark:bg-[#232429] border border-black/10 dark:border-white/[0.08] rounded shadow-lg dark:shadow-xl z-50 ${displayOpen ? "hidden" : "hidden group-hover:flex"}`}
+                className={`absolute top-full mt-1.5 left-0 items-center gap-1.5 whitespace-nowrap px-2 py-1 bg-white dark:bg-[var(--surface-floating,#232429)] border border-black/10 dark:border-[var(--border,rgba(255,255,255,0.08))] rounded shadow-lg dark:shadow-xl z-50 ${displayOpen ? "hidden" : "hidden group-hover:flex"}`}
               >
                 <span className="text-[12px] font-medium text-zinc-800 dark:text-[#e8e8e8]">
                   Show display options
@@ -828,7 +846,7 @@ export default function Inbox() {
                     className="fixed inset-0 z-40"
                     onClick={() => setDisplayOpen(false)}
                   />
-                  <div className="absolute top-full right-0 mt-1.5 z-50 w-[280px] bg-white dark:bg-[#232429] border border-black/10 dark:border-white/[0.08] rounded-xl shadow-lg dark:shadow-[0_8px_30px_rgb(0,0,0,0.5)] py-1.5 flex flex-col text-[13px]">
+                  <div className="absolute top-full right-0 mt-1.5 z-50 w-[280px] bg-white dark:bg-[var(--surface-floating,#232429)] border border-black/10 dark:border-[var(--border,rgba(255,255,255,0.08))] rounded-xl shadow-lg dark:shadow-[0_8px_30px_rgb(0,0,0,0.5)] py-1.5 flex flex-col text-[13px]">
                     <div className="flex items-center justify-between px-4 py-1.5 hover:bg-black/[0.03] dark:hover:bg-white/[0.04]">
                       <span className="text-zinc-800 dark:text-[#e8e8e8] font-medium">
                         Enable priority inbox
@@ -1084,7 +1102,7 @@ export default function Inbox() {
         {selectedNotif ? (
           <div className="flex-1 flex flex-col h-full overflow-hidden">
             {/* Top Bar Navigation & Actions (Inbox Header) */}
-            <div className="h-12 border-b border-black/[0.08] dark:border-white/[0.06] flex items-center justify-between px-3 sm:px-6 bg-white/90 dark:bg-black/90 md:dark:bg-[#131416]/90 backdrop-blur-md sticky top-0 z-20 flex-shrink-0">
+            <div className="h-12 border-b border-border flex items-center justify-between px-3 sm:px-6 bg-[var(--card-bg)]/90 backdrop-blur-md sticky top-0 z-20 flex-shrink-0">
               <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 mr-2">
                 <button
                   type="button"
@@ -1163,7 +1181,7 @@ export default function Inbox() {
                           )}
                         </button>
 
-                        {/* Open on Board -> /kanban */}
+                        {/* Open on Board -> /tasks?view=board */}
                         {Boolean(selectedNotif?.entity_id || taskDetail?.id) && (
                           <button
                             type="button"
@@ -1171,7 +1189,7 @@ export default function Inbox() {
                               const tId = selectedNotif?.entity_id || taskDetail?.id;
                               if (!tId) return;
                               setOptionsMenuOpen(false);
-                              navigate(`/kanban?task=${tId}`, { state: { taskId: tId } });
+                              navigate(`/tasks?view=board&task=${tId}`, { state: { taskId: tId } });
                             }}
                             className="w-full px-3 py-1.5 text-left text-[12.5px] text-zinc-700 dark:text-[#d0d3d9] hover:bg-black/[0.04] dark:hover:bg-white/[0.06] flex items-center gap-2 transition-colors"
                           >
@@ -1482,10 +1500,10 @@ export default function Inbox() {
                 className="w-full h-full text-zinc-400 dark:text-[#8a8f98] opacity-70"
               />
             </div>
-            <h3 className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-white">
+            <h3 className="text-xl font-semibold tracking-tight text-foreground">
               Inbox
             </h3>
-            <p className="text-[13px] text-zinc-500 dark:text-[#8a8f98] mt-1.5 max-w-[200px]">
+            <p className="text-[13px] text-text-muted mt-1.5 max-w-[200px]">
               Select a notification to view its details
             </p>
           </div>

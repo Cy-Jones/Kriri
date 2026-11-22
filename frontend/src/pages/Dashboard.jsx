@@ -15,12 +15,14 @@ import {
 } from "lucide-react";
 import { Drawer } from "@lucasmarkes/hairline/react";
 import { useNavigate } from "react-router-dom";
-import { useUser, useOrganization } from "@clerk/clerk-react";
+import { useUser, useOrganization } from "@clerk/react";
 import CreateProjectModal from "../components/CreateProjectModal";
 import { api } from "../lib/api";
 import posthog from "../lib/posthog";
-import PageLoading from "../components/PageLoading";
+import { DashboardSkeleton } from "../components/skeletons/PageSkeletons";
+import { useDeferredSkeleton } from "../hooks/useDeferredSkeleton";
 import { useTheme } from "../contexts/ThemeContext";
+import ViewSwitcher from "../components/ViewSwitcher";
 
 // Arc Components
 import { LineChart } from "../registry/components/line-chart/line-chart";
@@ -35,31 +37,63 @@ export default function Dashboard() {
   const { effectiveTheme } = useTheme();
   const { user, isLoaded: isUserLoaded, isSignedIn } = useUser();
   const userName = user?.fullName || user?.firstName || "User";
+  const { organization } = useOrganization();
+  const navigate = useNavigate();
+
+  const scopeKey = user?.id ? `${user.id}:${organization?.id || "personal"}` : null;
 
   const [summary, setSummary] = useState(() => {
+    const fromApiCache = api.getCached("/workspaces/current/summary");
+    if (fromApiCache) return fromApiCache;
+    if (!scopeKey) return null;
     try {
-      const cached = localStorage.getItem("kriri:cache:dashboard_summary");
+      // Purge legacy unscoped cache if present
+      localStorage.removeItem("kriri:cache:dashboard_summary");
+      const cached = localStorage.getItem(`kriri:cache:dashboard_summary:${scopeKey}`);
       return cached ? JSON.parse(cached) : null;
     } catch {
       return null;
     }
   });
   const [analytics, setAnalytics] = useState(() => {
+    const fromApiCache = api.getCached("/workspaces/current/analytics");
+    if (fromApiCache) return fromApiCache;
+    if (!scopeKey) return null;
     try {
-      const cached = localStorage.getItem("kriri:cache:dashboard_analytics");
+      // Purge legacy unscoped cache if present
+      localStorage.removeItem("kriri:cache:dashboard_analytics");
+      const cached = localStorage.getItem(`kriri:cache:dashboard_analytics:${scopeKey}`);
       return cached ? JSON.parse(cached) : null;
     } catch {
       return null;
     }
   });
   const [members, setMembers] = useState([]);
-  const [loading, setLoading] = useState(!summary && !analytics);
+  const [loading, setLoading] = useState(() => (typeof window !== "undefined" && import.meta.env.DEV && (window.__AUDIT_MOCK_AUTH__ || window.localStorage.getItem("audit_mock_auth") === "true") ? false : (!summary && !analytics)));
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [currentUserRole, setCurrentUserRole] = useState(null);
   const [timeRange, setTimeRange] = useState("7 days");
 
-  const navigate = useNavigate();
-  const { organization } = useOrganization();
+  // Keep state synced when switching workspace or user
+  useEffect(() => {
+    if (!scopeKey) {
+      if (api.getCached("/workspaces/current/summary") || api.getCached("/workspaces/current/analytics")) return;
+      setSummary(null);
+      setAnalytics(null);
+      return;
+    }
+    try {
+      localStorage.removeItem("kriri:cache:dashboard_summary");
+      localStorage.removeItem("kriri:cache:dashboard_analytics");
+      const cachedSum = localStorage.getItem(`kriri:cache:dashboard_summary:${scopeKey}`);
+      setSummary(cachedSum ? JSON.parse(cachedSum) : null);
+      const cachedAna = localStorage.getItem(`kriri:cache:dashboard_analytics:${scopeKey}`);
+      setAnalytics(cachedAna ? JSON.parse(cachedAna) : null);
+    } catch {
+      setSummary(null);
+      setAnalytics(null);
+    }
+  }, [scopeKey]);
 
   const canManageProjects =
     ["Owner", "Admin", "Project Manager", "Member", "Team Lead"].includes(
@@ -68,7 +102,13 @@ export default function Dashboard() {
 
   // Fetch current role
   useEffect(() => {
-    if (!isUserLoaded || !isSignedIn || !user) return;
+    if (!isUserLoaded || !isSignedIn || !user) {
+      if (typeof window !== "undefined" && import.meta.env.DEV && (window.__AUDIT_MOCK_AUTH__ || window.localStorage.getItem("audit_mock_auth") === "true")) {
+        setLoading(false);
+      }
+      return;
+    }
+    const controller = new AbortController();
     const fetchRole = async () => {
       if (!organization) {
         setCurrentUserRole("Owner");
@@ -77,6 +117,7 @@ export default function Dashboard() {
       try {
         const response = await api.get(
           `/workspaces/${organization.id}/members`,
+          { signal: controller.signal },
         );
         const mems = Array.isArray(response)
           ? response
@@ -87,52 +128,77 @@ export default function Dashboard() {
         );
         if (currentMember) setCurrentUserRole(currentMember.role);
       } catch (err) {
-        if (!err.message?.includes("Unauthorized")) {
+        if (err.name !== "AbortError" && !err.message?.includes("Unauthorized")) {
           console.error("Failed to fetch role", err);
         }
       }
     };
     fetchRole();
+    return () => {
+      controller.abort();
+    };
   }, [organization?.id, isUserLoaded, isSignedIn, user?.id]);
 
   // Fetch Summary & Analytics
   useEffect(() => {
-    if (!isUserLoaded || !isSignedIn || !user) return;
+    if (!isUserLoaded || !isSignedIn || !user) {
+      if (typeof window !== "undefined" && import.meta.env.DEV && (window.__AUDIT_MOCK_AUTH__ || window.localStorage.getItem("audit_mock_auth") === "true")) {
+        setLoading(false);
+      }
+      return;
+    }
 
+    const controller = new AbortController();
     const fetchData = async () => {
       try {
         if (!summary && !analytics) setLoading(true);
         const [sumRes, anaRes] = await Promise.all([
-          api.get("/workspaces/current/summary").catch(() => null),
-          api.get("/workspaces/current/analytics").catch(() => null),
+          api.get("/workspaces/current/summary", { signal: controller.signal }).catch((err) => {
+            if (err.name === "AbortError") throw err;
+            return null;
+          }),
+          api.get("/workspaces/current/analytics", { signal: controller.signal }).catch((err) => {
+            if (err.name === "AbortError") throw err;
+            return null;
+          }),
         ]);
         if (sumRes) {
           setSummary(sumRes);
-          try {
-            localStorage.setItem(
-              "kriri:cache:dashboard_summary",
-              JSON.stringify(sumRes),
-            );
-          } catch {}
+          if (scopeKey) {
+            try {
+              localStorage.setItem(
+                `kriri:cache:dashboard_summary:${scopeKey}`,
+                JSON.stringify(sumRes),
+              );
+            } catch {}
+          }
         }
         if (anaRes) {
           setAnalytics(anaRes);
-          try {
-            localStorage.setItem(
-              "kriri:cache:dashboard_analytics",
-              JSON.stringify(anaRes),
-            );
-          } catch {}
+          if (scopeKey) {
+            try {
+              localStorage.setItem(
+                `kriri:cache:dashboard_analytics:${scopeKey}`,
+                JSON.stringify(anaRes),
+              );
+            } catch {}
+          }
         }
       } catch (err) {
-        if (!err.message?.includes("Unauthorized")) {
+        if (err.name !== "AbortError" && !err.message?.includes("Unauthorized")) {
           console.error("Error fetching dashboard data:", err);
         }
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
       }
     };
     fetchData();
+
+    return () => {
+      controller.abort();
+    };
   }, [organization?.id, isUserLoaded, isSignedIn, user?.id]);
 
   useEffect(() => {
@@ -204,29 +270,10 @@ export default function Dashboard() {
     );
   }, [velocityBuckets]);
 
-  if (loading) {
-    return (
-      <div className="flex flex-col min-h-full relative">
-        <div className="flex items-center justify-between gap-3 min-h-[38px] mb-1 sm:mb-2 flex-shrink-0">
-          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-            <button
-              type="button"
-              onClick={() =>
-                window.dispatchEvent(new CustomEvent("open-mobile-nav"))
-              }
-              className="md:hidden p-1.5 -ml-1 text-zinc-500 hover:text-zinc-900 dark:text-[#8a8f98] dark:hover:text-white rounded-md hover:bg-black/[0.05] dark:hover:bg-white/[0.06] transition-colors shrink-0 cursor-pointer"
-              aria-label="Open menu"
-            >
-              <Menu size={18} strokeWidth={1.75} />
-            </button>
-            <h1 className="text-base font-semibold tracking-tight text-zinc-900 dark:text-white truncate">
-              Dashboard
-            </h1>
-          </div>
-        </div>
-        <PageLoading label="Dashboard" />
-      </div>
-    );
+  const showSkeleton = useDeferredSkeleton(loading && !summary && !analytics, 180);
+
+  if (showSkeleton) {
+    return <DashboardSkeleton />;
   }
 
   const hasData =
@@ -249,7 +296,7 @@ export default function Dashboard() {
             >
               <Menu size={18} strokeWidth={1.75} />
             </button>
-            <h1 className="text-base font-semibold tracking-tight text-zinc-900 dark:text-white truncate">
+            <h1 className="text-base font-semibold tracking-tight text-foreground truncate">
               Dashboard
             </h1>
           </div>
@@ -265,7 +312,7 @@ export default function Dashboard() {
           </div>
 
           <div className="flex flex-col gap-2">
-            <h2 className="text-lg font-semibold text-zinc-900 dark:text-white tracking-tight">
+            <h2 className="text-lg font-semibold text-foreground tracking-tight">
               Create your first project
             </h2>
             <p className="text-[14px] text-text-muted leading-relaxed">
@@ -338,7 +385,7 @@ export default function Dashboard() {
 
   return (
     <div className="flex flex-col min-h-full relative">
-      <div className="flex flex-col gap-5 sm:gap-6 max-w-7xl mx-auto w-full pb-6 sm:pb-20 animate-in fade-in duration-500">
+      <div className="flex flex-col gap-5 sm:gap-6 max-w-7xl mx-auto w-full pb-6 sm:pb-20">
         {/* Top Header Row */}
         <div className="flex items-center justify-between gap-3 min-h-[38px] mb-2 sm:mb-3">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
@@ -352,7 +399,7 @@ export default function Dashboard() {
             >
               <Menu size={18} strokeWidth={1.75} />
             </button>
-            <h1 className="text-base font-semibold tracking-tight text-zinc-900 dark:text-white truncate">
+            <h1 className="text-base font-semibold tracking-tight text-foreground truncate">
               Dashboard
             </h1>
           </div>
@@ -379,11 +426,11 @@ export default function Dashboard() {
           {/* Card S1: Stat (Total Projects) */}
           <article
             style={{ "--stagger": 0 }}
-            className="kriri-s1 kriri-card rounded-2xl p-5 sm:p-6 flex flex-col justify-between relative overflow-hidden border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#16171a] hover:bg-zinc-50 dark:hover:bg-[#191a1d] shadow-xs group cursor-pointer"
+            className="kriri-s1 kriri-card rounded-2xl p-5 sm:p-6 flex flex-col justify-between relative overflow-hidden border border-border bg-surface hover:bg-surface-hover shadow-xs group cursor-pointer"
             onClick={() => navigate("/projects")}
           >
             <div className="flex items-center justify-between gap-2">
-              <h2 className="text-[15px] sm:text-[16px] font-medium text-zinc-900 dark:text-white/90">
+              <h2 className="text-[15px] sm:text-[16px] font-medium text-foreground">
                 Total Projects
               </h2>
               <button
@@ -392,7 +439,7 @@ export default function Dashboard() {
                   e.stopPropagation();
                   navigate("/projects");
                 }}
-                className="w-8 h-8 rounded-full bg-black/[0.05] text-zinc-700 dark:bg-white/[0.06] dark:text-white/80 border border-black/[0.08] dark:border-white/[0.1] flex items-center justify-center group-hover:bg-zinc-900 group-hover:text-white dark:group-hover:bg-white dark:group-hover:text-black kriri-arrow-spin cursor-pointer"
+                className="w-8 h-8 rounded-full bg-surface-hover text-foreground border border-border flex items-center justify-center group-hover:bg-foreground group-hover:text-background kriri-arrow-spin cursor-pointer"
                 aria-label="View projects"
               >
                 <ArrowUpRight size={16} />
@@ -400,7 +447,7 @@ export default function Dashboard() {
             </div>
 
             <div className="my-3 sm:my-4">
-              <span className="text-3xl sm:text-4xl font-semibold text-zinc-900 dark:text-white tracking-tight">
+              <span className="text-3xl sm:text-4xl font-semibold text-foreground tracking-tight">
                 <AnimatedCounter value={totalProjects} />
               </span>
             </div>
@@ -417,11 +464,11 @@ export default function Dashboard() {
           {/* Card S2: Ended / Completed Projects */}
           <article
             style={{ "--stagger": 1 }}
-            className="kriri-s2 kriri-card rounded-2xl p-5 sm:p-6 flex flex-col justify-between relative overflow-hidden border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#16171a] hover:bg-zinc-50 dark:hover:bg-[#191a1d] shadow-xs group cursor-pointer"
+            className="kriri-s2 kriri-card rounded-2xl p-5 sm:p-6 flex flex-col justify-between relative overflow-hidden border border-border bg-surface hover:bg-surface-hover shadow-xs group cursor-pointer"
             onClick={() => navigate("/projects")}
           >
             <div className="flex items-center justify-between gap-2">
-              <h2 className="text-[15px] sm:text-[16px] font-medium text-zinc-900 dark:text-white/90">
+              <h2 className="text-[15px] sm:text-[16px] font-medium text-foreground">
                 Ended Projects
               </h2>
               <button
@@ -430,7 +477,7 @@ export default function Dashboard() {
                   e.stopPropagation();
                   navigate("/projects");
                 }}
-                className="w-8 h-8 rounded-full bg-black/[0.05] text-zinc-700 dark:bg-white/[0.06] dark:text-white/80 border border-black/[0.08] dark:border-white/[0.1] flex items-center justify-center group-hover:bg-zinc-900 group-hover:text-white dark:group-hover:bg-white dark:group-hover:text-black kriri-arrow-spin cursor-pointer"
+                className="w-8 h-8 rounded-full bg-surface-hover text-foreground border border-border flex items-center justify-center group-hover:bg-foreground group-hover:text-background kriri-arrow-spin cursor-pointer"
                 aria-label="View ended projects"
               >
                 <ArrowUpRight size={16} />
@@ -438,7 +485,7 @@ export default function Dashboard() {
             </div>
 
             <div className="my-3 sm:my-4">
-              <span className="text-3xl sm:text-4xl font-semibold text-zinc-900 dark:text-white tracking-tight">
+              <span className="text-3xl sm:text-4xl font-semibold text-foreground tracking-tight">
                 <AnimatedCounter value={completedProjects} />
               </span>
             </div>
@@ -455,11 +502,11 @@ export default function Dashboard() {
           {/* Card S3: Running Projects */}
           <article
             style={{ "--stagger": 2 }}
-            className="kriri-s3 kriri-card rounded-2xl p-5 sm:p-6 flex flex-col justify-between relative overflow-hidden border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#16171a] hover:bg-zinc-50 dark:hover:bg-[#191a1d] shadow-xs group cursor-pointer"
+            className="kriri-s3 kriri-card rounded-2xl p-5 sm:p-6 flex flex-col justify-between relative overflow-hidden border border-border bg-surface hover:bg-surface-hover shadow-xs group cursor-pointer"
             onClick={() => navigate("/projects")}
           >
             <div className="flex items-center justify-between gap-2">
-              <h2 className="text-[15px] sm:text-[16px] font-medium text-zinc-900 dark:text-white/90">
+              <h2 className="text-[15px] sm:text-[16px] font-medium text-foreground">
                 Running Projects
               </h2>
               <button
@@ -468,7 +515,7 @@ export default function Dashboard() {
                   e.stopPropagation();
                   navigate("/projects");
                 }}
-                className="w-8 h-8 rounded-full bg-black/[0.05] text-zinc-700 dark:bg-white/[0.06] dark:text-white/80 border border-black/[0.08] dark:border-white/[0.1] flex items-center justify-center group-hover:bg-zinc-900 group-hover:text-white dark:group-hover:bg-white dark:group-hover:text-black kriri-arrow-spin cursor-pointer"
+                className="w-8 h-8 rounded-full bg-surface-hover text-foreground border border-border flex items-center justify-center group-hover:bg-foreground group-hover:text-background kriri-arrow-spin cursor-pointer"
                 aria-label="View running projects"
               >
                 <ArrowUpRight size={16} />
@@ -476,7 +523,7 @@ export default function Dashboard() {
             </div>
 
             <div className="my-3 sm:my-4">
-              <span className="text-3xl sm:text-4xl font-semibold text-zinc-900 dark:text-white tracking-tight">
+              <span className="text-3xl sm:text-4xl font-semibold text-foreground tracking-tight">
                 <AnimatedCounter value={inProgressProjects} />
               </span>
             </div>
@@ -493,11 +540,11 @@ export default function Dashboard() {
           {/* Card S4: Pending / Attention */}
           <article
             style={{ "--stagger": 3 }}
-            className="kriri-s4 kriri-card rounded-2xl p-5 sm:p-6 flex flex-col justify-between relative overflow-hidden border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#16171a] hover:bg-zinc-50 dark:hover:bg-[#191a1d] shadow-xs group cursor-pointer"
+            className="kriri-s4 kriri-card rounded-2xl p-5 sm:p-6 flex flex-col justify-between relative overflow-hidden border border-border bg-surface hover:bg-surface-hover shadow-xs group cursor-pointer"
             onClick={() => navigate("/tasks")}
           >
             <div className="flex items-center justify-between gap-2">
-              <h2 className="text-[15px] sm:text-[16px] font-medium text-zinc-900 dark:text-white/90">
+              <h2 className="text-[15px] sm:text-[16px] font-medium text-foreground">
                 Pending / Attention
               </h2>
               <button
@@ -506,7 +553,7 @@ export default function Dashboard() {
                   e.stopPropagation();
                   navigate("/tasks");
                 }}
-                className="w-8 h-8 rounded-full bg-black/[0.05] text-zinc-700 dark:bg-white/[0.06] dark:text-white/80 border border-black/[0.08] dark:border-white/[0.1] flex items-center justify-center group-hover:bg-zinc-900 group-hover:text-white dark:group-hover:bg-white dark:group-hover:text-black kriri-arrow-spin cursor-pointer"
+                className="w-8 h-8 rounded-full bg-surface-hover text-foreground border border-border flex items-center justify-center group-hover:bg-foreground group-hover:text-background kriri-arrow-spin cursor-pointer"
                 aria-label="View pending tasks"
               >
                 <ArrowUpRight size={16} />
@@ -514,7 +561,7 @@ export default function Dashboard() {
             </div>
 
             <div className="my-3 sm:my-4">
-              <span className="text-3xl sm:text-4xl font-semibold text-zinc-900 dark:text-white tracking-tight">
+              <span className="text-3xl sm:text-4xl font-semibold text-foreground tracking-tight">
                 <AnimatedCounter value={pendingAttentionCount} />
               </span>
             </div>
@@ -537,12 +584,12 @@ export default function Dashboard() {
           {/* Card AN: Detailed Project Analytics with Arc LineChart & SegmentedControl */}
           <section
             style={{ "--stagger": 4 }}
-            className="kriri-an kriri-card rounded-2xl p-5 sm:p-6 flex flex-col justify-between border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#16171a] shadow-xs relative"
+            className="kriri-an kriri-card rounded-2xl p-5 sm:p-6 flex flex-col justify-between border border-border bg-surface hover:bg-surface-hover shadow-xs relative"
           >
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
               <div>
                 <div className="flex items-center gap-2.5 flex-wrap">
-                  <h2 className="text-[16px] sm:text-[17px] font-semibold text-zinc-900 dark:text-white tracking-tight">
+                  <h2 className="text-[16px] sm:text-[17px] font-semibold text-foreground tracking-tight">
                     Project Analytics &amp; Velocity
                   </h2>
                   <div className="flex items-center gap-1.5">
@@ -560,36 +607,13 @@ export default function Dashboard() {
               </div>
 
               {/* Fluid time range switcher matching Analytics page */}
-              <div className="w-fit self-start sm:self-auto flex items-center p-1 rounded-full bg-black/[0.04] dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/[0.06] backdrop-blur-sm shrink-0">
-                {timeRangeOptions.map((opt) => {
-                  const isActive = timeRange === opt.value;
-                  return (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      onClick={() => setTimeRange(opt.value)}
-                      className={`relative text-[11px] sm:text-[12px] px-3 py-1 rounded-full font-medium transition-colors cursor-pointer shrink-0 ${
-                        isActive
-                          ? "text-zinc-900 dark:text-white"
-                          : "text-zinc-600 hover:text-zinc-900 dark:text-[#8a8f98] dark:hover:text-white"
-                      }`}
-                    >
-                      {isActive && (
-                        <motion.div
-                          layoutId="dashboardTimeRangeActivePill"
-                          className="absolute inset-0 bg-white dark:bg-white/[0.12] border border-black/10 dark:border-white/10 rounded-full shadow-xs pointer-events-none"
-                          transition={{
-                            type: "spring",
-                            stiffness: 450,
-                            damping: 35,
-                          }}
-                        />
-                      )}
-                      <span className="relative z-10">{opt.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
+              <ViewSwitcher
+                views={timeRangeOptions}
+                activeView={timeRange}
+                onViewChange={setTimeRange}
+                layoutId="dashboardTimeRangeActivePill"
+                fullWidth={false}
+              />
             </div>
 
             {/* Arc Interactive Spring LineChart */}
@@ -609,11 +633,11 @@ export default function Dashboard() {
           {/* Card RE: Reminders / Next Milestone Focus */}
           <section
             style={{ "--stagger": 5 }}
-            className="kriri-re kriri-card rounded-2xl p-5 sm:p-6 flex flex-col justify-between border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#16171a] shadow-xs relative"
+            className="kriri-re kriri-card rounded-2xl p-5 sm:p-6 flex flex-col justify-between border border-border bg-surface hover:bg-surface-hover shadow-xs relative"
           >
             <div>
               <div className="flex items-center justify-between">
-                <h2 className="text-[16px] sm:text-[17px] font-semibold text-zinc-900 dark:text-white tracking-tight">
+                <h2 className="text-[16px] sm:text-[17px] font-semibold text-foreground tracking-tight">
                   Reminders
                 </h2>
                 <Badge tone="neutral" size="sm">
@@ -623,12 +647,12 @@ export default function Dashboard() {
 
               {topTask ? (
                 <div className="mt-4 sm:mt-5">
-                  <p className="text-[17px] sm:text-[19px] font-semibold text-zinc-900 dark:text-white tracking-tight leading-snug line-clamp-2">
+                  <p className="text-[17px] sm:text-[19px] font-semibold text-foreground tracking-tight leading-snug line-clamp-2">
                     {topTask.title}
                   </p>
                   <p className="text-[12.5px] sm:text-[13px] text-text-muted mt-2.5 flex items-center gap-1.5">
                     <Calendar size={13} className="text-text-muted" />
-                    <span className="font-medium text-zinc-800 dark:text-white/80">
+                    <span className="font-medium text-foreground">
                       {topTask.project_identifier ||
                         topTask.project_slug ||
                         "Project"}
@@ -649,7 +673,7 @@ export default function Dashboard() {
                 </div>
               ) : (
                 <div className="mt-5">
-                  <p className="text-[17px] font-semibold text-zinc-900 dark:text-white tracking-tight">
+                  <p className="text-[17px] font-semibold text-foreground tracking-tight">
                     All caught up!
                   </p>
                   <p className="text-[13px] text-text-muted mt-1.5">
@@ -683,12 +707,12 @@ export default function Dashboard() {
           {/* Card PR: Active Projects (Spans 8 Columns in expanded grid) */}
           <section
             style={{ "--stagger": 6 }}
-            className="kriri-pr kriri-card rounded-2xl p-5 sm:p-6 border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#16171a] shadow-xs flex flex-col justify-between"
+            className="kriri-pr kriri-card rounded-2xl p-5 sm:p-6 border border-border bg-surface hover:bg-surface-hover shadow-xs flex flex-col justify-between"
           >
             <div>
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
-                  <h2 className="text-[16px] sm:text-[17px] font-semibold text-zinc-900 dark:text-white tracking-tight">
+                  <h2 className="text-[16px] sm:text-[17px] font-semibold text-foreground tracking-tight">
                     Active Projects
                   </h2>
                   <Badge tone="neutral" size="sm">
@@ -759,7 +783,7 @@ export default function Dashboard() {
                         key={p.id || idx}
                         style={{ "--item-stagger": idx }}
                         onClick={() => navigate(`/projects/${p.id}`)}
-                        className="kriri-list-item flex items-center justify-between gap-3 p-2.5 rounded-xl hover:bg-black/[0.03] dark:hover:bg-white/[0.04] transition-colors cursor-pointer group border border-transparent hover:border-black/[0.06] dark:hover:border-white/[0.06]"
+                        className="kriri-list-item flex items-center justify-between gap-3 p-2.5 rounded-xl hover:bg-surface-hover transition-colors cursor-pointer group border border-transparent hover:border-border"
                       >
                         <div className="flex items-center gap-3 min-w-0 flex-1">
                           <div
@@ -769,7 +793,7 @@ export default function Dashboard() {
                           </div>
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2">
-                              <p className="text-[13.5px] font-medium text-zinc-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors truncate">
+                              <p className="text-[13.5px] font-medium text-foreground group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors truncate">
                                 {p.name}
                               </p>
                               <Badge tone={healthTone} size="sm">
@@ -777,7 +801,7 @@ export default function Dashboard() {
                               </Badge>
                             </div>
                             <p className="text-[11.5px] text-text-muted truncate mt-0.5">
-                              <span className="font-mono text-zinc-600 dark:text-white/70">
+                              <span className="font-mono text-text-secondary">
                                 {p.identifier || p.slug || "PRJ"}
                               </span>
                               {" · "}
@@ -792,7 +816,7 @@ export default function Dashboard() {
                           <div className="w-24 sm:w-32 hidden sm:block">
                             <Progress value={p.progress || 0} max={100} />
                           </div>
-                          <span className="text-xs font-semibold text-zinc-700 dark:text-white/80 w-8 text-right font-mono">
+                          <span className="text-xs font-semibold text-foreground w-8 text-right font-mono">
                             {p.progress || 0}%
                           </span>
                         </div>
@@ -807,11 +831,11 @@ export default function Dashboard() {
               </div>
             </div>
 
-            <div className="pt-3 border-t border-black/[0.06] dark:border-white/[0.05] mt-3">
+            <div className="pt-3 border-t border-border-subtle mt-3">
               <button
                 type="button"
                 onClick={() => navigate("/projects")}
-                className="w-full text-center text-[12px] font-medium text-text-muted hover:text-zinc-900 dark:hover:text-white transition-colors cursor-pointer"
+                className="w-full text-center text-[12px] font-medium text-text-muted hover:text-foreground transition-colors cursor-pointer"
               >
                 View all projects &rarr;
               </button>
@@ -821,12 +845,12 @@ export default function Dashboard() {
           {/* Card TM: Team Collaboration (Spans 4 Columns) */}
           <section
             style={{ "--stagger": 7 }}
-            className="kriri-tm kriri-card rounded-2xl p-5 sm:p-6 flex flex-col justify-between border border-black/[0.08] dark:border-white/[0.08] bg-white dark:bg-[#16171a] shadow-xs"
+            className="kriri-tm kriri-card rounded-2xl p-5 sm:p-6 flex flex-col justify-between border border-border bg-surface hover:bg-surface-hover shadow-xs"
           >
             <div>
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
-                  <h2 className="text-[16px] sm:text-[17px] font-semibold text-zinc-900 dark:text-white tracking-tight">
+                  <h2 className="text-[16px] sm:text-[17px] font-semibold text-foreground tracking-tight">
                     Team Collaboration
                   </h2>
                   <Badge tone="neutral" size="sm">
@@ -868,7 +892,7 @@ export default function Dashboard() {
                     <div
                       key={m.id || idx}
                       style={{ "--item-stagger": idx }}
-                      className="kriri-list-item flex items-center justify-between gap-3 p-2 rounded-xl hover:bg-black/[0.03] dark:hover:bg-white/[0.03] transition-colors"
+                      className="kriri-list-item flex items-center justify-between gap-3 p-2 rounded-xl hover:bg-surface-hover transition-colors"
                     >
                       <div className="flex items-center gap-3 min-w-0">
                         <Avatar
@@ -878,20 +902,20 @@ export default function Dashboard() {
                           className="shrink-0"
                         />
                         <div className="min-w-0">
-                          <p className="text-[13.5px] font-semibold text-zinc-900 dark:text-white truncate">
+                          <p className="text-[13.5px] font-semibold text-foreground truncate">
                             {m.name || m.email}
                           </p>
                           {task ? (
                             <p className="text-[11.5px] text-text-muted truncate mt-0.5">
                               Working on{" "}
-                              <span className="text-zinc-800 dark:text-white/90 font-medium">
+                              <span className="text-foreground font-medium">
                                 {task.title}
                               </span>
                             </p>
                           ) : (
                             <p className="text-[11.5px] text-text-muted truncate mt-0.5">
                               Role:{" "}
-                              <span className="text-zinc-700 dark:text-white/80">
+                              <span className="text-foreground">
                                 {m.role || "Member"}
                               </span>
                               {m.active_tasks_count
@@ -922,12 +946,12 @@ export default function Dashboard() {
               </div>
             </div>
 
-            <div className="pt-3 border-t border-black/[0.06] dark:border-white/[0.05] mt-3 flex items-center justify-between text-xs text-text-muted">
+            <div className="pt-3 border-t border-border-subtle mt-3 flex items-center justify-between text-xs text-text-muted">
               <span>{teamMembers.length} active team members</span>
               <button
                 type="button"
                 onClick={() => navigate("/settings")}
-                className="hover:text-zinc-900 dark:hover:text-white transition-colors cursor-pointer"
+                className="hover:text-foreground transition-colors cursor-pointer"
               >
                 Manage &rarr;
               </button>

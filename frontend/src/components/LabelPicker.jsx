@@ -180,11 +180,11 @@ export default function LabelPicker({
       ref={popoverRef}
       className={`${
         isMobile
-          ? "bg-white dark:bg-[#202225] border border-black/10 dark:border-[#333538] rounded-2xl shadow-2xl w-[320px] max-w-[calc(100vw-32px)] z-[100] text-zinc-900 dark:text-white overflow-hidden text-[12.5px] flex flex-col"
-          : "absolute top-full left-0 mt-2 bg-white dark:bg-[#202225] border border-black/10 dark:border-[#333538] rounded-xl shadow-2xl w-[320px] max-w-[90vw] z-50 text-zinc-900 dark:text-white overflow-hidden text-[13px] flex flex-col"
+          ? "bg-white dark:bg-[var(--surface-elevated,#1e1f21)] border border-black/10 dark:border-[var(--border,rgba(255,255,255,0.08))] rounded-2xl shadow-2xl w-[320px] max-w-[calc(100vw-32px)] z-[100] text-zinc-900 dark:text-white overflow-hidden text-[12.5px] flex flex-col"
+          : "absolute top-full left-0 mt-2 bg-white dark:bg-[var(--surface-elevated,#1e1f21)] border border-black/10 dark:border-[var(--border,rgba(255,255,255,0.08))] rounded-xl shadow-2xl w-[320px] max-w-[90vw] z-50 text-zinc-900 dark:text-white overflow-hidden text-[13px] flex flex-col"
       }`}
     >
-      <div className="p-3 border-b border-black/10 dark:border-[#333538] flex items-center justify-between gap-2">
+      <div className="p-3 border-b border-black/10 dark:border-[var(--border,rgba(255,255,255,0.08))] flex items-center justify-between gap-2">
         <input
           autoFocus
           placeholder="Search or add a label..."

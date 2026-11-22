@@ -1,17 +1,30 @@
-import { lazy, Suspense } from "react";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { lazy, Suspense, useEffect, useRef } from "react";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import {
-  SignedIn,
-  SignedOut,
+  Show,
+  useUser,
   AuthenticateWithRedirectCallback,
-} from "@clerk/clerk-react";
+} from "@clerk/react";
+
+const SignedIn = ({ children, fallback = null }) => (
+  <Show when="signed-in" fallback={fallback}>
+    {children}
+  </Show>
+);
+
+const SignedOut = ({ children, fallback = null }) => (
+  <Show when="signed-out" fallback={fallback}>
+    {children}
+  </Show>
+);
 import AppLayout from "./layouts/AppLayout";
 import MarketingLayout from "./layouts/MarketingLayout";
-import PageLoading from "./components/PageLoading";
+import { ContextualRouteSkeleton } from "./components/skeletons/PageSkeletons";
 import { SocketProvider } from "./contexts/SocketContext";
-import { useTheme } from "./contexts/ThemeContext";
+import { useTheme, isAppRoute, syncLandingTheme, syncDomTheme } from "./contexts/ThemeContext";
 import { Toaster } from "sileo";
 import "sileo/styles.css";
+import { trackPageView } from "./lib/posthog";
 
 const Landing = lazy(() => import("./pages/Landing"));
 const Login = lazy(() => import("./pages/Login"));
@@ -28,23 +41,112 @@ const Privacy = lazy(() => import("./pages/Privacy"));
 const Terms = lazy(() => import("./pages/Terms"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
-const Dashboard = lazy(() => import("./pages/Dashboard"));
-const Tasks = lazy(() => import("./pages/Tasks"));
-const Kanban = lazy(() => import("./pages/Kanban"));
-const Projects = lazy(() => import("./pages/Projects"));
+import Dashboard from "./pages/Dashboard";
+import Tasks from "./pages/Tasks";
+import Projects from "./pages/Projects";
+import Inbox from "./pages/Inbox";
+import Team from "./pages/Team";
+import Settings from "./pages/Settings";
+import ProjectDetails from "./pages/ProjectDetails";
+import TaskDetails from "./pages/TaskDetails";
+import Analytics from "./pages/Analytics";
+import Agent from "./pages/Agent";
+
 const Onboarding = lazy(() => import("./pages/Onboarding"));
-const Team = lazy(() => import("./pages/Team"));
-const Settings = lazy(() => import("./pages/Settings"));
-const ProjectDetails = lazy(() => import("./pages/ProjectDetails"));
-const Analytics = lazy(() => import("./pages/Analytics"));
-const Inbox = lazy(() => import("./pages/Inbox"));
+
+import { applyPreferencesToDom } from "./lib/userPreferences";
+
+function UserThemeSync() {
+  const { user, isLoaded, isSignedIn } = useUser();
+  const { setUserThemeContext } = useTheme();
+  const lastUserIdRef = useRef(undefined);
+
+  useEffect(() => {
+    if (!isLoaded) return;
+
+    if (!isSignedIn || !user) {
+      if (lastUserIdRef.current !== null) {
+        lastUserIdRef.current = null;
+        if (typeof setUserThemeContext === "function") {
+          setUserThemeContext(null);
+        }
+      }
+      return;
+    }
+
+    const currentId = user.id;
+    if (lastUserIdRef.current !== currentId) {
+      lastUserIdRef.current = currentId;
+      if (typeof setUserThemeContext === "function") {
+        setUserThemeContext(currentId);
+      }
+    }
+  }, [isLoaded, isSignedIn, user?.id, setUserThemeContext]);
+
+  return null;
+}
+
+function RouteThemeSync() {
+  const location = useLocation();
+  const { theme, darkFlavor, lightFlavor } = useTheme();
+  const lastSyncRef = useRef("");
+
+  useEffect(() => {
+    const isApp = isAppRoute(location.pathname);
+    const syncKey = `${isApp}:${theme}:${darkFlavor}:${lightFlavor}`;
+    if (lastSyncRef.current === syncKey) {
+      return;
+    }
+    lastSyncRef.current = syncKey;
+
+    if (isApp) {
+      // The only place meant to follow the interface theme is when the user has logged in
+      syncDomTheme(theme, darkFlavor, lightFlavor, true);
+    } else {
+      // All public and unauthenticated pages strictly stay in the dark theme
+      syncLandingTheme();
+    }
+  }, [location.pathname, theme, darkFlavor, lightFlavor]);
+
+  return null;
+}
+
+function RouteTelemetryTracker() {
+  const location = useLocation();
+
+  useEffect(() => {
+    trackPageView(location.pathname, location.search);
+  }, [location.pathname, location.search]);
+
+  return null;
+}
+
+function DefaultStartupRedirect() {
+  const defaultView = localStorage.getItem("kriri-default-view") || "dashboard";
+  return <Navigate to={`/${defaultView}`} replace />;
+}
+
+function RootSuspenseFallback() {
+  const path = typeof window !== "undefined" ? window.location.pathname : "";
+  if (path.startsWith("/login") || path.startsWith("/register") || path === "/") {
+    return null;
+  }
+  return <ContextualRouteSkeleton pathname={path} />;
+}
 
 function App() {
   const { effectiveTheme } = useTheme();
   const isDark = effectiveTheme === "dark";
 
+  useEffect(() => {
+    applyPreferencesToDom();
+  }, []);
+
   return (
     <BrowserRouter>
+      <UserThemeSync />
+      <RouteThemeSync />
+      <RouteTelemetryTracker />
       <Toaster
         position="bottom-right"
         theme={isDark ? "light" : "dark"}
@@ -53,14 +155,14 @@ function App() {
           fill: isDark ? "#141517" : "#ffffff",
         }}
       />
-      <Suspense fallback={<PageLoading fullScreen label="Kriri" />}>
+      <Suspense fallback={<RootSuspenseFallback />}>
       <Routes>
         <Route
-          path="/login"
+          path="/login/*"
           element={
             <>
               <SignedIn>
-                <Navigate to="/dashboard" replace />
+                <DefaultStartupRedirect />
               </SignedIn>
               <SignedOut>
                 <Login />
@@ -69,11 +171,11 @@ function App() {
           }
         />
         <Route
-          path="/register"
+          path="/register/*"
           element={
             <>
               <SignedIn>
-                <Navigate to="/dashboard" replace />
+                <DefaultStartupRedirect />
               </SignedIn>
               <SignedOut>
                 <Register />
@@ -84,7 +186,10 @@ function App() {
         <Route
           path="/sso-callback"
           element={
-            <AuthenticateWithRedirectCallback signUpForceRedirectUrl="/dashboard" />
+            <AuthenticateWithRedirectCallback
+              signUpForceRedirectUrl="/onboarding"
+              signInForceRedirectUrl={`/${localStorage.getItem("kriri-default-view") || "dashboard"}`}
+            />
           }
         />
 
@@ -94,7 +199,7 @@ function App() {
           element={
             <>
               <SignedIn>
-                <Navigate to="/dashboard" replace />
+                <DefaultStartupRedirect />
               </SignedIn>
               <SignedOut>
                 <Landing />
@@ -120,28 +225,79 @@ function App() {
         {/* Main Application Layout - Protected */}
         <Route
           element={
-            <>
-              <SignedIn>
-                <SocketProvider>
-                  <AppLayout />
-                </SocketProvider>
-              </SignedIn>
-              <SignedOut>
-                <Navigate to="/login" replace />
-              </SignedOut>
-            </>
+            (typeof window !== "undefined" && import.meta.env.DEV && (window.__AUDIT_MOCK_AUTH__ || window.localStorage.getItem("audit_mock_auth") === "true")) ? (
+              <SocketProvider>
+                <AppLayout />
+              </SocketProvider>
+            ) : (
+              <>
+                <SignedIn>
+                  <SocketProvider>
+                    <AppLayout />
+                  </SocketProvider>
+                </SignedIn>
+                <SignedOut>
+                  <Navigate to="/login" replace />
+                </SignedOut>
+              </>
+            )
           }
         >
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="inbox" element={<Inbox />} />
           <Route path="tasks" element={<Tasks />} />
-          <Route path="kanban" element={<Kanban />} />
+          <Route path="tasks/:id" element={<TaskDetails />} />
+          <Route path="kanban" element={<Navigate to="/tasks?view=board" replace />} />
           <Route path="projects" element={<Projects />} />
           <Route path="projects/:id" element={<ProjectDetails />} />
           <Route path="analytics" element={<Analytics />} />
           <Route path="team" element={<Team />} />
-          <Route path="settings" element={<Settings />} />
+          <Route path="agent" element={<Agent />} />
         </Route>
+
+        {/* Full-Screen Dedicated Settings Page (Linear Spec: Populates entire window) */}
+        <Route
+          path="/settings"
+          element={
+            (typeof window !== "undefined" && import.meta.env.DEV && (window.__AUDIT_MOCK_AUTH__ || window.localStorage.getItem("audit_mock_auth") === "true")) ? (
+              <SocketProvider>
+                <Settings />
+              </SocketProvider>
+            ) : (
+              <>
+                <SignedIn>
+                  <SocketProvider>
+                    <Settings />
+                  </SocketProvider>
+                </SignedIn>
+                <SignedOut>
+                  <Navigate to="/login" replace />
+                </SignedOut>
+              </>
+            )
+          }
+        />
+        <Route
+          path="/settings/*"
+          element={
+            (typeof window !== "undefined" && import.meta.env.DEV && (window.__AUDIT_MOCK_AUTH__ || window.localStorage.getItem("audit_mock_auth") === "true")) ? (
+              <SocketProvider>
+                <Settings />
+              </SocketProvider>
+            ) : (
+              <>
+                <SignedIn>
+                  <SocketProvider>
+                    <Settings />
+                  </SocketProvider>
+                </SignedIn>
+                <SignedOut>
+                  <Navigate to="/login" replace />
+                </SignedOut>
+              </>
+            )
+          }
+        />
 
         {/* Legal Pages */}
         <Route path="/privacy" element={<Privacy />} />

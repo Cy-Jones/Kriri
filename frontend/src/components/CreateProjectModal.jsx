@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
-import { useUser, useOrganization } from "@clerk/clerk-react";
+import { createPortal } from "react-dom";
+import { useUser, useOrganization } from "@clerk/react";
 import {
   XSquare,
   LayoutGrid,
@@ -13,6 +14,7 @@ import {
 import { api } from "../lib/api";
 import posthog from "../lib/posthog";
 import { sileo } from "sileo";
+import { playUiSound } from "../lib/sound";
 import DatePicker from "./DatePicker";
 import LabelPicker from "./LabelPicker";
 import LeadPicker from "./LeadPicker";
@@ -180,6 +182,7 @@ export default function CreateProjectModal({
       setMilestones([]);
 
       onClose();
+      playUiSound("success");
       sileo.success({
         title: "Project created",
         description: `"${data.name}" has been created successfully.`,
@@ -206,11 +209,23 @@ export default function CreateProjectModal({
     }
   };
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-3 sm:p-4 md:p-6 backdrop-blur-sm">
-      <div className="bg-white dark:bg-[#1a1a1a] w-full max-w-[95vw] md:max-w-3xl lg:max-w-4xl max-h-[90vh] md:h-[85vh] rounded-2xl flex flex-col shadow-2xl overflow-hidden border border-black/10 dark:border-[#2a2a2a]">
+  return createPortal(
+    <div className="fixed inset-0 bg-black/60 z-[9999] flex items-center justify-center p-3 sm:p-4 md:p-6 backdrop-blur-md animate-in fade-in duration-200">
+      <div className="bg-surface-elevated text-foreground w-full max-w-[95vw] md:max-w-3xl lg:max-w-4xl max-h-[90vh] md:h-[85vh] rounded-2xl flex flex-col shadow-2xl overflow-hidden border border-border">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 shrink-0 border-b border-black/[0.06] dark:border-transparent">
           <div className="flex items-center gap-2">
@@ -285,7 +300,7 @@ export default function CreateProjectModal({
               placeholder="Project Title"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full bg-transparent border-none text-2xl sm:text-[32px] font-bold text-zinc-900 dark:text-white focus:outline-none placeholder:text-zinc-400 dark:placeholder:text-[#5f6368] mb-2"
+              className="w-full bg-transparent border-none text-2xl sm:text-[32px] font-bold text-zinc-900 dark:text-white focus:outline-none placeholder:text-text-muted mb-2"
             />
 
             <input
@@ -293,7 +308,7 @@ export default function CreateProjectModal({
               placeholder="Add a brief summary of this project..."
               value={shortSummary}
               onChange={(e) => setShortSummary(e.target.value)}
-              className="w-full bg-transparent border-none text-[15px] text-zinc-700 dark:text-[#d1d2d5] focus:outline-none placeholder:text-zinc-400 dark:placeholder:text-[#85868a] mb-4"
+              className="w-full bg-transparent border-none text-[15px] text-zinc-700 dark:text-[#d1d2d5] focus:outline-none placeholder:text-text-muted mb-4"
             />
 
             {/* Top Pills Row */}
@@ -310,7 +325,7 @@ export default function CreateProjectModal({
                         activePicker === "status" ? null : "status",
                       )
                     }
-                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-black/[0.08] dark:border-transparent bg-black/[0.03] hover:bg-black/[0.06] dark:bg-white/[0.04] dark:hover:bg-white/[0.08] cursor-pointer transition-colors text-zinc-700 hover:text-zinc-900 dark:text-[#d1d2d5] dark:hover:text-white text-[13px] font-medium"
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-border bg-surface hover:bg-surface-hover cursor-pointer transition-colors text-foreground text-[13px] font-medium shadow-2xs"
                   >
                     {getStatusIcon(status)}
                     <span>{status}</span>
@@ -337,7 +352,7 @@ export default function CreateProjectModal({
                         activePicker === "priority" ? null : "priority",
                       )
                     }
-                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-black/[0.08] dark:border-transparent bg-black/[0.03] hover:bg-black/[0.06] dark:bg-white/[0.04] dark:hover:bg-white/[0.08] cursor-pointer transition-colors text-zinc-700 hover:text-zinc-900 dark:text-[#d1d2d5] dark:hover:text-white text-[13px] font-medium"
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-border bg-surface hover:bg-surface-hover cursor-pointer transition-colors text-foreground text-[13px] font-medium shadow-2xs"
                   >
                     {getPriorityIcon(priority)}
                     <span>
@@ -364,7 +379,7 @@ export default function CreateProjectModal({
                     onClick={() =>
                       setActivePicker(activePicker === "lead" ? null : "lead")
                     }
-                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-black/[0.08] dark:border-transparent bg-black/[0.03] hover:bg-black/[0.06] dark:bg-white/[0.04] dark:hover:bg-white/[0.08] cursor-pointer transition-colors text-zinc-700 hover:text-zinc-900 dark:text-[#d1d2d5] dark:hover:text-white text-[13px] font-medium"
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-border bg-surface hover:bg-surface-hover cursor-pointer transition-colors text-foreground text-[13px] font-medium shadow-2xs"
                   >
                     {lead ? (
                       <>
@@ -460,7 +475,7 @@ export default function CreateProjectModal({
                         activePicker === "members" ? null : "members",
                       )
                     }
-                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-black/[0.08] dark:border-transparent bg-black/[0.03] hover:bg-black/[0.06] dark:bg-white/[0.04] dark:hover:bg-white/[0.08] cursor-pointer transition-colors text-zinc-700 hover:text-zinc-900 dark:text-[#d1d2d5] dark:hover:text-white text-[13px] font-medium"
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-border bg-surface hover:bg-surface-hover cursor-pointer transition-colors text-foreground text-[13px] font-medium shadow-2xs"
                   >
                     {members.length > 0 ? (
                       <>
@@ -544,7 +559,7 @@ export default function CreateProjectModal({
                     onClick={() =>
                       setActivePicker(activePicker === "start" ? null : "start")
                     }
-                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-black/[0.08] dark:border-transparent bg-black/[0.03] hover:bg-black/[0.06] dark:bg-white/[0.04] dark:hover:bg-white/[0.08] cursor-pointer transition-colors text-zinc-700 hover:text-zinc-900 dark:text-[#d1d2d5] dark:hover:text-white text-[13px] font-medium"
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-border bg-surface hover:bg-surface-hover cursor-pointer transition-colors text-foreground text-[13px] font-medium shadow-2xs"
                   >
                     <svg
                       width="14"
@@ -601,7 +616,7 @@ export default function CreateProjectModal({
                         activePicker === "target" ? null : "target",
                       )
                     }
-                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-black/[0.08] dark:border-transparent bg-black/[0.03] hover:bg-black/[0.06] dark:bg-white/[0.04] dark:hover:bg-white/[0.08] cursor-pointer transition-colors text-zinc-700 hover:text-zinc-900 dark:text-[#d1d2d5] dark:hover:text-white text-[13px] font-medium"
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-border bg-surface hover:bg-surface-hover cursor-pointer transition-colors text-foreground text-[13px] font-medium shadow-2xs"
                   >
                     <svg
                       width="14"
@@ -643,7 +658,7 @@ export default function CreateProjectModal({
                         activePicker === "labels" ? null : "labels",
                       )
                     }
-                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-black/[0.08] dark:border-transparent bg-black/[0.03] hover:bg-black/[0.06] dark:bg-white/[0.04] dark:hover:bg-white/[0.08] cursor-pointer transition-colors text-zinc-700 hover:text-zinc-900 dark:text-[#d1d2d5] dark:hover:text-white text-[13px] font-medium"
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-border bg-surface hover:bg-surface-hover cursor-pointer transition-colors text-foreground text-[13px] font-medium shadow-2xs"
                   >
                     <svg
                       width="14"
@@ -691,7 +706,7 @@ export default function CreateProjectModal({
                         activePicker === "health" ? null : "health",
                       )
                     }
-                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-black/[0.08] dark:border-transparent bg-black/[0.03] hover:bg-black/[0.06] dark:bg-white/[0.04] dark:hover:bg-white/[0.08] cursor-pointer transition-colors text-zinc-700 hover:text-zinc-900 dark:text-[#d1d2d5] dark:hover:text-white text-[13px] font-medium"
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-border bg-surface hover:bg-surface-hover cursor-pointer transition-colors text-foreground text-[13px] font-medium shadow-2xs"
                   >
                     <svg
                       width="14"
@@ -810,9 +825,9 @@ export default function CreateProjectModal({
         </div>
 
         {/* Footer Area */}
-        <div className="mt-auto px-5 py-4 border-t border-black/[0.08] dark:border-[#2a2a2a] shrink-0">
+        <div className="mt-auto px-5 py-4 border-t border-black/[0.08] dark:border-[var(--border,rgba(255,255,255,0.08))] shrink-0">
           {isCreatingMilestone ? (
-            <div className="bg-zinc-50 dark:bg-[#202225] border border-black/10 dark:border-[#333538] rounded-xl p-4 mb-4 shadow-lg relative">
+            <div className="bg-zinc-50 dark:bg-[var(--surface,#202225)] border border-black/10 dark:border-[var(--border,rgba(255,255,255,0.08))] rounded-xl p-4 mb-4 shadow-lg relative">
               <div className="text-[13px] text-zinc-900 dark:text-[#d1d2d5] font-medium mb-3">
                 Create milestone
               </div>
@@ -900,7 +915,7 @@ export default function CreateProjectModal({
                 <button
                   type="button"
                   onClick={handleAddMilestone}
-                  className="h-7 px-3.5 bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 dark:text-black text-[12px] font-medium rounded-full transition-all active:scale-[0.98] shadow-sm dark:shadow-[0_0_16px_rgba(255,255,255,0.14)] flex items-center"
+                  className="kriri-primary-btn h-7 px-3.5 text-[12px] font-medium rounded-full transition-all active:scale-[0.98] shadow-sm flex items-center"
                 >
                   Add milestone
                 </button>
@@ -909,7 +924,7 @@ export default function CreateProjectModal({
           ) : (
             <div
               onClick={() => setIsCreatingMilestone(true)}
-              className="bg-zinc-50 dark:bg-[#202225] border border-black/10 dark:border-[#333538] rounded-xl px-4 py-3 flex items-center justify-between cursor-pointer hover:bg-zinc-100 dark:hover:bg-[#25272a] transition-colors mb-4"
+              className="bg-zinc-50 dark:bg-[var(--surface,#202225)] border border-black/10 dark:border-[var(--border,rgba(255,255,255,0.08))] rounded-xl px-4 py-3 flex items-center justify-between cursor-pointer hover:bg-zinc-100 dark:hover:bg-[var(--surface-hover,#25272a)] transition-colors mb-4"
             >
               <div className="flex flex-col gap-0.5">
                 <span className="text-zinc-900 dark:text-white text-[13px] font-medium">
@@ -937,12 +952,12 @@ export default function CreateProjectModal({
             </div>
           )}
 
-          <div className="flex items-center justify-end gap-2.5 border-t border-black/[0.08] dark:border-[#2a2a2a] pt-4">
+          <div className="flex items-center justify-end gap-2.5 border-t border-black/[0.08] dark:border-[var(--border,rgba(255,255,255,0.08))] pt-4">
             {(name.trim() || description.trim() || shortSummary.trim()) && (
               <button
                 type="button"
                 onClick={onClose}
-                className="h-8 px-4 bg-black/5 hover:bg-black/10 dark:bg-[#25272a] dark:hover:bg-[#333538] text-zinc-700 hover:text-zinc-900 dark:text-white text-[12.5px] font-medium rounded-full transition-all active:scale-[0.98] border border-black/10 dark:border-[#333538] flex items-center"
+                className="h-8 px-4 bg-black/5 hover:bg-black/10 dark:bg-[var(--surface,#25272a)] dark:hover:bg-[var(--surface-hover,#333538)] text-zinc-700 hover:text-zinc-900 dark:text-white text-[12.5px] font-medium rounded-full transition-all active:scale-[0.98] border border-black/10 dark:border-[var(--border,rgba(255,255,255,0.08))] flex items-center"
               >
                 Save as draft
               </button>
@@ -950,7 +965,7 @@ export default function CreateProjectModal({
             <button
               type="button"
               onClick={handleSubmit}
-              className="h-8 px-5 bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 dark:text-black text-[12.5px] font-medium rounded-full transition-all duration-300 shadow-sm dark:shadow-[0_0_20px_rgba(255,255,255,0.14)] dark:hover:shadow-[0_0_28px_rgba(255,255,255,0.22)] active:scale-[0.98] flex items-center"
+              className="kriri-primary-btn h-8 px-5 text-[12.5px] font-medium rounded-full transition-all duration-300 shadow-sm active:scale-[0.98] flex items-center"
             >
               Create project
             </button>
@@ -959,6 +974,7 @@ export default function CreateProjectModal({
       </div>
 
 
-    </div>
+    </div>,
+    document.body
   );
 }

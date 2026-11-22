@@ -36,7 +36,7 @@ export default function UserHoverCard({ children, user }) {
           side="bottom"
           align="start"
           sideOffset={5}
-          className="z-[9999] w-[260px] bg-white dark:bg-[#1e1f21] border border-black/10 dark:border-[#333538] rounded-xl shadow-2xl p-4 animate-in fade-in zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out data-[state=closed]:zoom-out-95 text-zinc-900 dark:text-white"
+          className="z-[9999] w-[260px] bg-white dark:bg-[var(--surface-elevated,#1e1f21)] border border-black/10 dark:border-[var(--border,rgba(255,255,255,0.08))] rounded-xl shadow-2xl p-4 animate-in fade-in zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out data-[state=closed]:zoom-out-95 text-zinc-900 dark:text-white"
         >
           <div className="flex justify-between items-start">
             <div className="flex gap-3">
@@ -55,7 +55,7 @@ export default function UserHoverCard({ children, user }) {
                   </span>
                 </div>
                 <div className="text-[13px] text-zinc-500 dark:text-[#8a8f98]">
-                  @{user.name.toLowerCase().replace(/\s+/g, "")}
+                  @{user.username || user.name?.toLowerCase().replace(/\s+/g, "") || "user"}
                 </div>
               </div>
             </div>

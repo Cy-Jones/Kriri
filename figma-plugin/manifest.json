@@ -1,0 +1,10 @@
+{
+  "name": "Kriri Screen Generator",
+  "id": "8c9c75f8-6a1a-4cf0-b992-46e432683a42",
+  "api": "1.0.0",
+  "main": "code.js",
+  "ui": "ui.html",
+  "editorType": [
+    "figma"
+  ]
+}

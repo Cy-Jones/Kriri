@@ -22,6 +22,10 @@ exports.createMilestone = async (req, res) => {
       "INSERT INTO milestones (project_id, name, description, due_date, status) VALUES ($1, $2, $3, $4, $5) RETURNING *",
       [project_id, name, description, due_date, status || "Pending"],
     );
+    try {
+      const { getIO } = require("../socket");
+      getIO().to(`workspace_${req.workspace.id}`).emit("MILESTONE_CREATED", rows[0]);
+    } catch (e) {}
     res.status(201).json(rows[0]);
   } catch (error) {
     return handleError(res, error);
@@ -51,12 +55,8 @@ exports.updateMilestone = async (req, res) => {
   const { id } = req.params;
   try {
     const { milestoneSchema } = require("../validators");
-    // partial parsing as it's update, or just use parse but schema might require name.
-    // Wait, update schema can have optional fields. I'll just use parse and let the validator throw if something is missing.
-    // Actually the milestone schema currently requires "name". If name is omitted on update, it'll fail.
-    // Let's use deepPartial() if we want or just do what was there before but better.
-    // I'll extract data directly for now or use the schema. Wait, if name is required, I'll extract it manually for update to prevent breaking valid updates that only change status.
-    const { name, description, due_date, status } = req.body;
+    const validatedData = milestoneSchema.partial().parse(req.body);
+    const { name, description, due_date, status } = validatedData;
     const { rows } = await db.query(
       `UPDATE milestones m
        SET name = COALESCE($1, m.name), 
@@ -70,6 +70,10 @@ exports.updateMilestone = async (req, res) => {
     );
     if (rows.length === 0)
       return res.status(404).json({ error: "Milestone not found" });
+    try {
+      const { getIO } = require("../socket");
+      getIO().to(`workspace_${req.workspace.id}`).emit("MILESTONE_UPDATED", rows[0]);
+    } catch (e) {}
     res.json(rows[0]);
   } catch (error) {
     console.error(error);
@@ -91,6 +95,10 @@ exports.deleteMilestone = async (req, res) => {
     );
     if (rows.length === 0)
       return res.status(404).json({ error: "Milestone not found" });
+    try {
+      const { getIO } = require("../socket");
+      getIO().to(`workspace_${req.workspace.id}`).emit("MILESTONE_DELETED", { id });
+    } catch (e) {}
     res.json({ message: "Milestone deleted successfully" });
   } catch (error) {
     console.error(error);

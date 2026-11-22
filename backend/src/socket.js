@@ -5,10 +5,10 @@ const db = require("./config/database");
 let io;
 
 module.exports = {
-  init: (httpServer, frontendUrl) => {
+  init: (httpServer, corsOrigin) => {
     io = new Server(httpServer, {
       cors: {
-        origin: frontendUrl,
+        origin: corsOrigin,
         credentials: true,
       },
     });
@@ -50,6 +50,7 @@ module.exports = {
 
         try {
           let clerkUserId = socket.userId;
+          let tokenErrMessage = "";
           if (!clerkUserId && token) {
             try {
               const payload = await verifyToken(token, {
@@ -59,6 +60,7 @@ module.exports = {
               socket.userId = clerkUserId;
               socket.orgId = payload.org_id;
             } catch (err) {
+              tokenErrMessage = err.message || "";
               console.warn(`Socket ${socket.id} invalid token on join_workspace:`, err.message);
             }
           }
@@ -69,6 +71,11 @@ module.exports = {
           );
           if (wsRes.rows.length === 0) {
             console.warn(`Socket ${socket.id} denied access to unknown workspace ${workspaceId}`);
+            socket.emit("workspace_join_rejected", {
+              workspaceId,
+              reason: "WORKSPACE_NOT_FOUND",
+              message: "Workspace not found",
+            });
             return;
           }
           const ws = wsRes.rows[0];
@@ -76,6 +83,12 @@ module.exports = {
           // Authorization: client must have a verified user identity
           if (!clerkUserId) {
             console.warn(`Socket ${socket.id} unauthenticated join attempt rejected for workspace ${ws.id}`);
+            const isExpired = tokenErrMessage.toLowerCase().includes("expired");
+            socket.emit("workspace_join_rejected", {
+              workspaceId: ws.id,
+              reason: isExpired ? "TOKEN_EXPIRED" : "UNAUTHENTICATED",
+              message: tokenErrMessage || "Authentication required to join workspace room",
+            });
             return;
           }
 
@@ -91,6 +104,11 @@ module.exports = {
 
           if (memberRes.rows.length === 0 && !isOrgMatch) {
             console.warn(`Socket ${socket.id} (user ${clerkUserId}) unauthorized for workspace ${ws.id}`);
+            socket.emit("workspace_join_rejected", {
+              workspaceId: ws.id,
+              reason: "FORBIDDEN",
+              message: "User not authorized for this workspace",
+            });
             return;
           }
 
@@ -98,6 +116,7 @@ module.exports = {
           if (ws.clerk_org_id) {
             socket.join(`workspace_${ws.clerk_org_id}`);
           }
+          socket.emit("workspace_joined", { workspaceId: ws.id });
           console.log(`Socket ${socket.id} (user ${clerkUserId}) securely joined workspace_${ws.id}`);
         } catch (err) {
           console.error("Socket join_workspace error:", err);

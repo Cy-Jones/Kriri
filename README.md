@@ -60,6 +60,8 @@ Kriri's architecture is designed around **Workspaces**, **Projects**, and **Task
    ```bash
    psql -U your_user -d kriri -f backend/database/schema.sql
    psql -U your_user -d kriri -f backend/migrations/001_align_projects_and_tasks.sql
+   psql -U your_user -d kriri -f backend/migrations/003_ai_intelligence_engine.sql
+   psql -U your_user -d kriri -f backend/migrations/004_add_user_username.sql
    ```
 
 3. **Backend Configuration:**

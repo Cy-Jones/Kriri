@@ -1,14 +1,19 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
 import { Input } from "../registry/components/input/input";
 import { Button } from "../registry/components/button/button";
-import { useUser, useOrganizationList, useClerk } from "@clerk/clerk-react";
+import { useUser, useOrganizationList, useClerk } from "@clerk/react";
 import { Progress } from "../registry/components/progress/progress";
 import { AnimatedCounter } from "../registry/components/animated-counter/animated-counter";
 import { motionTokens } from "../lib/motion-tokens";
+import { syncLandingTheme } from "../contexts/ThemeContext";
 
 export default function Onboarding() {
+  useEffect(() => {
+    syncLandingTheme();
+  }, []);
+
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
 
@@ -21,7 +26,7 @@ export default function Onboarding() {
   const { user } = useUser();
   const { createOrganization } = useOrganizationList();
   const { setActive } = useClerk();
-  const userName = user?.fullName || "there";
+  const userName = user?.fullName || user?.username || "there";
   const [error, setError] = useState(null);
 
   const handleComplete = async () => {
@@ -47,6 +52,21 @@ export default function Onboarding() {
         } catch (inviteErr) {
           console.error("Failed to invite", email, inviteErr);
         }
+      }
+
+      if (user) {
+        try {
+          await user.update({
+            unsafeMetadata: {
+              ...(user.unsafeMetadata || {}),
+              onboarded: true,
+            },
+          });
+        } catch (metaErr) {
+          console.warn("Could not set onboarded metadata:", metaErr);
+        }
+        localStorage.setItem(`kriri_onboarded_${user.id}`, "true");
+        localStorage.setItem("kriri_has_onboarded", "true");
       }
 
       await new Promise((resolve) => setTimeout(resolve, 800)); // Give Clerk a bit more time to settle

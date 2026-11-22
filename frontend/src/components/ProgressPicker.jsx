@@ -18,9 +18,9 @@ export default function ProgressPicker({ value, onChange, onClose }) {
   return (
     <div
       ref={popoverRef}
-      className="absolute top-full left-0 mt-2 bg-white dark:bg-[#1e1f21] border border-black/10 dark:border-[#333538] rounded-xl shadow-2xl w-[200px] z-50 text-zinc-900 dark:text-white py-2 max-h-[300px] overflow-y-auto"
+      className="absolute top-full left-0 mt-2 bg-white dark:bg-[var(--surface-elevated,#1e1f21)] border border-black/10 dark:border-[var(--border,rgba(255,255,255,0.08))] rounded-xl shadow-2xl w-[200px] z-50 text-zinc-900 dark:text-white py-2 max-h-[300px] overflow-y-auto"
     >
-      <div className="px-3 pb-2 mb-2 border-b border-black/10 dark:border-[#333538] text-[12px] text-zinc-500 dark:text-[#8a8f98]">
+      <div className="px-3 pb-2 mb-2 border-b border-black/10 dark:border-[var(--border,rgba(255,255,255,0.08))] text-[12px] text-zinc-500 dark:text-[#8a8f98]">
         Set progress
       </div>
       {options.map((opt) => (

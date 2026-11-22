@@ -8,6 +8,10 @@ export default function PickerWrapper({
   children,
   align = "start",
 }) {
+  if (!open) {
+    return trigger;
+  }
+
   return (
     <PopoverPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <PopoverPrimitive.Trigger asChild>{trigger}</PopoverPrimitive.Trigger>
@@ -17,8 +21,16 @@ export default function PickerWrapper({
           side="bottom"
           sideOffset={0}
           className="z-[9999] relative w-0 h-0"
+          onClick={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
         >
-          <div className="relative top-0 left-0">{children}</div>
+          <div
+            className="relative top-0 left-0"
+            onClick={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            {typeof children === "function" ? children() : children}
+          </div>
         </PopoverPrimitive.Content>
       </PopoverPrimitive.Portal>
     </PopoverPrimitive.Root>

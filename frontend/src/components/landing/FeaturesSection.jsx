@@ -98,7 +98,7 @@ export function FeaturesSection() {
                   <div className="my-6 sm:my-8 lg:my-10 flex items-center justify-center h-64 sm:h-64 lg:h-72 relative select-none">
                     <div className="w-60 h-60 sm:w-56 sm:h-56 lg:w-64 lg:h-64 xl:w-72 xl:h-72 flex items-center justify-center">
                       <Figure
-                        theme={theme === "light" ? "light" : "dark"}
+                        theme="dark"
                         intensity={0.85}
                         className="w-full h-full text-muted-foreground group-hover:text-foreground transition-colors"
                       />

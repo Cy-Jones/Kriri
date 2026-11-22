@@ -1,88 +1,55 @@
 const db = require("../config/database");
 const { handleError } = require("../utils/errorHandler");
-
 const { getIO } = require("../socket");
-
-const generateSlug = async (name, workspace_id, client = db) => {
-  let baseSlug = name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)+/g, "");
-  if (!baseSlug) baseSlug = "project";
-
-  const res = await client.query(
-    "SELECT slug FROM projects WHERE workspace_id = $1 AND slug LIKE $2",
-    [workspace_id, `${baseSlug}%`],
-  );
-  const existingSlugs = new Set(res.rows.map((r) => r.slug));
-  if (!existingSlugs.has(baseSlug)) return baseSlug;
-
-  let counter = 1;
-  while (existingSlugs.has(`${baseSlug}-${counter}`)) {
-    counter++;
-  }
-  return `${baseSlug}-${counter}`;
-};
-
-const getUserIdentifierCode = (name) => {
-  if (!name || typeof name !== "string") return "USR";
-  const clean = name.trim();
-  if (!clean) return "USR";
-  const parts = clean.split(/\s+/).filter(Boolean);
-  if (parts.length >= 2) {
-    return parts.map((p) => p[0].toUpperCase()).slice(0, 3).join("");
-  }
-  return clean.slice(0, 3).toUpperCase();
-};
-
-const generateProjectIdentifier = async (workspace_id, user_name, client = db) => {
-  const userCode = getUserIdentifierCode(user_name);
-  const prefix = `KRI-${userCode}-`;
-
-  const res = await client.query(
-    "SELECT identifier FROM projects WHERE workspace_id = $1 AND identifier LIKE $2",
-    [workspace_id, `${prefix}%`],
-  );
-
-  let maxNum = 0;
-  for (const row of res.rows) {
-    if (row.identifier) {
-      const match = row.identifier.match(new RegExp(`^${prefix}(\\d+)$`));
-      if (match) {
-        const num = parseInt(match[1], 10);
-        if (!isNaN(num) && num > maxNum) {
-          maxNum = num;
-        }
-      }
-    }
-  }
-
-  return `${prefix}${maxNum + 1}`;
-};
+const {
+  generateProjectSlug,
+  generateProjectIdentifier,
+} = require("../utils/slug");
 
 exports.getAllProjects = async (req, res) => {
   try {
     const { rows } = await db.query(
       `
+      WITH ws_projects AS (
+        SELECT p.*
+        FROM projects p
+        WHERE p.workspace_id = $1
+      ),
+      task_counts AS (
+        SELECT t.project_id, COUNT(*)::int as issue_count
+        FROM tasks t
+        JOIN ws_projects wp ON t.project_id = wp.id
+        GROUP BY t.project_id
+      ),
+      member_stats AS (
+        SELECT 
+          pm.project_id, 
+          json_agg(json_build_object('id', u.id, 'name', u.name, 'email', u.email, 'avatar_url', u.avatar_url, 'role', pm.role)) as members
+        FROM project_members pm
+        JOIN ws_projects wp ON pm.project_id = wp.id
+        JOIN users u ON pm.user_id = u.id
+        GROUP BY pm.project_id
+      ),
+      milestone_stats AS (
+        SELECT 
+          m.project_id, 
+          json_agg(m) as milestones
+        FROM milestones m
+        JOIN ws_projects wp ON m.project_id = wp.id
+        GROUP BY m.project_id
+      )
       SELECT 
-        p.*,
-        (
-          SELECT row_to_json(u)
-          FROM users u WHERE u.id = p.lead_id
-        ) as lead,
-        (
-          SELECT json_agg(json_build_object('id', u.id, 'name', u.name, 'email', u.email, 'avatar_url', u.avatar_url, 'role', pm.role))
-          FROM project_members pm
-          JOIN users u ON pm.user_id = u.id
-          WHERE pm.project_id = p.id
-        ) as members,
-        (
-          SELECT json_agg(m)
-          FROM milestones m WHERE m.project_id = p.id
-        ) as milestones
-      FROM projects p
-      WHERE p.workspace_id = $1
-      ORDER BY p.created_at DESC
+        wp.*,
+        row_to_json(u) as lead,
+        COALESCE(ms.members, '[]'::json) as members,
+        COALESCE(mls.milestones, '[]'::json) as milestones,
+        COALESCE(tc.issue_count, 0) as issue_count
+      FROM ws_projects wp
+      LEFT JOIN users u ON wp.lead_id = u.id
+      LEFT JOIN task_counts tc ON wp.id = tc.project_id
+      LEFT JOIN member_stats ms ON wp.id = ms.project_id
+      LEFT JOIN milestone_stats mls ON wp.id = mls.project_id
+      ORDER BY wp.created_at DESC
     `,
       [req.workspace.id],
     );
@@ -93,6 +60,7 @@ exports.getAllProjects = async (req, res) => {
       members: row.members || [],
       milestones: row.milestones || [],
       labels: row.labels || [],
+      issue_count: parseInt(row.issue_count || 0, 10),
     }));
 
     res.json(processedRows);
@@ -110,21 +78,23 @@ exports.getProjectById = async (req, res) => {
       `
       SELECT 
         p.*,
+        row_to_json(u) as lead,
         (
-          SELECT row_to_json(u)
-          FROM users u WHERE u.id = p.lead_id
-        ) as lead,
-        (
-          SELECT json_agg(json_build_object('id', u.id, 'name', u.name, 'email', u.email, 'avatar_url', u.avatar_url, 'role', pm.role))
+          SELECT json_agg(json_build_object('id', u2.id, 'name', u2.name, 'email', u2.email, 'avatar_url', u2.avatar_url, 'role', pm.role))
           FROM project_members pm
-          JOIN users u ON pm.user_id = u.id
+          JOIN users u2 ON pm.user_id = u2.id
           WHERE pm.project_id = p.id
         ) as members,
         (
           SELECT json_agg(m)
           FROM milestones m WHERE m.project_id = p.id
-        ) as milestones
+        ) as milestones,
+        (
+          SELECT COUNT(*)::int
+          FROM tasks t WHERE t.project_id = p.id
+        ) as issue_count
       FROM projects p
+      LEFT JOIN users u ON p.lead_id = u.id
       WHERE (p.id = $1 OR p.identifier = $2 OR p.slug = $2) AND p.workspace_id = $3
     `,
       [isNumeric ? parseInt(id, 10) : -1, id, req.workspace.id],
@@ -137,6 +107,7 @@ exports.getProjectById = async (req, res) => {
     project.members = project.members || [];
     project.milestones = project.milestones || [];
     project.labels = project.labels || [];
+    project.issue_count = parseInt(project.issue_count || 0, 10);
 
     res.json(project);
   } catch (error) {
@@ -172,7 +143,8 @@ exports.createProject = async (req, res) => {
     try {
       await client.query("BEGIN");
       const workspace_id = req.workspace.id;
-      const slug = await generateSlug(name, workspace_id, client);
+      await client.query("SELECT pg_advisory_xact_lock(hashtext('project_create_' || $1))", [workspace_id]);
+      const slug = await generateProjectSlug(name, workspace_id, client);
       const identifier = await generateProjectIdentifier(
         workspace_id,
         req.user?.name,
@@ -180,7 +152,7 @@ exports.createProject = async (req, res) => {
       );
 
       // Extract lead_id from lead object (if provided)
-      const lead_id = lead && lead.id ? lead.id : null;
+      const lead_id = lead && lead.id ? lead.id : (lead && lead.assign_current ? req.user.id : null);
 
       const { rows } = await client.query(
         `INSERT INTO projects (
@@ -270,7 +242,7 @@ exports.updateProject = async (req, res) => {
   const { id } = req.params;
 
   try {
-    const validatedData = projectSchema.parse(req.body);
+    const validatedData = projectSchema.partial().parse(req.body);
     const {
       name,
       description,
@@ -441,7 +413,7 @@ exports.deleteProject = async (req, res) => {
       return res.status(404).json({ error: "Project not found" });
 
     try {
-      getIO().to(`workspace_${req.workspace.id}`).emit("PROJECT_DELETED", id);
+      getIO().to(`workspace_${req.workspace.id}`).emit("PROJECT_DELETED", { id: rows[0].id });
     } catch (e) {
       console.error("Socket error emitting PROJECT_DELETED:", e);
     }

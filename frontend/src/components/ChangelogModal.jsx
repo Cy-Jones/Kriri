@@ -110,7 +110,7 @@ export default function ChangelogModal({ isOpen, onOpenChange, initialRelease = 
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.96, y: -8 }}
               transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-              className="w-full max-w-4xl h-[78vh] max-h-[720px] pointer-events-auto overflow-hidden rounded-2xl border border-black/10 dark:border-white/10 bg-white dark:bg-[#141517] shadow-[0_24px_64px_rgba(0,0,0,0.18)] dark:shadow-[0_24px_64px_rgba(0,0,0,0.8)] text-zinc-900 dark:text-[#f4f4f5] flex flex-col"
+              className="w-full max-w-4xl h-[78vh] max-h-[720px] pointer-events-auto overflow-hidden rounded-2xl border border-black/10 dark:border-[var(--border,rgba(255,255,255,0.1))] bg-white dark:bg-[var(--surface-elevated,#141517)] shadow-[0_24px_64px_rgba(0,0,0,0.18)] dark:shadow-[0_24px_64px_rgba(0,0,0,0.8)] text-zinc-900 dark:text-[#f4f4f5] flex flex-col"
             >
               {/* Top Integrated Row */}
               <div className="flex items-center min-h-[54px] px-4 gap-3 border-b border-black/10 dark:border-white/[0.08] transition-colors focus-within:bg-black/[0.01] dark:focus-within:bg-white/[0.02] flex-none">
@@ -142,7 +142,7 @@ export default function ChangelogModal({ isOpen, onOpenChange, initialRelease = 
               </div>
 
               {/* Subheader Filter Tabs */}
-              <div className="border-b border-black/10 dark:border-white/[0.06] px-4 py-2 bg-zinc-50 dark:bg-[#0f1012] flex items-center justify-between gap-3 flex-none">
+              <div className="border-b border-black/10 dark:border-[var(--border-subtle,rgba(255,255,255,0.06))] px-4 py-2 bg-zinc-50 dark:bg-[var(--surface,#0f1012)] flex items-center justify-between gap-3 flex-none">
                 <div className="flex items-center gap-1">
                   {[
                     { id: "all", label: "All Updates" },
@@ -174,7 +174,7 @@ export default function ChangelogModal({ isOpen, onOpenChange, initialRelease = 
               {/* Body Split View */}
               <div className="flex-1 flex min-h-0 overflow-hidden">
                 {/* Left Release List */}
-                <div className="w-72 border-r border-black/10 dark:border-white/[0.08] bg-zinc-50/50 dark:bg-[#0d0e10] overflow-y-auto p-2 space-y-1 flex-none scrollbar-thin">
+                <div className="w-72 border-r border-black/10 dark:border-[var(--border,rgba(255,255,255,0.08))] bg-zinc-50/50 dark:bg-[var(--surface,#0d0e10)] overflow-y-auto p-2 space-y-1 flex-none scrollbar-thin">
                   {filteredReleases.length === 0 ? (
                     <div className="p-4 text-center text-xs text-zinc-400 dark:text-[#8a8f98]">
                       No releases match your search.
@@ -312,7 +312,7 @@ export default function ChangelogModal({ isOpen, onOpenChange, initialRelease = 
               </div>
 
               {/* Bottom Footer */}
-              <div className="border-t border-black/10 dark:border-white/[0.08] bg-zinc-100 dark:bg-[#0c0d0f] px-5 py-2.5 flex items-center justify-between text-[11px] text-zinc-500 dark:text-[#71717a] flex-none">
+              <div className="border-t border-black/10 dark:border-[var(--border,rgba(255,255,255,0.08))] bg-zinc-100 dark:bg-[var(--surface,#0c0d0f)] px-5 py-2.5 flex items-center justify-between text-[11px] text-zinc-500 dark:text-[#71717a] flex-none">
                 <span>Press Esc to close</span>
                 <span>Kriri Production Releases</span>
               </div>

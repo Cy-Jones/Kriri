@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
+import { viewStateStore } from "../lib/viewStateStore";
 
 export const DEFAULT_VIEW_CONFIG = {
   activeView: "list",
@@ -104,26 +105,60 @@ export const loadViewConfig = () => {
 };
 
 export function useProjectFilters(projects) {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [viewConfig, setViewConfig] = useState(loadViewConfig);
+  const [searchQuery, setSearchQueryState] = useState(() => {
+    return viewStateStore.getProjectsView().searchQuery || "";
+  });
+  const setSearchQuery = useCallback((val) => {
+    setSearchQueryState((prev) => {
+      const next = typeof val === "function" ? val(prev) : val;
+      viewStateStore.setProjectsView({ searchQuery: next });
+      return next;
+    });
+  }, []);
+
+  const [viewConfig, setViewConfigInternal] = useState(() => {
+    const saved = viewStateStore.getProjectsView().viewConfig;
+    if (saved) return saved;
+    return loadViewConfig();
+  });
+  const setViewConfig = useCallback((updater) => {
+    setViewConfigInternal((prev) => {
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      viewStateStore.setProjectsView({ viewConfig: next, activeView: next?.activeView });
+      return next;
+    });
+  }, []);
+
   const [workspaceDefaultConfig, setWorkspaceDefaultConfig] =
     useState(DEFAULT_VIEW_CONFIG);
 
-  const [activeFilters, setActiveFilters] = useState({
-    status: [],
-    priority: [],
-    lead: [],
-    health: [],
-    label: [],
-    dates: [],
-    members: [],
-    creator: [],
-    lead_team: [],
-    milestones: [],
-    title_summary: [],
-    specific_project: [],
-    advanced: "",
+  const [activeFilters, setActiveFiltersInternal] = useState(() => {
+    const saved = viewStateStore.getProjectsView().activeFilters;
+    if (saved) return saved;
+    return {
+      status: [],
+      priority: [],
+      lead: [],
+      health: [],
+      label: [],
+      dates: [],
+      members: [],
+      creator: [],
+      lead_team: [],
+      milestones: [],
+      title_summary: [],
+      specific_project: [],
+      advanced: "",
+    };
   });
+
+  const setActiveFilters = useCallback((updater) => {
+    setActiveFiltersInternal((prev) => {
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      viewStateStore.setProjectsView({ activeFilters: next });
+      return next;
+    });
+  }, []);
 
   const toggleFilter = (category, value) => {
     setActiveFilters((prev) => {

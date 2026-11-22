@@ -94,7 +94,7 @@ export default function About() {
                     </span>
                     <div className="w-10 h-10 flex items-center justify-center select-none">
                       <Figure
-                        theme={theme === "light" ? "light" : "dark"}
+                        theme="dark"
                         intensity={0.85}
                         className="w-full h-full text-muted-foreground group-hover:text-foreground transition-colors"
                       />

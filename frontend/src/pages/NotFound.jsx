@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useUser } from "@clerk/clerk-react";
+import { useUser } from "@clerk/react";
 import { ArrowLeft } from "lucide-react";
 import { Query } from "@lucasmarkes/hairline/react";
 

@@ -1,5 +1,5 @@
 import { ActionMenu, ActionMenuItem, ActionMenuSeparator } from "../ActionMenu";
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, memo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Plus,
@@ -96,7 +96,7 @@ import { useDroppable } from "@dnd-kit/core";
 // ============================================================================
 // DND-KIT COMPONENTS FOR BOARD
 // ============================================================================
-function SortableProjectItem({
+const SortableProjectItem = memo(function SortableProjectItem({
   project,
   onClick,
   config,
@@ -120,6 +120,13 @@ function SortableProjectItem({
     transform: CSS.Transform.toString(transform),
     transition,
   };
+
+  const issuesCount = useMemo(() => {
+    if (typeof project.issue_count === "number") return project.issue_count;
+    if (typeof project.issues_count === "number") return project.issues_count;
+    if (typeof project.issuesCount === "number") return project.issuesCount;
+    return 0;
+  }, [project.issue_count, project.issues_count, project.issuesCount]);
 
   return (
     <div
@@ -223,69 +230,6 @@ function SortableProjectItem({
                 onChange={(val) =>
                   onUpdateProject(project.id, { priority: val })
                 }
-                onClose={() => setActivePicker({ type: null, projectId: null })}
-              />
-            </PickerWrapper>
-          )}
-
-          {config.properties.lead && (
-            <PickerWrapper
-              open={
-                activePicker?.type === "lead_top" &&
-                activePicker.projectId === project.id
-              }
-              onOpenChange={(open) => {
-                if (open)
-                  setActivePicker({ type: "lead_top", projectId: project.id });
-                else setActivePicker({ type: null, projectId: null });
-              }}
-              trigger={
-                <div
-                  className="relative ml-0.5 cursor-pointer"
-                  onPointerDown={(e) => e.stopPropagation()}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setActivePicker({
-                      type: "lead_top",
-                      projectId: project.id,
-                    });
-                  }}
-                >
-                  {project.lead ? (
-                    <div
-                      className={`flex items-center justify-center w-6 h-6 rounded-full text-[10px] font-bold text-white uppercase overflow-hidden ${getAvatarColor(project.lead.name, project.lead.email)}`}
-                    >
-                      {project.lead.avatar_url ? (
-                        <img
-                          src={project.lead.avatar_url}
-                          alt={project.lead.name}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        getInitial(project.lead.name, project.lead.email)
-                      )}
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-center w-6 h-6 rounded-full border border-black/[0.15] dark:border-white/[0.1] border-dashed text-zinc-400 dark:text-white/[0.3]">
-                      <svg
-                        width="12"
-                        height="12"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                      >
-                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                        <circle cx="12" cy="7" r="4" />
-                      </svg>
-                    </div>
-                  )}
-                </div>
-              }
-            >
-              <LeadPicker
-                value={project.lead}
-                onChange={(val) => onUpdateProject(project.id, { lead: val })}
                 onClose={() => setActivePicker({ type: null, projectId: null })}
               />
             </PickerWrapper>
@@ -461,61 +405,68 @@ function SortableProjectItem({
         </div>
       )}
 
-      {config.properties.lead && (
-        <div className="relative">
-          <ActionTooltip label="Change project lead" shortcut="P then A">
-            <div
-              className={`flex items-center gap-2 mt-1 text-[13px] text-zinc-600 dark:text-[#8a8f98] px-1 py-0.5 -ml-1 rounded transition-colors w-fit ${canManageProjects ? "cursor-pointer hover:bg-black/[0.04] dark:hover:bg-white/[0.04] hover:text-zinc-900 dark:hover:text-[#e8e8e8]" : "cursor-default"}`}
-              onPointerDown={(e) => e.stopPropagation()}
-              onClick={(e) => {
-                e.stopPropagation();
-                setActivePicker({ type: "lead", projectId: project.id });
-              }}
-            >
-              {project.lead ? (
-                <div
-                  className={`flex items-center justify-center w-5 h-5 rounded-full text-[9px] font-bold text-white uppercase overflow-hidden ${getAvatarColor(project.lead.name, project.lead.email)}`}
-                >
-                  {project.lead.avatar_url ? (
-                    <img
-                      src={project.lead.avatar_url}
-                      alt={project.lead.name}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    getInitial(project.lead.name, project.lead.email)
-                  )}
-                </div>
-              ) : (
-                <div className="flex items-center justify-center w-[16px] h-[16px] rounded-[4px] border border-[#e2483d] bg-transparent text-[#e2483d]">
-                  <User size={10} />
-                </div>
+      {/* Footer: Lead on Left & issues on Right */}
+      <div className="flex items-center justify-between pt-1 border-t border-black/[0.06] dark:border-white/[0.04] text-[12.5px] text-zinc-600 dark:text-[#8a8f98] min-w-0">
+        {config.properties.lead ? (
+          <div className="relative min-w-0">
+            <ActionTooltip label="Change project lead" shortcut="P then A">
+              <div
+                className={`flex items-center gap-2 text-[13px] text-zinc-600 dark:text-[#8a8f98] px-1 py-0.5 -ml-1 rounded transition-colors w-fit ${canManageProjects ? "cursor-pointer hover:bg-black/[0.04] dark:hover:bg-white/[0.04] hover:text-zinc-900 dark:hover:text-[#e8e8e8]" : "cursor-default"}`}
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActivePicker({ type: "lead", projectId: project.id });
+                }}
+              >
+                {project.lead ? (
+                  <div
+                    className={`flex items-center justify-center w-5 h-5 rounded-full text-[9px] font-bold text-white uppercase overflow-hidden shrink-0 ${getAvatarColor(project.lead.name, project.lead.email)}`}
+                  >
+                    {project.lead.avatar_url ? (
+                      <img
+                        src={project.lead.avatar_url}
+                        alt={project.lead.name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      getInitial(project.lead.name, project.lead.email)
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center w-[16px] h-[16px] rounded-[4px] border border-[#e2483d] bg-transparent text-[#e2483d] shrink-0">
+                    <User size={10} />
+                  </div>
+                )}
+                <span className="truncate max-w-[150px]">{project.lead?.name || "Unassigned"}</span>
+              </div>
+            </ActionTooltip>
+            {activePicker?.type === "lead" &&
+              activePicker.projectId === project.id && (
+                <LeadPicker
+                  value={project.lead}
+                  onChange={(val) => onUpdateProject(project.id, { lead: val })}
+                  onClose={() => setActivePicker({ type: null, projectId: null })}
+                />
               )}
-              <span>{project.lead?.name || "Unassigned"}</span>
-            </div>
-          </ActionTooltip>
-          {activePicker?.type === "lead" &&
-            activePicker.projectId === project.id && (
-              <LeadPicker
-                value={project.lead}
-                onChange={(val) => onUpdateProject(project.id, { lead: val })}
-                onClose={() => setActivePicker({ type: null, projectId: null })}
-              />
-            )}
-        </div>
-      )}
+          </div>
+        ) : (
+          <div />
+        )}
 
-      <div className="mt-1 text-[13px] text-zinc-500 dark:text-[#8a8f98]">0 issues</div>
+        <div className="text-[12.5px] text-zinc-500 dark:text-[#8a8f98] shrink-0 font-normal">
+          {issuesCount} {issuesCount === 1 ? "issue" : "issues"}
+        </div>
+      </div>
     </div>
   );
-}
+});
 
 function DroppableProjectColumn({ id, items, children, footer }) {
   const { setNodeRef } = useDroppable({ id });
   return (
     <div
       ref={setNodeRef}
-      className="flex-col gap-3 flex-1 overflow-y-auto scrollbar-hide pr-1 pb-40 flex min-h-[150px]"
+      className="flex-col gap-3 flex-1 overflow-y-auto scrollbar-hide pr-1 pb-24 flex min-h-[150px]"
     >
       <SortableContext
         id={id}
@@ -532,7 +483,7 @@ function DroppableProjectColumn({ id, items, children, footer }) {
 // ============================================================================
 // BOARD VIEW COMPONENT
 // ============================================================================
-export default function BoardViewRenderer({
+export default memo(function BoardViewRenderer({
   projects,
   config,
   groupProjects,
@@ -651,7 +602,7 @@ export default function BoardViewRenderer({
       onDragEnd={handleDragEnd}
     >
       <div
-        className={`flex-1 flex flex-col overflow-x-auto scrollbar-hide pb-4 min-h-0 min-w-0 bg-transparent ${rowDimension === "none" ? "overflow-y-hidden" : "overflow-y-auto"}`}
+        className={`flex-1 flex flex-col overflow-x-auto scrollbar-hide pb-0 min-h-0 min-w-0 bg-transparent ${rowDimension === "none" ? "overflow-y-hidden" : "overflow-y-auto"}`}
       >
         <div
           className={`flex flex-col min-w-max px-1 ${rowDimension === "none" ? "h-full min-h-0" : ""}`}
@@ -725,16 +676,12 @@ export default function BoardViewRenderer({
                             key={colKey}
                             className={`flex flex-col flex-1 w-[320px] min-w-[320px] max-w-[320px] group transition-all duration-300 ${
                               config.showColumnBackgrounds
-                                ? "bg-black/[0.02] dark:bg-white/[0.02] border border-black/[0.06] dark:border-white/[0.05] rounded-2xl p-3"
+                                ? "bg-black/[0.02] dark:bg-white/[0.02] border border-black/[0.06] dark:border-white/[0.05] rounded-2xl px-3 pt-3 pb-0 overflow-hidden"
                                 : ""
                             }`}
                           >
                             <div
-                              className={`flex items-center justify-between py-1 mb-3 sticky top-0 z-10 transition-colors ${
-                                config.showColumnBackgrounds
-                                  ? "bg-zinc-50 dark:bg-[#18191c]"
-                                  : "bg-white md:bg-white dark:bg-black md:dark:bg-[#131416]"
-                              }`}
+                              className="flex items-center justify-between py-1 mb-3 sticky top-0 z-10 transition-colors bg-transparent"
                             >
                               <div className="flex items-center gap-2 text-[13px] font-medium text-zinc-900 dark:text-[#e8e8e8]">
                                 {colKey === "Completed" ? (
@@ -997,4 +944,4 @@ export default function BoardViewRenderer({
       </DragOverlay>
     </DndContext>
   );
-}
+});

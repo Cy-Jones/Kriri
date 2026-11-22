@@ -11,9 +11,15 @@ import {
   LogOut,
   Plus,
   HelpCircle,
+  Inbox,
+  Bug,
+  Users,
+  BarChart2,
 } from "lucide-react";
-import { useClerk, useOrganization } from "@clerk/clerk-react";
-import { api } from "../lib/api";
+import { KririAgentIcon } from "./ai/KririAgentIcon";
+import { useClerk, useOrganization } from "@clerk/react";
+import { api, clearUserSessionData } from "../lib/api";
+import { clearActiveThemeStorage } from "../lib/userTheme";
 import { CommandPalette as ArcCommandPalette } from "@/registry/components/command-palette/command-palette";
 import { matchesShortcut } from "@/registry/components/shortcut-recorder/shortcut-recorder";
 import { getPlatformPreference, getCustomShortcuts } from "../lib/shortcutsConfig";
@@ -77,21 +83,48 @@ export default function CommandPalette({ openCreateTask, openHelp }) {
 
   // Fetch dynamic projects and tasks when palette opens
   useEffect(() => {
-    if (open && organization?.id) {
-      const fetchData = async () => {
-        try {
-          const [projRes, tasksRes] = await Promise.all([
-            api.get("/projects").catch(() => ({ data: { projects: [] } })),
-            api.get("/tasks").catch(() => ({ data: { tasks: [] } })),
-          ]);
-          setProjects(projRes.data?.projects || []);
-          setTasks(tasksRes.data?.tasks || []);
-        } catch (err) {
+    if (!open || !organization?.id) return;
+
+    let active = true;
+    const controller = new AbortController();
+
+    const fetchData = async () => {
+      try {
+        const [projRes, tasksRes] = await Promise.all([
+          api.get("/projects", { signal: controller.signal }).catch((err) => {
+            if (err.name === "AbortError") throw err;
+            return [];
+          }),
+          api.get("/tasks", { signal: controller.signal }).catch((err) => {
+            if (err.name === "AbortError") throw err;
+            return [];
+          }),
+        ]);
+
+        if (!active) return;
+
+        const projList = Array.isArray(projRes)
+          ? projRes
+          : projRes?.data?.projects || projRes?.projects || [];
+        const tasksList = Array.isArray(tasksRes)
+          ? tasksRes
+          : tasksRes?.data?.tasks || tasksRes?.tasks || [];
+
+        setProjects(projList);
+        setTasks(tasksList);
+      } catch (err) {
+        if (err.name !== "AbortError") {
           console.error("Failed to load command palette data", err);
         }
-      };
-      fetchData();
-    }
+      }
+    };
+
+    fetchData();
+
+    return () => {
+      active = false;
+      controller.abort();
+    };
   }, [open, organization?.id]);
 
   const items = useMemo(() => {
@@ -138,6 +171,32 @@ export default function CommandPalette({ openCreateTask, openHelp }) {
         },
       },
       {
+        id: "nav-inbox",
+        label: "Go to Inbox",
+        description: "Notifications, updates and activity feed",
+        group: "Navigation",
+        icon: <Inbox className="w-4 h-4 text-foreground" />,
+        shortcut: "G I",
+        keywords: ["inbox", "notifications", "updates", "activity"],
+        onSelect: () => {
+          setOpen(false);
+          navigate("/inbox", { state: { loadingTitle: "Inbox" } });
+        },
+      },
+      {
+        id: "nav-issues",
+        label: "Go to Issues",
+        description: "Task list and issue tracker",
+        group: "Navigation",
+        icon: <Bug className="w-4 h-4 text-foreground" />,
+        shortcut: "G T",
+        keywords: ["issues", "tasks", "todos", "backlog"],
+        onSelect: () => {
+          setOpen(false);
+          navigate("/tasks", { state: { loadingTitle: "Issues" } });
+        },
+      },
+      {
         id: "nav-board",
         label: "Go to Board",
         description: "Kanban board with status columns",
@@ -147,7 +206,20 @@ export default function CommandPalette({ openCreateTask, openHelp }) {
         keywords: ["kanban", "board", "tasks", "issues"],
         onSelect: () => {
           setOpen(false);
-          navigate("/kanban", { state: { loadingTitle: "Board" } });
+          navigate("/tasks?view=board", { state: { loadingTitle: "Board" } });
+        },
+      },
+      {
+        id: "nav-agent",
+        label: "Go to Agent",
+        description: "Autonomous project and issue planning agent",
+        group: "Navigation",
+        icon: <KririAgentIcon size={16} className="text-foreground" />,
+        shortcut: "G A",
+        keywords: ["agent", "ai", "assistant", "kriri agent", "chat", "autonomous"],
+        onSelect: () => {
+          setOpen(false);
+          navigate("/agent", { state: { loadingTitle: "Agent" } });
         },
       },
       {
@@ -161,6 +233,32 @@ export default function CommandPalette({ openCreateTask, openHelp }) {
         onSelect: () => {
           setOpen(false);
           navigate("/projects", { state: { loadingTitle: "Projects" } });
+        },
+      },
+      {
+        id: "nav-analytics",
+        label: "Go to Analytics",
+        description: "Velocity, delivery health and project metrics",
+        group: "Navigation",
+        icon: <BarChart2 className="w-4 h-4 text-foreground" />,
+        shortcut: "G Y",
+        keywords: ["analytics", "metrics", "velocity", "reporting"],
+        onSelect: () => {
+          setOpen(false);
+          navigate("/analytics", { state: { loadingTitle: "Analytics" } });
+        },
+      },
+      {
+        id: "nav-team",
+        label: "Go to Team",
+        description: "Workspace members, roles and invitations",
+        group: "Navigation",
+        icon: <Users className="w-4 h-4 text-foreground" />,
+        shortcut: "G M",
+        keywords: ["team", "members", "directory", "users"],
+        onSelect: () => {
+          setOpen(false);
+          navigate("/team", { state: { loadingTitle: "Team" } });
         },
       },
       {
@@ -185,6 +283,8 @@ export default function CommandPalette({ openCreateTask, openHelp }) {
         keywords: ["logout", "signout", "exit"],
         onSelect: () => {
           setOpen(false);
+          clearUserSessionData();
+          clearActiveThemeStorage();
           signOut(() => navigate("/"));
         },
       },
@@ -222,7 +322,7 @@ export default function CommandPalette({ openCreateTask, openHelp }) {
           keywords: [t.title, t.status || "", t.priority || "", "task", "issue"],
           onSelect: () => {
             setOpen(false);
-            navigate("/kanban", { state: { loadingTitle: "Board" } });
+            navigate(`/tasks?task=${t.id}&modal=true`, { state: { taskId: t.id, openModal: true } });
           },
         });
       });
@@ -245,7 +345,11 @@ export default function CommandPalette({ openCreateTask, openHelp }) {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.15 }}
             onClick={() => setOpen(false)}
-            className="fixed inset-0 bg-black/60 [backdrop-filter:blur(12px)_saturate(140%)] [-webkit-backdrop-filter:blur(12px)_saturate(140%)]"
+            className="fixed inset-0 bg-black/60 backdrop-blur-md"
+            style={{
+              backdropFilter: "blur(14px) saturate(140%)",
+              WebkitBackdropFilter: "blur(14px) saturate(140%)",
+            }}
           />
 
           {/* Modal Panel Layer */}

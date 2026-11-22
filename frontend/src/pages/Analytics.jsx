@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../lib/api";
-import { useUser, useOrganization } from "@clerk/clerk-react";
+import { useUser, useOrganization } from "@clerk/react";
 import {
   BarChart,
   Bar,
@@ -25,16 +25,28 @@ import {
   Menu,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import PageLoading from "../components/PageLoading";
+import ViewSwitcher from "../components/ViewSwitcher";
+import { AnalyticsSkeleton } from "../components/skeletons/PageSkeletons";
 import TaskDetailsModal from "../components/TaskDetailsModal";
 import { Plot as Chart } from "@lucasmarkes/hairline/react";
 import { useTheme } from "../contexts/ThemeContext";
+import { useDeferredSkeleton } from "../hooks/useDeferredSkeleton";
 
 export default function Analytics() {
   const navigate = useNavigate();
   const { effectiveTheme } = useTheme();
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState(() => {
+    const cached = api.getCached("/workspaces/current/analytics");
+    if (cached) return cached;
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("kriri:cache:analytics_data");
+        if (stored) return JSON.parse(stored);
+      } catch {}
+    }
+    return null;
+  });
+  const [loading, setLoading] = useState(() => (typeof window !== "undefined" && import.meta.env.DEV && (window.__AUDIT_MOCK_AUTH__ || window.localStorage.getItem("audit_mock_auth") === "true") ? false : !data));
   const [timeRange, setTimeRange] = useState("30 days");
   const [velocityMetric, setVelocityMetric] = useState("completed"); // "completed" | "created" | "shipped"
   const [velocityDrilldownView, setVelocityDrilldownView] = useState("tasks"); // "tasks" | "projects"
@@ -52,6 +64,12 @@ export default function Analytics() {
     try {
       const res = await api.get("/workspaces/current/analytics");
       setData(res);
+      api.setCached("/workspaces/current/analytics", res);
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem("kriri:cache:analytics_data", JSON.stringify(res));
+        } catch {}
+      }
     } catch (err) {
       console.error("Error fetching analytics:", err);
     }
@@ -60,13 +78,13 @@ export default function Analytics() {
   useEffect(() => {
     const init = async () => {
       try {
-        setLoading(true);
+        if (!data) setLoading(true);
         await fetchAnalytics();
       } finally {
         setLoading(false);
       }
     };
-    if (isLoaded && user) {
+    if ((isLoaded && user) || (typeof window !== "undefined" && import.meta.env.DEV && (window.__AUDIT_MOCK_AUTH__ || window.localStorage.getItem("audit_mock_auth") === "true"))) {
       init();
     }
   }, [organization?.id, isLoaded, user?.id]);
@@ -124,8 +142,10 @@ export default function Analytics() {
     setSelectedVelocityDate((prev) => (prev === date ? null : date));
   };
 
-  if (loading) {
-    return <PageLoading label="Analytics" />;
+  const showSkeleton = useDeferredSkeleton(loading && !data, 180);
+
+  if (showSkeleton) {
+    return <AnalyticsSkeleton />;
   }
 
   const hasData = data && (totalProjectsCount > 0 || totalIssuesCount > 0);
@@ -177,7 +197,7 @@ export default function Analytics() {
   }
 
   return (
-    <div className="w-full flex flex-col min-h-full md:h-full min-w-0 animate-in fade-in duration-300 select-none text-zinc-900 dark:text-[#e8e8e8]">
+    <div className="w-full flex flex-col min-h-full md:h-full min-w-0 select-none text-zinc-900 dark:text-[#e8e8e8]">
       {/* 1. PAGE HEADER */}
       <div className="flex items-center justify-between gap-3 mb-4 sm:mb-6 flex-shrink-0 min-h-[38px]">
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
@@ -195,37 +215,17 @@ export default function Analytics() {
         </div>
 
         {/* Time range switcher to the far right, matching header button size */}
-        <div className="flex items-center p-0.5 sm:p-1 rounded-full bg-black/[0.04] dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/[0.06] backdrop-blur-sm shrink-0">
-          {[
+        <ViewSwitcher
+          views={[
             { value: "7 days", label: "7 days", mobileLabel: "7d" },
             { value: "30 days", label: "30 days", mobileLabel: "30d" },
             { value: "90 days", label: "90 days", mobileLabel: "90d" },
-          ].map((range) => {
-            const isActive = timeRange === range.value;
-            return (
-              <button
-                key={range.value}
-                type="button"
-                onClick={() => setTimeRange(range.value)}
-                className={`relative text-[11px] sm:text-[12px] px-2.5 sm:px-3 py-1 rounded-full font-medium transition-colors cursor-pointer shrink-0 ${
-                  isActive
-                    ? "text-zinc-900 dark:text-white"
-                    : "text-zinc-600 hover:text-zinc-900 dark:text-[#8a8f98] dark:hover:text-white"
-                }`}
-              >
-                {isActive && (
-                  <motion.div
-                    layoutId="timeRangeActivePill"
-                    className="absolute inset-0 bg-white dark:bg-white/[0.12] border border-black/10 dark:border-white/10 rounded-full shadow-xs pointer-events-none"
-                    transition={{ type: "spring", stiffness: 450, damping: 35 }}
-                  />
-                )}
-                <span className="relative z-10 hidden sm:inline">{range.label}</span>
-                <span className="relative z-10 sm:hidden">{range.mobileLabel}</span>
-              </button>
-            );
-          })}
-        </div>
+          ]}
+          activeView={timeRange}
+          onViewChange={setTimeRange}
+          layoutId="timeRangeActivePill"
+          fullWidth={false}
+        />
       </div>
 
       {/* 2. SCROLLABLE CONTENT BODY */}
@@ -234,12 +234,12 @@ export default function Analytics() {
           {/* 4 TOP KPI CARDS */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4">
             {/* Card 1: Tasks completed */}
-            <div className="p-4 sm:p-5.5 rounded-xl sm:rounded-2xl border border-black/[0.08] dark:border-white/[0.06] bg-white dark:bg-[#16171a]/95 flex flex-col justify-between hover:border-black/15 dark:hover:border-white/15 hover:bg-zinc-50 dark:hover:bg-[#191a1e] shadow-xs transition-all duration-300">
+            <div className="p-4 sm:p-5.5 rounded-xl sm:rounded-2xl border border-border bg-surface flex flex-col justify-between hover:border-border-strong hover:bg-surface-hover shadow-xs transition-all duration-300">
               <div>
-                <div className="text-[13px] font-medium text-zinc-500 dark:text-[#8a8f98]">
+                <div className="text-[13px] font-medium text-text-muted">
                   Tasks completed
                 </div>
-                <div className="text-2xl sm:text-[28px] font-semibold text-zinc-900 dark:text-white tracking-tight mt-0.5">
+                <div className="text-2xl sm:text-[28px] font-semibold text-foreground tracking-tight mt-0.5">
                   {completedIssuesCount}
                 </div>
                 {taskChangePct !== 0 ? (
@@ -248,18 +248,18 @@ export default function Analytics() {
                     <span>{Math.abs(taskChangePct)}% vs previous period</span>
                   </div>
                 ) : (
-                  <div className="text-[12px] text-zinc-500 dark:text-[#8a8f98] font-medium flex items-center gap-1 mt-1">
+                  <div className="text-[12px] text-text-muted font-medium flex items-center gap-1 mt-1">
                     <span>No change vs previous period</span>
                   </div>
                 )}
               </div>
               {/* Clear Context Progress */}
               <div className="flex flex-col gap-1.5 mt-5">
-                <div className="flex items-center justify-between text-[12px] text-zinc-500 dark:text-[#8a8f98]">
+                <div className="flex items-center justify-between text-[12px] text-text-muted">
                   <span>
                     {completedIssuesCount} of {totalIssuesCount} total
                   </span>
-                  <span className="font-mono text-zinc-900 dark:text-white font-medium">
+                  <span className="font-mono text-foreground font-medium">
                     {totalIssuesCount > 0
                       ? Math.round(
                           (completedIssuesCount / totalIssuesCount) * 100,
@@ -280,12 +280,12 @@ export default function Analytics() {
             </div>
 
             {/* Card 2: Active projects */}
-            <div className="p-4 sm:p-5.5 rounded-xl sm:rounded-2xl border border-black/[0.08] dark:border-white/[0.06] bg-white dark:bg-[#16171a]/95 flex flex-col justify-between hover:border-black/15 dark:hover:border-white/15 hover:bg-zinc-50 dark:hover:bg-[#191a1e] shadow-xs transition-all duration-300">
+            <div className="p-4 sm:p-5.5 rounded-xl sm:rounded-2xl border border-border bg-surface flex flex-col justify-between hover:border-border-strong hover:bg-surface-hover shadow-xs transition-all duration-300">
               <div>
-                <div className="text-[13px] font-medium text-zinc-500 dark:text-[#8a8f98]">
+                <div className="text-[13px] font-medium text-text-muted">
                   Active projects
                 </div>
-                <div className="text-2xl sm:text-[28px] font-semibold text-zinc-900 dark:text-white tracking-tight mt-0.5">
+                <div className="text-2xl sm:text-[28px] font-semibold text-foreground tracking-tight mt-0.5">
                   {activeProjectsCount}
                 </div>
                 <div className="text-[12px] text-emerald-500 dark:text-emerald-400 font-medium flex items-center gap-1 mt-1">
@@ -295,11 +295,11 @@ export default function Analytics() {
               </div>
               {/* Clear Context Progress */}
               <div className="flex flex-col gap-1.5 mt-5">
-                <div className="flex items-center justify-between text-[12px] text-zinc-500 dark:text-[#8a8f98]">
+                <div className="flex items-center justify-between text-[12px] text-text-muted">
                   <span>
                     {activeProjectsCount} of {totalProjectsCount} projects
                   </span>
-                  <span className="font-mono text-zinc-900 dark:text-white font-medium">
+                  <span className="font-mono text-foreground font-medium">
                     {totalProjectsCount > 0
                       ? Math.round(
                           (activeProjectsCount / totalProjectsCount) * 100,
@@ -313,19 +313,19 @@ export default function Analytics() {
                     style={{
                       width: `${totalProjectsCount > 0 ? Math.round((activeProjectsCount / totalProjectsCount) * 100) : 0}%`,
                     }}
-                    className="h-full bg-zinc-900 dark:bg-white rounded-full transition-all duration-700 ease-out"
+                    className="h-full bg-foreground rounded-full transition-all duration-700 ease-out"
                   />
                 </div>
               </div>
             </div>
 
             {/* Card 3: On-time delivery */}
-            <div className="p-4 sm:p-5.5 rounded-xl sm:rounded-2xl border border-black/[0.08] dark:border-white/[0.06] bg-white dark:bg-[#16171a]/95 flex flex-col justify-between hover:border-black/15 dark:hover:border-white/15 hover:bg-zinc-50 dark:hover:bg-[#191a1e] shadow-xs transition-all duration-300">
+            <div className="p-4 sm:p-5.5 rounded-xl sm:rounded-2xl border border-border bg-surface flex flex-col justify-between hover:border-border-strong hover:bg-surface-hover shadow-xs transition-all duration-300">
               <div>
-                <div className="text-[13px] font-medium text-zinc-500 dark:text-[#8a8f98]">
+                <div className="text-[13px] font-medium text-text-muted">
                   On-time delivery
                 </div>
-                <div className="text-2xl sm:text-[28px] font-semibold text-zinc-900 dark:text-white tracking-tight mt-0.5">
+                <div className="text-2xl sm:text-[28px] font-semibold text-foreground tracking-tight mt-0.5">
                   {onTimeDeliveryRate}%
                 </div>
                 {completedIssuesCount > 0 ? (
@@ -334,16 +334,16 @@ export default function Analytics() {
                     <span>{onTimeDeliveryRate >= 90 ? "Exceeding benchmark" : "Below benchmark"}</span>
                   </div>
                 ) : (
-                  <div className="text-[12px] text-zinc-500 dark:text-[#8a8f98] font-medium flex items-center gap-1 mt-1">
+                  <div className="text-[12px] text-text-muted font-medium flex items-center gap-1 mt-1">
                     <span>Based on completed tasks</span>
                   </div>
                 )}
               </div>
               {/* Clear Context Progress */}
               <div className="flex flex-col gap-1.5 mt-5">
-                <div className="flex items-center justify-between text-[11.5px] sm:text-[12px] text-zinc-500 dark:text-[#8a8f98]">
+                <div className="flex items-center justify-between text-[11.5px] sm:text-[12px] text-text-muted">
                   <span>Target: 90.0% benchmark</span>
-                  <span className={`font-mono font-medium ${onTimeDeliveryRate >= 90 ? "text-emerald-500 dark:text-emerald-400" : "text-zinc-500 dark:text-[#8a8f98]"}`}>
+                  <span className={`font-mono font-medium ${onTimeDeliveryRate >= 90 ? "text-emerald-500 dark:text-emerald-400" : "text-text-muted"}`}>
                     {completedIssuesCount > 0 ? (onTimeDeliveryRate >= 90 ? "Exceeding" : "On track") : "-"}
                   </span>
                 </div>
@@ -357,12 +357,12 @@ export default function Analytics() {
             </div>
 
             {/* Card 4: Overdue tasks */}
-            <div className="p-4 sm:p-5.5 rounded-xl sm:rounded-2xl border border-black/[0.08] dark:border-white/[0.06] bg-white dark:bg-[#16171a]/95 flex flex-col justify-between hover:border-black/15 dark:hover:border-white/15 hover:bg-zinc-50 dark:hover:bg-[#191a1e] shadow-xs transition-all duration-300">
+            <div className="p-4 sm:p-5.5 rounded-xl sm:rounded-2xl border border-border bg-surface flex flex-col justify-between hover:border-border-strong hover:bg-surface-hover shadow-xs transition-all duration-300">
               <div>
-                <div className="text-[13px] font-medium text-zinc-500 dark:text-[#8a8f98]">
+                <div className="text-[13px] font-medium text-text-muted">
                   Overdue tasks
                 </div>
-                <div className="text-2xl sm:text-[28px] font-semibold text-zinc-900 dark:text-white tracking-tight mt-0.5">
+                <div className="text-2xl sm:text-[28px] font-semibold text-foreground tracking-tight mt-0.5">
                   {overdueTasksCount}
                 </div>
                 <div className={`text-[12px] font-medium flex items-center gap-1 mt-1 ${parseInt(overdueTasksCount) > 0 ? "text-rose-500 dark:text-rose-400" : "text-emerald-500 dark:text-emerald-400"}`}>
@@ -375,7 +375,7 @@ export default function Analytics() {
               </div>
               {/* Clear Context Progress */}
               <div className="flex flex-col gap-1.5 mt-5">
-                <div className="flex items-center justify-between text-[11.5px] sm:text-[12px] text-zinc-500 dark:text-[#8a8f98]">
+                <div className="flex items-center justify-between text-[11.5px] sm:text-[12px] text-text-muted">
                   <span>
                     {overdueTasksCount} of {activeIssuesCount} active
                   </span>
@@ -403,22 +403,22 @@ export default function Analytics() {
           </div>
 
           {/* MAIN VELOCITY CHART CARD */}
-          <div className="p-4 sm:p-6.5 rounded-xl sm:rounded-2xl border border-black/[0.08] dark:border-white/[0.06] bg-white dark:bg-[#16171a]/95 flex flex-col gap-4 sm:gap-5 hover:border-black/15 dark:hover:border-white/12 hover:bg-zinc-50/50 dark:hover:bg-[#191a1e] shadow-xs transition-all duration-300">
+          <div className="p-4 sm:p-6.5 rounded-xl sm:rounded-2xl border border-border bg-surface flex flex-col gap-4 sm:gap-5 hover:border-border-strong hover:bg-surface-hover shadow-xs transition-all duration-300">
             {/* Header & Big Stat Row */}
             <div className="flex flex-col gap-3">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <h2 className="text-[15px] font-semibold text-zinc-900 dark:text-white tracking-tight">
+                  <h2 className="text-[15px] font-semibold text-foreground tracking-tight">
                     Work velocity
                   </h2>
-                  <p className="text-[11.5px] text-zinc-500 dark:text-[#8a8f98] mt-0.5 hidden sm:block">
+                  <p className="text-[11.5px] text-text-muted mt-0.5 hidden sm:block">
                     Velocity trend and distribution across this interval
                   </p>
                 </div>
 
                 {/* Big Stat on Right */}
                 <div className="text-right shrink-0">
-                  <div className="text-2xl sm:text-3xl font-semibold text-zinc-900 dark:text-white tracking-tight leading-none">
+                  <div className="text-2xl sm:text-3xl font-semibold text-foreground tracking-tight leading-none">
                     {velocityTitleStat}
                   </div>
                   {taskChangePct !== 0 ? (
@@ -437,7 +437,7 @@ export default function Analytics() {
                       <span>{Math.abs(taskChangePct)}% vs prior</span>
                     </div>
                   ) : (
-                    <div className="text-[11px] text-zinc-500 dark:text-[#8a8f98] font-medium flex items-center justify-end gap-1 mt-1">
+                    <div className="text-[11px] text-text-muted font-medium flex items-center justify-end gap-1 mt-1">
                       <span>Steady vs prior</span>
                     </div>
                   )}
@@ -850,7 +850,7 @@ export default function Analytics() {
           {/* 3. BOTTOM SECTION: PROJECT HEALTH & PROJECTS TO WATCH */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5">
             {/* Card A: Project Health */}
-            <div className="p-5 sm:p-6.5 rounded-xl sm:rounded-2xl border border-black/[0.08] dark:border-white/[0.06] bg-white dark:bg-[#16171a]/95 flex flex-col justify-between hover:border-black/15 dark:hover:border-white/12 hover:bg-zinc-50/50 dark:hover:bg-[#191a1e] shadow-xs transition-all duration-300">
+            <div className="p-5 sm:p-6.5 rounded-xl sm:rounded-2xl border border-border bg-surface flex flex-col justify-between hover:border-black/15 dark:hover:border-white/12 hover:bg-surface-hover shadow-xs transition-all duration-300">
               <div>
                 {/* Header */}
                 <div>
@@ -1043,7 +1043,7 @@ export default function Analytics() {
             </div>
 
             {/* Card B: Projects to watch */}
-            <div className="p-5 sm:p-6.5 rounded-xl sm:rounded-2xl border border-black/[0.08] dark:border-white/[0.06] bg-white dark:bg-[#16171a]/95 flex flex-col justify-between hover:border-black/15 dark:hover:border-white/12 hover:bg-zinc-50/50 dark:hover:bg-[#191a1e] shadow-xs transition-all duration-300">
+            <div className="p-5 sm:p-6.5 rounded-xl sm:rounded-2xl border border-border bg-surface flex flex-col justify-between hover:border-black/15 dark:hover:border-white/12 hover:bg-surface-hover shadow-xs transition-all duration-300">
               <div>
                 {/* Header */}
                 <div className="flex items-center justify-between mb-4">

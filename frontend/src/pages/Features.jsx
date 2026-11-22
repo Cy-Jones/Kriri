@@ -92,7 +92,7 @@ export default function Features() {
                 <div className="mb-6 flex items-center justify-center h-48 sm:h-52 relative select-none">
                   <div className="w-44 h-44 sm:w-48 sm:h-48 flex items-center justify-center">
                     <Figure
-                      theme={theme === "light" ? "light" : "dark"}
+                      theme="dark"
                       intensity={0.85}
                       className="w-full h-full text-muted-foreground group-hover:text-foreground transition-colors"
                     />

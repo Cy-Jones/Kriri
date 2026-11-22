@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-theme="dark" style="background-color: #000000;">
+<html lang="en" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
@@ -7,11 +7,157 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, viewport-fit=cover"
     />
+    <meta name="color-scheme" content="dark light" />
     <meta name="theme-color" content="#000000" />
-    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#000000" />
     <meta name="theme-color" media="(prefers-color-scheme: light)" content="#000000" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#000000" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <script>
+      /* Fallback for Web Crypto on non-secure contexts (e.g. mobile access via local network IP) */
+      (function() {
+        if (typeof window === 'undefined') return;
+        if (!window.crypto) window.crypto = {};
+        if (!window.crypto.subtle || typeof window.crypto.subtle.digest !== 'function') {
+          var subtlePolyfill = {
+            digest: function(algorithm, data) {
+              var algo = typeof algorithm === 'string' ? algorithm.toLowerCase() : (algorithm && algorithm.name ? algorithm.name.toLowerCase() : '');
+              return new Promise(function(resolve, reject) {
+                try {
+                  var bytes = new Uint8Array(data);
+                  if (algo === 'sha-1' || algo === 'sha1') {
+                    var words = [];
+                    for (var i = 0; i < bytes.length; i++) {
+                      words[i >> 2] = (words[i >> 2] || 0) | (bytes[i] << (24 - (i % 4) * 8));
+                    }
+                    var bitLength = bytes.length * 8;
+                    words[bitLength >> 5] = (words[bitLength >> 5] || 0) | (0x80 << (24 - (bitLength % 32)));
+                    var totalWords = (((bitLength + 64) >> 9) << 4) + 16;
+                    for (var j = 0; j < totalWords; j++) words[j] = words[j] || 0;
+                    words[totalWords - 1] = bitLength;
+
+                    var H = [0x67452301, 0xefcdab89, 0x98badcfe, 0x10325476, 0xc3d2e1f0];
+                    var W = new Array(80);
+
+                    for (var i = 0; i < words.length; i += 16) {
+                      for (var t = 0; t < 16; t++) W[t] = words[i + t] | 0;
+                      for (var t = 16; t < 80; t++) {
+                        var n = W[t - 3] ^ W[t - 8] ^ W[t - 14] ^ W[t - 16];
+                        W[t] = (n << 1) | (n >>> 31);
+                      }
+                      var a = H[0], b = H[1], c = H[2], d = H[3], e = H[4];
+                      for (var t = 0; t < 80; t++) {
+                        var f, k;
+                        if (t < 20) { f = (b & c) | ((~b) & d); k = 0x5a827999; }
+                        else if (t < 40) { f = b ^ c ^ d; k = 0x6ed9eba1; }
+                        else if (t < 60) { f = (b & c) | (b & d) | (c & d); k = 0x8f1bbcdc; }
+                        else { f = b ^ c ^ d; k = 0xca62c1d6; }
+                        var temp = (((a << 5) | (a >>> 27)) + f + e + k + W[t]) | 0;
+                        e = d; d = c; c = ((b << 30) | (b >>> 2)) | 0; b = a; a = temp;
+                      }
+                      H[0] = (H[0] + a) | 0;
+                      H[1] = (H[1] + b) | 0;
+                      H[2] = (H[2] + c) | 0;
+                      H[3] = (H[3] + d) | 0;
+                      H[4] = (H[4] + e) | 0;
+                    }
+
+                    var res = new Uint8Array(20);
+                    for (var i = 0; i < 5; i++) {
+                      res[i * 4] = (H[i] >> 24) & 0xff;
+                      res[i * 4 + 1] = (H[i] >> 16) & 0xff;
+                      res[i * 4 + 2] = (H[i] >> 8) & 0xff;
+                      res[i * 4 + 3] = H[i] & 0xff;
+                    }
+                    resolve(res.buffer);
+                  } else {
+                    reject(new Error('Algorithm not supported by fallback: ' + algo));
+                  }
+                } catch (err) {
+                  reject(err);
+                }
+              });
+            }
+          };
+
+          try {
+            window.crypto.subtle = subtlePolyfill;
+          } catch(e) {}
+
+          if (!window.crypto.subtle || typeof window.crypto.subtle.digest !== 'function') {
+            try {
+              Object.defineProperty(window.crypto, 'subtle', { value: subtlePolyfill, configurable: true, writable: true });
+            } catch(e) {
+              try {
+                var protoCrypto = Object.create(window.crypto || {});
+                protoCrypto.subtle = subtlePolyfill;
+                Object.defineProperty(window, 'crypto', { value: protoCrypto, configurable: true, writable: true });
+              } catch(e2) {}
+            }
+          }
+        }
+      })();
+    </script>
+    <script>
+      (function() {
+        try {
+          var path = (window.location && window.location.pathname) ? window.location.pathname.toLowerCase() : '';
+          var isAppRoute =
+            path.startsWith('/dashboard') ||
+            path.startsWith('/inbox') ||
+            path.startsWith('/tasks') ||
+            path.startsWith('/projects') ||
+            path.startsWith('/analytics') ||
+            path.startsWith('/team') ||
+            path.startsWith('/agent') ||
+            path.startsWith('/settings');
+
+          // ONLY logged-in app routes follow the stored interface theme; all other routes are dark
+          var stored = isAppRoute ? (localStorage.getItem('arc-theme') || 'system') : 'dark';
+          var scheme = 'dark';
+          var bg = '#08090a';
+          if (isAppRoute) {
+            if (stored === 'light' || stored === 'pure-light') {
+              scheme = 'light';
+              bg = '#ffffff';
+            } else if (stored === 'system') {
+              var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+              scheme = prefersDark ? 'dark' : 'light';
+              bg = prefersDark ? '#08090a' : '#ffffff';
+            } else if (stored === 'custom') {
+              var customBg = localStorage.getItem('kriri-custom-theme-bg') || '#191a22';
+              bg = customBg;
+              var hex = customBg.replace('#', '').trim();
+              if (hex.length === 3) hex = hex.split('').map(function(x) { return x + x; }).join('');
+              var num = parseInt(hex, 16);
+              if (!isNaN(num)) {
+                var r = ((num >> 16) & 255) / 255;
+                var g = ((num >> 8) & 255) / 255;
+                var b = (num & 255) / 255;
+                var lin = [r, g, b].map(function(v) { return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); });
+                var lum = 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2];
+                scheme = lum < 0.18 ? 'dark' : 'light';
+              }
+            }
+          }
+          var isDark = scheme === 'dark';
+          document.documentElement.classList.toggle('dark', isDark);
+          document.documentElement.classList.toggle('light', !isDark);
+          document.documentElement.setAttribute('data-theme', scheme);
+          document.documentElement.setAttribute('data-theme-mode', stored);
+          document.documentElement.setAttribute('data-color-scheme', scheme);
+          document.documentElement.style.colorScheme = scheme;
+          document.documentElement.style.backgroundColor = bg;
+          var metas = document.querySelectorAll('meta[name="theme-color"]');
+          metas.forEach(function(m) { m.setAttribute('content', bg); });
+          var csMeta = document.querySelector('meta[name="color-scheme"]');
+          if (csMeta) csMeta.setAttribute('content', scheme);
+          var sbMeta = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
+          if (sbMeta) sbMeta.setAttribute('content', isDark ? 'black' : 'default');
+        } catch (e) {}
+      })();
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
@@ -22,7 +168,7 @@
     <link rel="dns-prefetch" href="https://us.i.posthog.com" />
     <title>Kriri - Project & Team Workspace</title>
   </head>
-  <body style="background-color: #000000;">
+  <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

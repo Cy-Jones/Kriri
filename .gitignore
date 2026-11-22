@@ -36,6 +36,9 @@ lerna-debug.log*
 summary.log
 backend/summary.log
 
+# Local Workspace Archive (Local only, zero data loss)
+.local_archive/
+
 # Operating System & IDE
 .DS_Store
 .DS_Store?
@@ -50,17 +53,22 @@ Thumbs.db
 *.sublime-project
 *.sublime-workspace
 .claude/
+frontend/.claude/
+backend/.claude/
 .posthog-wizard-cache/
+backend/.posthog-wizard-cache/
 
 # Agent & Scratch Artifacts
-.agents/skills
+.agents/
 skills-lock.json
 hairline-*.html
 hairline-*.png
 .tempmediaStorage/
+.figma/
+frontend/.figma/
 
 # Local Academic Documents & Internal Specs (Keep local, do not push to public repo)
 PROJECT_PROGRESS_REPORT.md
 KRIRI_DESIGN_SYSTEM.md
-docs/architecture/BLUEPRINT.md
-docs/architecture/INSTRUCTIONS.md
+docs/architecture/
+docs/reports/

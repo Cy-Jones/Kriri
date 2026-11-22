@@ -1,21 +1,17 @@
 import { useState, useEffect } from "react";
 import { api } from "../lib/api";
 import { useSocket } from "../contexts/SocketContext";
+import { useProjectsStore, dataStore } from "../lib/dataStore";
 
 export function useProjectData(user, organization) {
   const userName = user?.fullName || "User";
   const [currentUserRole, setCurrentUserRole] = useState(null);
-  const [projects, setProjects] = useState(() => {
-    const fromApiCache = api.getCached("/projects");
-    if (Array.isArray(fromApiCache) && fromApiCache.length > 0) return fromApiCache;
-    try {
-      const cached = localStorage.getItem(`kriri:cache:projects_${organization?.id || "personal"}`);
-      return cached ? JSON.parse(cached) : [];
-    } catch {
-      return [];
-    }
-  });
-  const [loading, setLoading] = useState(() => projects.length === 0);
+  const isAuditMock = typeof window !== "undefined" && import.meta.env.DEV && (window.__AUDIT_MOCK_AUTH__ || window.localStorage?.getItem("audit_mock_auth") === "true");
+  const scopeKey = user?.id ? `${user.id}:${organization?.id || "personal"}` : (isAuditMock ? "mock_user:personal" : null);
+
+  const { projects, setProjects, fetchProjects } = useProjectsStore();
+  const [loading, setLoading] = useState(() => (isAuditMock ? false : projects.length === 0));
+
   const [confirmModal, setConfirmModal] = useState({
     isOpen: false,
     projectId: null,
@@ -26,6 +22,17 @@ export function useProjectData(user, organization) {
       currentUserRole,
     ) || !organization;
 
+  // Custom DOM event listener for project creation
+  useEffect(() => {
+    const handleCreated = (e) => {
+      if (e.detail) {
+        dataStore.handleProjectCreated(e.detail);
+      }
+    };
+    window.addEventListener("kriri:project-created", handleCreated);
+    return () => window.removeEventListener("kriri:project-created", handleCreated);
+  }, []);
+
   // Fetch current user role in organization
   useEffect(() => {
     const fetchRole = async () => {
@@ -34,12 +41,17 @@ export function useProjectData(user, organization) {
         return;
       }
       try {
-        const response = await api.get(
-          `/workspaces/${organization.id}/members`,
-        );
-        const members = Array.isArray(response)
-          ? response
-          : response.data?.members || [];
+        const cachedMembers = api.getCached(`/workspaces/${organization.id}/members`);
+        let members = Array.isArray(cachedMembers) ? cachedMembers : null;
+        if (!members) {
+          const response = await api.get(
+            `/workspaces/${organization.id}/members`,
+            { ttl: 300000 }
+          );
+          members = Array.isArray(response)
+            ? response
+            : response.data?.members || [];
+        }
         const currentMember = members.find(
           (m) => m.email === user?.primaryEmailAddress?.emailAddress,
         );
@@ -53,96 +65,22 @@ export function useProjectData(user, organization) {
     }
   }, [organization, user]);
 
-  // WebSocket subscriptions for real-time changes
-  const socket = useSocket();
-  useEffect(() => {
-    if (!socket) return;
-
-    const handleProjectCreated = (newProject) => {
-      setProjects((prev) => {
-        if (prev.some((p) => p.id === newProject.id)) return prev;
-        return [newProject, ...prev];
-      });
-    };
-
-    const handleProjectUpdated = (updatedProject) => {
-      setProjects((prev) =>
-        prev.map((p) =>
-          p.id === updatedProject.id ? { ...p, ...updatedProject } : p,
-        ),
-      );
-    };
-
-    const handleProjectDeleted = ({ id }) => {
-      setProjects((prev) => prev.filter((p) => p.id !== id));
-    };
-
-    socket.on("PROJECT_CREATED", handleProjectCreated);
-    socket.on("PROJECT_UPDATED", handleProjectUpdated);
-    socket.on("PROJECT_DELETED", handleProjectDeleted);
-
-    return () => {
-      socket.off("PROJECT_CREATED", handleProjectCreated);
-      socket.off("PROJECT_UPDATED", handleProjectUpdated);
-      socket.off("PROJECT_DELETED", handleProjectDeleted);
-    };
-  }, [socket]);
-
   // Fetch projects once user context is loaded or workspace changes
   useEffect(() => {
-    if (!user) return;
-    setProjects((prev) => {
-      if (prev.length === 0) setLoading(true);
-      return prev;
-    });
-    api
-      .get("/projects")
-      .then((data) => {
-        if (Array.isArray(data) && data.length > 0) {
-          const enriched = data.map((p, idx) => ({
-            ...p,
-            id: p.id,
-            identifier: p.identifier || `KRI-PRJ-${idx + 1}`,
-            name: p.name || `Project ${idx + 1}`,
-            status: p.status || "Planned",
-            priority: p.priority || "No priority",
-            health: p.health || "No updates",
-            start_date: p.start_date || null,
-            due_date: p.due_date || null,
-            progress: p.progress ?? 0,
-            position: p.position ?? idx + 1,
-            members: p.members || [],
-            labels: p.labels || [],
-            milestones: p.milestones || [],
-            dependencies: p.dependencies || [],
-          }));
-          setProjects(enriched);
-          try {
-            localStorage.setItem(
-              `kriri:cache:projects_${organization?.id || "personal"}`,
-              JSON.stringify(enriched),
-            );
-          } catch {}
-        } else {
-          setProjects([]);
-        }
-        setLoading(false);
-      })
+    if (!user && !isAuditMock) return;
+    if (projects.length === 0) setLoading(true);
+    fetchProjects(scopeKey)
+      .then(() => setLoading(false))
       .catch((err) => {
         console.warn("API get projects failed:", err);
         setLoading(false);
       });
-  }, [user?.id, organization?.id]);
+  }, [user?.id, organization?.id, scopeKey, fetchProjects, isAuditMock]);
 
   const handleUpdateProject = async (projectId, updatedFields) => {
     if (!canManageProjects) return;
-    setProjects((prev) =>
-      prev.map((p) =>
-        p.id === projectId
-          ? { ...p, ...updatedFields, updated_at: new Date().toISOString() }
-          : p,
-      ),
-    );
+    const patch = { ...updatedFields, updated_at: new Date().toISOString() };
+    dataStore.handleProjectUpdated({ id: projectId, ...patch });
     try {
       await api.put(`/projects/${projectId}`, updatedFields);
     } catch (err) {
@@ -161,7 +99,7 @@ export function useProjectData(user, organization) {
     setConfirmModal({ isOpen: false, projectId: null });
     if (!projectId) return;
 
-    setProjects((prev) => prev.filter((p) => p.id !== projectId));
+    dataStore.handleProjectDeleted(projectId);
     try {
       await api.delete(`/projects/${projectId}`);
     } catch (err) {
@@ -204,10 +142,7 @@ export function useProjectData(user, organization) {
       created_at: newProject.created_at || new Date().toISOString(),
       updated_at: newProject.updated_at || new Date().toISOString(),
     };
-    setProjects((prev) => {
-      if (prev.some((p) => p.id === enriched.id)) return prev;
-      return [enriched, ...prev];
-    });
+    dataStore.handleProjectCreated(enriched);
   };
 
   return {

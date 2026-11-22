@@ -14,6 +14,15 @@ router.use(verifyToken);
 router.get("/", requireMinimumRole("Viewer"), taskController.getAllTasks);
 router.get("/:id", requireMinimumRole("Viewer"), taskController.getTaskById);
 
+// Subtasks (Module 15)
+router.get("/:id/subtasks", requireMinimumRole("Viewer"), taskController.getSubtasks);
+router.post("/:id/subtasks", requireMinimumRole("Member"), taskController.createSubtask);
+
+// Dependencies (Module 16)
+router.get("/:id/dependencies", requireMinimumRole("Viewer"), taskController.getTaskDependencies);
+router.post("/:id/dependencies", requireMinimumRole("Member"), taskController.addTaskDependency);
+router.delete("/:id/dependencies/:depId", requireMinimumRole("Member"), taskController.removeTaskDependency);
+
 // Members can update task status (per rule 4.4)
 router.put("/:id", requireMinimumRole("Member"), taskController.updateTask);
 

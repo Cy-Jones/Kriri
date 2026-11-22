@@ -45,6 +45,11 @@ router.delete(
   workspaceController.deleteNotification,
 );
 router.get(
+  "/check-slug",
+  requireMinimumRole("Viewer"),
+  workspaceController.checkSlugAvailability,
+);
+router.get(
   "/current",
   requireMinimumRole("Viewer"),
   workspaceController.getCurrentWorkspace,
@@ -54,9 +59,24 @@ router.patch(
   requireMinimumRole("Admin"),
   workspaceController.updateCurrentWorkspace,
 );
+router.post(
+  "/current/logo",
+  requireMinimumRole("Admin"),
+  workspaceController.uploadWorkspaceLogo,
+);
+router.delete(
+  "/current/logo",
+  requireMinimumRole("Admin"),
+  workspaceController.removeWorkspaceLogo,
+);
+router.post(
+  "/current/transfer-ownership",
+  requireMinimumRole("Admin"),
+  workspaceController.transferWorkspaceOwnership,
+);
 router.delete(
   "/current",
-  requireMinimumRole("Admin"),
+  requireMinimumRole("Owner"),
   workspaceController.deleteCurrentWorkspace,
 );
 router.get(

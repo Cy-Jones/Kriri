@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { Button } from "@/registry/components/button/button";
 
@@ -34,10 +35,10 @@ export default function ConfirmModal({
 
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-200">
       <div
-        className="w-full max-w-sm bg-white dark:bg-[#1a1b1e] border border-black/10 dark:border-[#2a2a2a] rounded-xl shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200"
+        className="w-full max-w-sm bg-surface-elevated text-foreground border border-border rounded-xl shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between p-4 border-b border-black/10 dark:border-[#2a2a2a]">
@@ -76,13 +77,15 @@ export default function ConfirmModal({
           )}
 
           <div className="flex justify-end gap-2 mt-2">
-            <Button
-              variant="secondary"
-              onClick={onClose}
-              className="text-[13px] h-8"
-            >
-              {cancelText}
-            </Button>
+            {cancelText && (
+              <Button
+                variant="secondary"
+                onClick={onClose}
+                className="text-[13px] h-8"
+              >
+                {cancelText}
+              </Button>
+            )}
             <Button
               variant="primary"
               onClick={onConfirm}
@@ -102,6 +105,7 @@ export default function ConfirmModal({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

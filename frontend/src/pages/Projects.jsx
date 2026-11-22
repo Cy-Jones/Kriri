@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef, useDeferredValue } from "react";
+import { useState, useEffect, useLayoutEffect, useCallback, useRef, useDeferredValue, memo } from "react";
 import { useNavigate } from "react-router-dom";
-import { useUser, useOrganization } from "@clerk/clerk-react";
+import { useUser, useOrganization } from "@clerk/react";
 import { Plus, Settings2, X } from "lucide-react";
 import { Loupe } from "@lucasmarkes/hairline/react";
 import { useTheme } from "../contexts/ThemeContext";
@@ -8,7 +8,12 @@ import { useTheme } from "../contexts/ThemeContext";
 import CreateProjectModal from "../components/CreateProjectModal";
 import ConfirmModal from "../components/ConfirmModal";
 import { ErrorBoundary } from "../components/ErrorBoundary";
-import PageLoading from "../components/PageLoading";
+import {
+  ProjectsListSkeleton,
+  ProjectsBoardSkeleton,
+  ProjectsTimelineSkeleton,
+} from "../components/skeletons/PageSkeletons";
+import { useDeferredSkeleton } from "../hooks/useDeferredSkeleton";
 
 import ListViewRenderer from "../components/projects/ListViewRenderer";
 import BoardViewRenderer from "../components/projects/BoardViewRenderer";
@@ -19,8 +24,9 @@ import ProjectToolbar from "../components/projects/ProjectToolbar";
 
 import { useProjectData } from "../hooks/useProjectData";
 import { useProjectFilters } from "../hooks/useProjectFilters";
+import { viewStateStore } from "../lib/viewStateStore";
 
-export default function Projects() {
+export default memo(function Projects({ isActive = true }) {
   const navigate = useNavigate();
   const { effectiveTheme } = useTheme();
   const { user } = useUser();
@@ -38,6 +44,8 @@ export default function Projects() {
     confirmDeleteProject,
     handleCreateProject,
   } = useProjectData(user, organization);
+
+  const showSkeleton = useDeferredSkeleton(loading && projects.length === 0, 180);
 
   // 2. Filters & View state management
   const {
@@ -88,30 +96,7 @@ export default function Projects() {
 
   const activeView = viewConfig?.activeView || "list";
 
-  // Keep visited views preserved in the DOM so switching between List/Board/Timeline is 0ms instantaneous
-  const [visitedViews, setVisitedViews] = useState(() => new Set([activeView]));
 
-  useEffect(() => {
-    setVisitedViews((prev) => {
-      if (prev.has(activeView)) return prev;
-      const next = new Set(prev);
-      next.add(activeView);
-      return next;
-    });
-  }, [activeView]);
-
-  // Pre-warm Board view in idle time so switching to Board has zero mount delay
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setVisitedViews((prev) => {
-        if (prev.has("board")) return prev;
-        const next = new Set(prev);
-        next.add("board");
-        return next;
-      });
-    }, 400);
-    return () => clearTimeout(timer);
-  }, []);
 
   // 3. Selection & Command Palette State
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -133,7 +118,25 @@ export default function Projects() {
   const filterRef = useRef(null);
   const displayOptionsRef = useRef(null);
   const timelineScrollRef = useRef(null);
+  const listScrollRef = useRef(null);
   const keyTimeout = useRef(null);
+
+  const handleListScroll = useCallback((e) => {
+    viewStateStore.setProjectsView({
+      scrollTop: e.currentTarget.scrollTop,
+      scrollLeft: e.currentTarget.scrollLeft,
+    });
+  }, []);
+
+  useLayoutEffect(() => {
+    const saved = viewStateStore.getProjectsView();
+    if (listScrollRef.current && saved.scrollTop > 0) {
+      listScrollRef.current.scrollTop = saved.scrollTop;
+    }
+    if (listScrollRef.current && saved.scrollLeft > 0) {
+      listScrollRef.current.scrollLeft = saved.scrollLeft;
+    }
+  }, [activeView]);
 
   // Enforce no timeline view on mobile devices
   useEffect(() => {
@@ -166,6 +169,9 @@ export default function Projects() {
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e) => {
+      if (window.location.pathname !== "/projects" && window.location.pathname !== "/projects/") {
+        return;
+      }
       if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") {
         if (!isBulkActionMenuOpen) return;
       }
@@ -223,11 +229,56 @@ export default function Projects() {
           }
         }
       }
+
+      // View switching: mod+1 (List), mod+2 (Board), mod+3 (Timeline)
+      if (e.metaKey || e.ctrlKey) {
+        if (!e.shiftKey && !e.altKey) {
+          if (e.key === "1" || e.code === "Digit1") {
+            e.preventDefault();
+            setActiveView("list");
+            return;
+          }
+          if (e.key === "2" || e.code === "Digit2") {
+            e.preventDefault();
+            setActiveView("board");
+            return;
+          }
+          if (e.key === "3" || e.code === "Digit3") {
+            e.preventDefault();
+            setActiveView("timeline");
+            return;
+          }
+        }
+      }
+
+      // Toggle display options: 'o'
+      if (
+        e.key.toLowerCase() === "o" &&
+        !e.metaKey &&
+        !e.ctrlKey &&
+        !e.altKey &&
+        !isBulkActionMenuOpen
+      ) {
+        e.preventDefault();
+        setIsDisplayOptionsOpen((prev) => !prev);
+        return;
+      }
+    };
+
+    const handleCustomSwitchView = (e) => {
+      if (e.detail?.view) setActiveView(e.detail.view);
+    };
+    const handleCustomToggleDisplay = () => {
+      setIsDisplayOptionsOpen((prev) => !prev);
     };
 
     window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("kriri-switch-view", handleCustomSwitchView);
+    window.addEventListener("kriri-toggle-display-options", handleCustomToggleDisplay);
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("kriri-switch-view", handleCustomSwitchView);
+      window.removeEventListener("kriri-toggle-display-options", handleCustomToggleDisplay);
       clearTimeout(keyTimeout.current);
     };
   }, [selectedProjects, isBulkActionMenuOpen]);
@@ -260,10 +311,6 @@ export default function Projects() {
     setIsDisplayOptionsOpen,
   ]);
 
-  if (loading) {
-    return <PageLoading label="Projects" />;
-  }
-
   const currentViewConfig =
     viewConfig[activeView] || workspaceDefaultConfig[activeView];
   const isNonDefaultDisplay =
@@ -271,7 +318,7 @@ export default function Projects() {
     JSON.stringify(workspaceDefaultConfig[activeView]);
 
   return (
-    <div className="w-full flex flex-col min-h-full md:h-full min-w-0 animate-in fade-in duration-300 select-none text-zinc-900 dark:text-[#e8e8e8]">
+    <div className="w-full flex flex-col min-h-full md:h-full min-w-0 select-none text-foreground">
       {/* 1. TOP TOOLBAR & CONTROLS */}
       <ProjectToolbar
         canManageProjects={canManageProjects}
@@ -311,7 +358,15 @@ export default function Projects() {
 
       {/* 2. MAIN CONTENT VIEWS */}
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
-        {filteredProjects.length === 0 ? (
+        {showSkeleton ? (
+          activeView === "board" ? (
+            <ProjectsBoardSkeleton />
+          ) : activeView === "timeline" ? (
+            <ProjectsTimelineSkeleton />
+          ) : (
+            <ProjectsListSkeleton />
+          )
+        ) : filteredProjects.length === 0 ? (
           <div className="flex flex-col items-center justify-center flex-1 max-w-sm mx-auto text-center gap-6 mt-10 animate-in fade-in zoom-in-95 duration-500">
             <div className="w-64 h-64 flex items-center justify-center relative overflow-visible">
               <Loupe theme={effectiveTheme} intensity={0.7} className="w-full h-full text-zinc-500 dark:text-[#8a8f98] opacity-80" />
@@ -328,7 +383,7 @@ export default function Projects() {
             {canManageProjects && (
               <button
                 onClick={() => setIsCreateModalOpen(true)}
-                className="h-8 px-4 bg-zinc-900 text-white dark:bg-white dark:text-black rounded-full font-medium text-[13px] hover:bg-zinc-800 dark:hover:bg-zinc-100 transition-all duration-300 shadow-sm dark:shadow-[0_0_20px_rgba(255,255,255,0.14)] active:scale-[0.98] flex items-center gap-2"
+                className="kriri-primary-btn h-8 px-4 rounded-full font-medium text-[13px] transition-all duration-300 shadow-sm active:scale-[0.98] flex items-center gap-2"
               >
                 <Plus size={14} strokeWidth={2.2} /> New Project
               </button>
@@ -336,8 +391,8 @@ export default function Projects() {
           </div>
         ) : (
           <>
-            {visitedViews.has("list") && (
-              <div className={`flex-1 flex flex-col min-h-0 ${activeView === "list" ? "" : "hidden"}`}>
+            {activeView === "list" && (
+              <div className="flex-1 flex flex-col min-h-0">
                 <ListViewRenderer
                   projects={filteredProjects}
                   config={viewConfig.list || workspaceDefaultConfig.list}
@@ -351,12 +406,14 @@ export default function Projects() {
                   activePicker={activePicker}
                   setActivePicker={canManageProjects ? setActivePicker : () => {}}
                   canManageProjects={canManageProjects}
+                  listScrollRef={listScrollRef}
+                  onScroll={handleListScroll}
                 />
               </div>
             )}
 
-            {visitedViews.has("board") && (
-              <div className={`flex-1 flex flex-col min-h-0 ${activeView === "board" ? "" : "hidden"}`}>
+            {activeView === "board" && (
+              <div className="flex-1 flex flex-col min-h-0">
                 <BoardViewRenderer
                   projects={filteredProjects}
                   config={viewConfig.board || workspaceDefaultConfig.board}
@@ -377,8 +434,8 @@ export default function Projects() {
               </div>
             )}
 
-            {visitedViews.has("timeline") && typeof window !== "undefined" && window.innerWidth >= 768 && (
-              <div className={`flex-1 flex flex-col min-h-0 ${activeView === "timeline" ? "" : "hidden"}`}>
+            {activeView === "timeline" && typeof window !== "undefined" && window.innerWidth >= 768 && (
+              <div className="flex-1 flex flex-col min-h-0">
                 <ErrorBoundary>
                   <TimelineViewRenderer
                     projects={filteredProjects}
@@ -404,7 +461,7 @@ export default function Projects() {
 
       {/* 3. SELECTION BOTTOM BAR */}
       {selectedProjects && selectedProjects.length > 0 && (
-        <div className="fixed bottom-10 left-1/2 -translate-x-1/2 flex items-center gap-3 bg-white/95 dark:bg-[#141517]/90 backdrop-blur-xl border border-black/10 dark:border-white/[0.08] rounded-full px-4 py-2.5 shadow-[0_16px_40px_-8px_rgba(0,0,0,0.15)] dark:shadow-[0_16px_40px_-8px_rgba(0,0,0,0.8)] z-[100] animate-in slide-in-from-bottom-8 duration-300">
+        <div className="fixed bottom-10 left-1/2 -translate-x-1/2 flex items-center gap-3 bg-white/95 dark:bg-[var(--surface-elevated,#141517)]/90 backdrop-blur-xl border border-black/10 dark:border-[var(--border,rgba(255,255,255,0.08))] rounded-full px-4 py-2.5 shadow-[0_16px_40px_-8px_rgba(0,0,0,0.15)] dark:shadow-[0_16px_40px_-8px_rgba(0,0,0,0.8)] z-[100] animate-in slide-in-from-bottom-8 duration-300">
           <span className="text-[13px] font-medium text-zinc-900 dark:text-white px-2">
             {selectedProjects.length} selected
           </span>
@@ -470,4 +527,4 @@ export default function Projects() {
       />
     </div>
   );
-}
+});

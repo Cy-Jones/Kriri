@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/registry/components/button/button";
 import SegmentedControl from "@/registry/components/segmented-control/segmented-control";
+import ViewSwitcher from "../ViewSwitcher";
 import { motion } from "motion/react";
 
 export default function ProjectToolbar({
@@ -173,7 +174,7 @@ export default function ProjectToolbar({
         {canManageProjects && projects.length > 0 && (
           <button
             onClick={() => setIsCreateModalOpen(true)}
-            className="h-[26px] sm:h-[28px] px-3 bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-100 transition-all duration-300 text-[11.5px] sm:text-[12px] font-medium rounded-full shadow-sm dark:shadow-[0_0_20px_rgba(255,255,255,0.14)] dark:hover:shadow-[0_0_28px_rgba(255,255,255,0.22)] active:scale-[0.98] shrink-0 flex items-center gap-1.5"
+            className="kriri-primary-btn h-[26px] sm:h-[28px] px-3 transition-all duration-300 text-[11.5px] sm:text-[12px] font-medium rounded-full shadow-sm active:scale-[0.98] shrink-0 flex items-center gap-1.5"
           >
             <Plus size={13} strokeWidth={2.2} /> New Project
           </button>
@@ -1202,8 +1203,8 @@ export default function ProjectToolbar({
                 ref={displayOptionsRef}
                 className="absolute top-[calc(100%+16px)] right-0 w-[310px] max-w-[calc(100vw-32px)] bg-white dark:bg-[#1c1c1e] border border-black/[0.08] dark:border-white/5 rounded-xl shadow-2xl p-3 z-50 animate-in fade-in zoom-in-95 duration-100 flex flex-col gap-3"
               >
-                <div className="flex items-center gap-1 p-1 rounded-full bg-black/[0.04] dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/[0.06] w-full">
-                  {[
+                <ViewSwitcher
+                  views={[
                     {
                       value: "list",
                       label: "List",
@@ -1223,46 +1224,11 @@ export default function ProjectToolbar({
                           },
                         ]
                       : []),
-                  ].map((tab) => {
-                    const isActive = activeView === tab.value;
-                    return (
-                      <button
-                        key={tab.value}
-                        type="button"
-                        onClick={() => setActiveView(tab.value)}
-                        className={`relative flex-1 flex items-center justify-center gap-1.5 py-1.5 text-[12px] font-medium rounded-full transition-colors cursor-pointer select-none ${
-                          isActive
-                            ? "text-zinc-900 dark:text-white"
-                            : "text-zinc-600 hover:text-zinc-900 dark:text-[#8a8f98] dark:hover:text-white"
-                        }`}
-                      >
-                        {isActive && (
-                          <motion.div
-                            layoutId="projectsViewActivePill"
-                            className="absolute inset-0 bg-white dark:bg-white/[0.12] border border-black/10 dark:border-white/10 rounded-full shadow-xs pointer-events-none"
-                            transition={{
-                              type: "spring",
-                              stiffness: 450,
-                              damping: 35,
-                            }}
-                          />
-                        )}
-                        <span className="relative z-10 flex items-center gap-1.5">
-                          <span>{tab.label}</span>
-                          <span
-                            className={
-                              isActive
-                                ? "text-zinc-900 dark:text-white"
-                                : "text-zinc-500 dark:text-[#8a8f98]"
-                            }
-                          >
-                            {tab.icon}
-                          </span>
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
+                  ]}
+                  activeView={activeView}
+                  onViewChange={setActiveView}
+                  layoutId="projectsViewActivePill"
+                />
 
                 <div className="px-1 flex flex-col gap-3 pb-3 border-b border-black/[0.06] dark:border-white/5">
                   <div className="flex items-center justify-between">

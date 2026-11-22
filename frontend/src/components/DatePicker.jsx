@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { motion } from "motion/react";
+import { playUiSound } from "../lib/sound";
 
 export default function DatePicker({
   value,
@@ -26,6 +28,7 @@ export default function DatePicker({
   }, [onClose]);
 
   const handleSelect = (val) => {
+    playUiSound("toggle");
     onChange(val);
     onClose();
   };
@@ -35,6 +38,10 @@ export default function DatePicker({
     if (val && /^\d{4}-\d{2}-\d{2}$/.test(val)) {
       const parts = val.split("-");
       return new Date(parts[0], parts[1] - 1, parts[2]);
+    }
+    if (val) {
+      const d = new Date(val);
+      if (!isNaN(d.getTime())) return d;
     }
     return new Date();
   };
@@ -55,7 +62,9 @@ export default function DatePicker({
     const year = date.getFullYear();
     const month = date.getMonth();
     const firstDay = new Date(year, month, 1);
-    const startingDayOfWeek = firstDay.getDay(); // 0 (Sun) to 6 (Sat)
+    const isMonFirst = (typeof window !== "undefined" ? localStorage.getItem("kriri-first-day") || "monday" : "monday") === "monday";
+    const dayOfWeek = firstDay.getDay();
+    const startingDayOfWeek = isMonFirst ? (dayOfWeek === 0 ? 6 : dayOfWeek - 1) : dayOfWeek;
 
     const days = [];
     const startDate = new Date(firstDay);
@@ -83,8 +92,15 @@ export default function DatePicker({
   const todayFormatted = `${today.getFullYear()}-${(today.getMonth() + 1).toString().padStart(2, "0")}-${today.getDate().toString().padStart(2, "0")}`;
 
   // Selected format
-  const selectedFormatted =
-    value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null;
+  const getSelectedFormatted = (val) => {
+    if (!val) return null;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(val)) return val;
+    const d = new Date(val);
+    if (isNaN(d.getTime())) return null;
+    return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, "0")}-${d.getDate().toString().padStart(2, "0")}`;
+  };
+
+  const selectedFormatted = getSelectedFormatted(value);
 
   // Mobile detection
   const [isMobile, setIsMobile] = useState(
@@ -104,13 +120,13 @@ export default function DatePicker({
   const pickerContent = (
     <div
       ref={popoverRef}
-      className={`bg-white dark:bg-[#1e1f21] border border-black/10 dark:border-[#333538] rounded-xl shadow-2xl ${
+      className={`bg-white dark:bg-[var(--surface-elevated,#1e1f21)] border border-black/10 dark:border-[var(--border,rgba(255,255,255,0.08))] rounded-xl shadow-2xl ${
         isMobile
           ? "w-[300px] max-w-[calc(100vw-32px)] z-[100]"
           : `absolute ${positionClass} ${alignClass} w-[270px] z-[70]`
       } text-zinc-900 dark:text-white overflow-hidden text-[12px] sm:text-[12.5px] flex flex-col`}
     >
-      <div className="p-2.5 sm:p-3 pb-2 border-b border-black/10 dark:border-[#333538]">
+      <div className="p-2.5 sm:p-3 pb-2 border-b border-black/10 dark:border-[var(--border,rgba(255,255,255,0.08))]">
         <div className="flex items-center justify-between mb-1.5">
           <span className="text-zinc-500 dark:text-[#8a8f98] font-medium text-[11.5px] sm:text-[12px]">
             {placeholder}
@@ -137,11 +153,22 @@ export default function DatePicker({
             </button>
           )}
         </div>
-        <div className="relative flex items-center w-full bg-zinc-50 dark:bg-[#1b1c1e] border border-black/10 dark:border-[#333538] focus-within:border-[#5e6ad2] rounded-md px-2 py-0.5 min-h-[30px] transition-colors">
+        <div className="relative flex items-center w-full bg-zinc-50 dark:bg-[var(--surface,#1b1c1e)] border border-black/10 dark:border-[var(--border,rgba(255,255,255,0.08))] focus-within:border-[var(--kriri-accent,#5e6ad2)] rounded-md px-2 py-0.5 min-h-[30px] transition-colors">
           {value ? (
             <div className="flex items-center justify-between w-full">
-              <span className="bg-indigo-50 dark:bg-[#5e6ad2]/20 text-indigo-600 dark:text-[#aebdf8] px-1.5 py-0.5 rounded text-[12px]">
-                {value}
+              <span className="bg-indigo-50 dark:bg-[#5e6ad2]/20 text-indigo-600 dark:text-[#aebdf8] px-1.5 py-0.5 rounded text-[12px] font-medium">
+                {(() => {
+                  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+                    const [y, m, d] = value.split("-");
+                    const dateObj = new Date(y, m - 1, d);
+                    return dateObj.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+                  }
+                  const dateObj = new Date(value);
+                  if (!isNaN(dateObj.getTime())) {
+                    return dateObj.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+                  }
+                  return value;
+                })()}
               </span>
               <button
                 type="button"
@@ -251,7 +278,10 @@ export default function DatePicker({
               </div>
             </div>
             <div className="grid grid-cols-7 gap-y-1.5 text-center text-[11px] sm:text-[12px]">
-              {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((d) => (
+              {((typeof window !== "undefined" ? localStorage.getItem("kriri-first-day") || "monday" : "monday") === "monday"
+                ? ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
+                : ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"]
+              ).map((d) => (
                 <div key={d} className="text-zinc-400 dark:text-[#55565a] font-medium mb-0.5">
                   {d}
                 </div>
@@ -388,11 +418,12 @@ export default function DatePicker({
     </div>
   );
 
-  if (isMobile) {
-    return (
+  if (isMobile && typeof document !== "undefined") {
+    return createPortal(
       <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in-0 duration-150">
         {pickerContent}
-      </div>
+      </div>,
+      document.body
     );
   }
 

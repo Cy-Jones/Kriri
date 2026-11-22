@@ -34,12 +34,12 @@ export default function SelectPicker({
       ref={popoverRef}
       className={`${
         isMobile
-          ? "bg-white dark:bg-[#25272a] border border-black/10 dark:border-[#333538] rounded-2xl shadow-2xl w-[240px] max-w-[calc(100vw-32px)] text-zinc-900 dark:text-white p-1.5 flex flex-col"
-          : `absolute top-full left-0 mt-2 bg-white dark:bg-[#25272a] border border-black/10 dark:border-[#333538] rounded-xl shadow-2xl ${width} z-50 text-zinc-900 dark:text-white overflow-hidden py-1`
+          ? "bg-white dark:bg-[var(--surface-elevated,#1e1f21)] border border-black/10 dark:border-[var(--border,rgba(255,255,255,0.08))] rounded-2xl shadow-2xl w-[240px] max-w-[calc(100vw-32px)] text-zinc-900 dark:text-white p-1.5 flex flex-col"
+          : `absolute top-full left-0 mt-2 bg-white dark:bg-[var(--surface-elevated,#1e1f21)] border border-black/10 dark:border-[var(--border,rgba(255,255,255,0.08))] rounded-xl shadow-2xl ${width} z-50 text-zinc-900 dark:text-white overflow-hidden py-1`
       }`}
     >
       {isMobile && (
-        <div className="flex items-center justify-between px-2.5 py-1.5 border-b border-black/10 dark:border-[#333538] mb-1">
+        <div className="flex items-center justify-between px-2.5 py-1.5 border-b border-black/10 dark:border-[var(--border,rgba(255,255,255,0.08))] mb-1">
           <span className="text-[12px] font-medium text-zinc-500 dark:text-[#8a8f98]">Select health</span>
           <button
             type="button"

@@ -91,7 +91,7 @@ function chunksOf(text, whole) {
       key: char,
       text: char,
     }));
-  const words = text.split(/(?<=\s)/);
+  const words = text.match(/\S+\s*/g) || [text];
   return words.map((word, index) => ({
     slot: `w${index}`,
     key: words.slice(0, index + 1).join(""),

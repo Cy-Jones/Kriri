@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { playUiSound } from "./sound";
 
 /**
  * Synchronous DOM-based copy that preserves transient user activation on mobile.
@@ -145,6 +146,7 @@ export function useCopyFeedback(duration = 1900) {
       setActiveKey(key);
       const success = await copyTextToClipboard(value);
       if (success) {
+        playUiSound("chime");
         setState("copied");
         timeout.current = setTimeout(reset, duration);
         return true;

@@ -18,6 +18,25 @@ const requireAuth = (req, res, next) => {
 
 exports.requireAuth = requireAuth;
 
+const optionalAuth = (req, res, next) => {
+  try {
+    const auth = getAuth(req);
+    if (auth && auth.userId) {
+      if (typeof req.auth === "function") {
+        Object.assign(req.auth, auth);
+      } else {
+        req.auth = auth;
+      }
+      req.clerkAuth = auth;
+    }
+  } catch (err) {
+    // Non-blocking for optional auth
+  }
+  next();
+};
+
+exports.optionalAuth = optionalAuth;
+
 const jitProvisioningPromises = new Map();
 
 exports.verifyToken = async (req, res, next) => {
@@ -54,8 +73,9 @@ exports.verifyToken = async (req, res, next) => {
               const name =
                 [clerkUser.firstName, clerkUser.lastName]
                   .filter(Boolean)
-                  .join(" ") || "Unknown User";
+                  .join(" ") || clerkUser.username || "Unknown User";
               const avatarUrl = clerkUser.imageUrl || null;
+              const username = clerkUser.username || null;
 
               if (email) {
                 const existingByEmail = await db.query(
@@ -64,16 +84,16 @@ exports.verifyToken = async (req, res, next) => {
                 );
                 if (existingByEmail.rows.length > 0) {
                   await db.query(
-                    "UPDATE users SET clerk_user_id = $1, name = COALESCE($2, name), avatar_url = COALESCE($3, avatar_url) WHERE email = $4",
-                    [clerkUserId, name, avatarUrl, email],
+                    "UPDATE users SET clerk_user_id = $1, name = COALESCE($2, name), avatar_url = COALESCE($3, avatar_url), username = COALESCE($4, username) WHERE email = $5",
+                    [clerkUserId, name, avatarUrl, username, email],
                   );
                   return;
                 }
               }
 
               await db.query(
-                "INSERT INTO users (clerk_user_id, name, email, avatar_url) VALUES ($1, $2, $3, $4) ON CONFLICT (clerk_user_id) DO UPDATE SET name = $2, email = $3, avatar_url = $4",
-                [clerkUserId, name, email, avatarUrl],
+                "INSERT INTO users (clerk_user_id, name, email, avatar_url, username) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (clerk_user_id) DO UPDATE SET name = $2, email = $3, avatar_url = $4, username = COALESCE($5, users.username)",
+                [clerkUserId, name, email, avatarUrl, username],
               );
             })();
             jitProvisioningPromises.set(clerkUserId, p);
@@ -193,32 +213,60 @@ exports.verifyToken = async (req, res, next) => {
 
       if (wsRes.rows.length === 0) {
         // JIT Provisioning (Fallback for missed webhooks in local dev)
+        const jitClient = await db.pool.connect();
         try {
-          const { clerkClient } = require("@clerk/express");
-          const clerkOrg = await clerkClient.organizations.getOrganization({
-            organizationId: clerkOrgId,
-          });
-          const orgName = clerkOrg.name || "Organization Workspace";
-          const fallbackSlug = await generateWorkspaceSlug(
-            clerkOrg.slug || clerkOrg.name || clerkOrgId,
-            db,
+          await jitClient.query("BEGIN");
+          await jitClient.query("SELECT pg_advisory_xact_lock(hashtext($1))", [clerkOrgId]);
+
+          // Re-check after acquiring lock in case another request completed it
+          const recheck = await jitClient.query(
+            "SELECT * FROM workspaces WHERE clerk_org_id = $1",
+            [clerkOrgId],
           );
 
-          const newWs = await db.query(
-            "INSERT INTO workspaces (clerk_org_id, name, slug, owner_id) VALUES ($1, $2, $3, $4) ON CONFLICT (clerk_org_id) DO UPDATE SET name = $2 RETURNING *",
-            [clerkOrgId, orgName, fallbackSlug, req.user.id],
-          );
-          workspace = newWs.rows[0];
+          if (recheck.rows.length > 0) {
+            await jitClient.query("COMMIT");
+            workspace = recheck.rows[0];
+          } else {
+            const { clerkClient } = require("@clerk/express");
+            const clerkOrg = await clerkClient.organizations.getOrganization({
+              organizationId: clerkOrgId,
+            });
+            const orgName = clerkOrg.name || "Organization Workspace";
+            let fallbackSlug = await generateWorkspaceSlug(
+              clerkOrg.slug || clerkOrg.name || clerkOrgId,
+              jitClient,
+            );
 
-          await db.query(
-            "INSERT INTO workspace_members (workspace_id, user_id, role) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING",
-            [workspace.id, req.user.id, "Owner"],
-          );
+            // Double check fallbackSlug uniqueness before insert
+            const slugCheck = await jitClient.query(
+              "SELECT id FROM workspaces WHERE slug = $1",
+              [fallbackSlug],
+            );
+            if (slugCheck.rows.length > 0) {
+              fallbackSlug = `${fallbackSlug}-${Date.now().toString(36)}`;
+            }
+
+            const newWs = await jitClient.query(
+              "INSERT INTO workspaces (clerk_org_id, name, slug, owner_id) VALUES ($1, $2, $3, $4) ON CONFLICT (clerk_org_id) DO UPDATE SET name = EXCLUDED.name RETURNING *",
+              [clerkOrgId, orgName, fallbackSlug, req.user.id],
+            );
+            workspace = newWs.rows[0];
+
+            await jitClient.query(
+              "INSERT INTO workspace_members (workspace_id, user_id, role) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING",
+              [workspace.id, req.user.id, "Owner"],
+            );
+            await jitClient.query("COMMIT");
+          }
         } catch (e) {
+          await jitClient.query("ROLLBACK").catch(() => {});
           console.error("JIT Workspace creation failed:", e);
           req.workspace = null;
           req.workspaceRole = null;
           return next();
+        } finally {
+          jitClient.release();
         }
       } else {
         workspace = wsRes.rows[0];
@@ -234,10 +282,17 @@ exports.verifyToken = async (req, res, next) => {
 
       if (memberRes.rows.length > 0) {
         req.workspaceRole = memberRes.rows[0].role;
+        if (req.workspace.owner_id === req.user.id && req.workspaceRole !== "Owner") {
+          req.workspaceRole = "Owner";
+        }
       } else {
         // JIT Provisioning for membership
-        const newRole =
-          getAuth(req).orgRole === "org:admin" ? "Admin" : "Member";
+        const isOwner = req.workspace.owner_id === req.user.id;
+        const newRole = isOwner
+          ? "Owner"
+          : getAuth(req).orgRole === "org:admin"
+            ? "Admin"
+            : "Member";
         try {
           await db.query(
             "INSERT INTO workspace_members (workspace_id, user_id, role) VALUES ($1, $2, $3)",

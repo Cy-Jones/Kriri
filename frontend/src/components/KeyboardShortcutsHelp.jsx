@@ -258,8 +258,13 @@ export default function KeyboardShortcutsHelp({ isOpen, onOpenChange }) {
             keywords: "team members directory roles access",
           },
           {
-            label: "Go to Analytics",
+            label: "Go to Agent",
             shortcut: "g then a",
+            keywords: "agent ai assistant autonomous chat planning",
+          },
+          {
+            label: "Go to Analytics",
+            shortcut: "g then y",
             keywords: "analytics charts reporting insights",
           },
         ],
@@ -503,7 +508,7 @@ export default function KeyboardShortcutsHelp({ isOpen, onOpenChange }) {
             exit={{ opacity: 0, scale: 0.96, y: 8 }}
             transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
             onClick={(e) => e.stopPropagation()}
-            className="relative w-full max-w-[860px] bg-white dark:bg-[#141517] border border-black/10 dark:border-white/[0.08] rounded-[28px] shadow-2xl dark:shadow-[0_24px_64px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col md:flex-row p-7 sm:p-8 gap-8 sm:gap-10 max-h-[90vh]"
+            className="relative w-full max-w-[860px] bg-white dark:bg-[var(--surface-elevated,#141517)] border border-black/10 dark:border-[var(--border,rgba(255,255,255,0.08))] rounded-[28px] shadow-2xl dark:shadow-[0_24px_64px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col md:flex-row p-7 sm:p-8 gap-8 sm:gap-10 max-h-[90vh]"
           >
             {/* LEFT COLUMN: Core Rebindable Commands */}
             <div className="w-full md:w-[310px] flex-none flex flex-col justify-between space-y-6">
@@ -575,7 +580,7 @@ export default function KeyboardShortcutsHelp({ isOpen, onOpenChange }) {
             {/* RIGHT COLUMN: Searchable Cheatsheet */}
             <div className="flex-1 min-w-0 flex flex-col space-y-3">
               {/* Search Bar */}
-              <div className="relative flex items-center h-[42px] px-3.5 rounded-xl bg-black/[0.03] dark:bg-[#18191c] border border-black/10 dark:border-white/[0.08] focus-within:border-black/20 dark:focus-within:border-white/20 transition-colors flex-none">
+              <div className="relative flex items-center h-[42px] px-3.5 rounded-xl bg-black/[0.03] dark:bg-[var(--surface,#18191c)] border border-black/10 dark:border-[var(--border,rgba(255,255,255,0.08))] focus-within:border-black/20 dark:focus-within:border-[var(--kriri-accent,#5e6ad2)] transition-colors flex-none">
                 <Search className="w-4 h-4 text-zinc-400 flex-none mr-2.5" />
                 <input
                   ref={searchInputRef}

@@ -2,7 +2,7 @@ const db = require("../config/database");
 const { generateWorkspaceSlug } = require("../utils/slug");
 
 exports.createWorkspace = async (req, res) => {
-  const { name } = req.body;
+  const { name, slug: requestedSlug } = req.body;
   if (!name)
     return res.status(400).json({ error: "Workspace name is required" });
 
@@ -30,7 +30,7 @@ exports.createWorkspace = async (req, res) => {
         );
         workspace = updateRes.rows[0];
       } else {
-        const slug = await generateWorkspaceSlug(name, client);
+        const slug = await generateWorkspaceSlug(requestedSlug || name, client);
         const workspaceRes = await client.query(
           "INSERT INTO workspaces (clerk_org_id, name, slug, owner_id) VALUES ($1, $2, $3, $4) RETURNING *",
           [clerkOrgId, name, slug, owner_id],
@@ -38,7 +38,7 @@ exports.createWorkspace = async (req, res) => {
         workspace = workspaceRes.rows[0];
       }
     } else {
-      const slug = await generateWorkspaceSlug(name, client);
+      const slug = await generateWorkspaceSlug(requestedSlug || name, client);
       const workspaceRes = await client.query(
         "INSERT INTO workspaces (name, slug, owner_id) VALUES ($1, $2, $3) RETURNING *",
         [name, slug, owner_id],
@@ -93,41 +93,407 @@ exports.getUserWorkspaces = async (req, res) => {
 exports.getCurrentWorkspace = async (req, res) => {
   if (!req.workspace)
     return res.status(404).json({ error: "No active workspace context" });
-  res.json({ ...req.workspace, role: req.workspaceRole });
+
+  try {
+    const wsId = req.workspace.id;
+    const { rows } = await db.query(
+      `SELECT 
+        w.*,
+        u.name as owner_name,
+        u.email as owner_email,
+        (SELECT COUNT(*) FROM workspace_members WHERE workspace_id = w.id)::int as member_count
+       FROM workspaces w
+       LEFT JOIN users u ON w.owner_id = u.id
+       WHERE w.id = $1`,
+      [wsId],
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ error: "Workspace not found" });
+    }
+
+    const ws = rows[0];
+    res.json({
+      ...ws,
+      role: req.workspaceRole,
+      plan: ws.plan || "Free",
+    });
+  } catch (err) {
+    console.error("getCurrentWorkspace error:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+};
+
+exports.checkSlugAvailability = async (req, res) => {
+  const { slug } = req.query;
+  if (!slug || typeof slug !== "string") {
+    return res.status(400).json({ error: "Slug query parameter is required" });
+  }
+
+  const cleanSlug = slug.toLowerCase().trim();
+  const slugRegex = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+  if (!slugRegex.test(cleanSlug) || cleanSlug.length < 2 || cleanSlug.length > 60) {
+    return res.json({
+      available: false,
+      reason: "Slug must be 2-60 characters and contain only lowercase letters, numbers, and hyphens.",
+      slug: cleanSlug,
+    });
+  }
+
+  try {
+    const currentWsId = req.workspace?.id;
+    const { rows } = await db.query(
+      "SELECT id FROM workspaces WHERE slug = $1 AND id != COALESCE($2, -1) LIMIT 1",
+      [cleanSlug, currentWsId || -1],
+    );
+
+    res.json({
+      available: rows.length === 0,
+      slug: cleanSlug,
+      reason: rows.length > 0 ? "This URL is already taken by another workspace." : null,
+    });
+  } catch (err) {
+    console.error("checkSlugAvailability error:", err);
+    res.status(500).json({ error: "Server error checking slug" });
+  }
+};
+
+exports.uploadWorkspaceLogo = async (req, res) => {
+  if (!req.workspace)
+    return res.status(404).json({ error: "No active workspace context" });
+
+  const { image } = req.body;
+  if (!image || typeof image !== "string") {
+    return res.status(400).json({ error: "Image data URI is required" });
+  }
+
+  // Validate base64 image data URI: data:image/(png|jpeg|jpg|webp);base64,...
+  const match = image.match(/^data:image\/(png|jpeg|jpg|webp);base64,/i);
+  if (!match) {
+    return res.status(400).json({
+      error: "Unsupported image format. Allowed formats: PNG, JPG, JPEG, WebP.",
+    });
+  }
+
+  // Calculate approximate file size in bytes
+  const base64Data = image.replace(/^data:image\/\w+;base64,/, "");
+  const sizeInBytes = Math.ceil((base64Data.length * 3) / 4);
+  const maxSize = 5 * 1024 * 1024; // 5MB
+
+  if (sizeInBytes > maxSize) {
+    return res.status(400).json({
+      error: "Image size exceeds 5MB limit. Please choose a smaller file.",
+    });
+  }
+
+  try {
+    const { rows } = await db.query(
+      "UPDATE workspaces SET logo_url = $1, updated_at = NOW() WHERE id = $2 RETURNING logo_url, updated_at",
+      [image, req.workspace.id],
+    );
+
+    res.json({
+      success: true,
+      logo_url: rows[0].logo_url,
+      updated_at: rows[0].updated_at,
+    });
+  } catch (err) {
+    console.error("uploadWorkspaceLogo error:", err);
+    res.status(500).json({ error: "Failed to upload workspace logo" });
+  }
+};
+
+exports.removeWorkspaceLogo = async (req, res) => {
+  if (!req.workspace)
+    return res.status(404).json({ error: "No active workspace context" });
+
+  try {
+    const { rows } = await db.query(
+      "UPDATE workspaces SET logo_url = NULL, updated_at = NOW() WHERE id = $1 RETURNING logo_url, updated_at",
+      [req.workspace.id],
+    );
+
+    res.json({
+      success: true,
+      logo_url: null,
+      updated_at: rows[0].updated_at,
+    });
+  } catch (err) {
+    console.error("removeWorkspaceLogo error:", err);
+    res.status(500).json({ error: "Failed to remove workspace logo" });
+  }
 };
 
 exports.updateCurrentWorkspace = async (req, res) => {
   if (!req.workspace)
     return res.status(404).json({ error: "No active workspace context" });
 
-  const { name } = req.body;
-  if (!name) return res.status(400).json({ error: "Name is required" });
+  const wsId = req.workspace.id;
+  const updates = [];
+  const values = [];
+  let paramIdx = 1;
+
+  const {
+    name,
+    description,
+    slug,
+    logo_url,
+    default_language,
+    default_timezone,
+    date_format,
+    time_format,
+    first_day_of_week,
+    default_project_view,
+    default_task_view,
+    default_task_priority,
+    default_project_visibility,
+    default_member_role,
+    notify_new_members,
+    notify_workspace_activity,
+  } = req.body;
+
+  // 1. Name validation
+  if (name !== undefined) {
+    if (typeof name !== "string") {
+      return res.status(400).json({ error: "Workspace name must be a string" });
+    }
+    const trimmedName = name.trim();
+    if (trimmedName.length < 2 || trimmedName.length > 60) {
+      return res.status(400).json({
+        error: "Workspace name must be between 2 and 60 characters",
+      });
+    }
+    updates.push(`name = $${paramIdx++}`);
+    values.push(trimmedName);
+  }
+
+  // 2. Description validation
+  if (description !== undefined) {
+    if (description === null || description === "") {
+      updates.push(`description = NULL`);
+    } else {
+      if (typeof description !== "string") {
+        return res.status(400).json({ error: "Description must be a string" });
+      }
+      if (description.length > 250) {
+        return res.status(400).json({
+          error: "Workspace description cannot exceed 250 characters",
+        });
+      }
+      updates.push(`description = $${paramIdx++}`);
+      values.push(description.trim());
+    }
+  }
+
+  // 3. Slug validation & uniqueness
+  if (slug !== undefined) {
+    if (typeof slug !== "string") {
+      return res.status(400).json({ error: "Slug must be a string" });
+    }
+    const cleanSlug = slug.toLowerCase().trim();
+    const slugRegex = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+    if (!slugRegex.test(cleanSlug) || cleanSlug.length < 2 || cleanSlug.length > 60) {
+      return res.status(400).json({
+        error: "Slug must be 2-60 characters and contain only lowercase letters, numbers, and hyphens.",
+      });
+    }
+
+    const { rows: existingSlug } = await db.query(
+      "SELECT id FROM workspaces WHERE slug = $1 AND id != $2 LIMIT 1",
+      [cleanSlug, wsId],
+    );
+    if (existingSlug.length > 0) {
+      return res.status(400).json({
+        error: "This workspace URL/slug is already taken by another workspace",
+      });
+    }
+
+    updates.push(`slug = $${paramIdx++}`);
+    values.push(cleanSlug);
+  }
+
+  // 4. Logo URL
+  if (logo_url !== undefined) {
+    if (logo_url === null || logo_url === "") {
+      updates.push(`logo_url = NULL`);
+    } else {
+      if (typeof logo_url !== "string") {
+        return res.status(400).json({ error: "Invalid logo URL" });
+      }
+      updates.push(`logo_url = $${paramIdx++}`);
+      values.push(logo_url);
+    }
+  }
+
+  // 5. Default Language
+  if (default_language !== undefined) {
+    const supportedLangs = ["en", "en-US", "en-GB"];
+    if (!supportedLangs.includes(default_language)) {
+      return res.status(400).json({ error: "Unsupported language selection" });
+    }
+    updates.push(`default_language = $${paramIdx++}`);
+    values.push("en");
+  }
+
+  // 6. Default Timezone
+  if (default_timezone !== undefined) {
+    try {
+      Intl.DateTimeFormat(undefined, { timeZone: default_timezone });
+    } catch {
+      return res.status(400).json({ error: "Invalid IANA time zone identifier" });
+    }
+    updates.push(`default_timezone = $${paramIdx++}`);
+    values.push(default_timezone);
+  }
+
+  // 7. Date Format
+  if (date_format !== undefined) {
+    const validDateFormats = ["DD/MM/YYYY", "MM/DD/YYYY", "YYYY-MM-DD"];
+    if (!validDateFormats.includes(date_format)) {
+      return res.status(400).json({ error: "Invalid date format selection" });
+    }
+    updates.push(`date_format = $${paramIdx++}`);
+    values.push(date_format);
+  }
+
+  // 8. Time Format
+  if (time_format !== undefined) {
+    const validTimeFormats = ["12h", "24h"];
+    if (!validTimeFormats.includes(time_format)) {
+      return res.status(400).json({ error: "Invalid time format selection" });
+    }
+    updates.push(`time_format = $${paramIdx++}`);
+    values.push(time_format);
+  }
+
+  // 9. First Day of Week
+  if (first_day_of_week !== undefined) {
+    const cleanDay = String(first_day_of_week).toLowerCase().trim();
+    const validDays = ["sunday", "monday", "saturday"];
+    if (!validDays.includes(cleanDay)) {
+      return res.status(400).json({ error: "Invalid first day of week selection" });
+    }
+    updates.push(`first_day_of_week = $${paramIdx++}`);
+    values.push(cleanDay);
+  }
+
+  // 10. Default Project View
+  if (default_project_view !== undefined) {
+    const cleanProjectView = String(default_project_view).trim().toLowerCase();
+    const validProjectViews = ["list", "board", "timeline"];
+    if (!validProjectViews.includes(cleanProjectView)) {
+      return res.status(400).json({ error: "Invalid default project view selection" });
+    }
+    updates.push(`default_project_view = $${paramIdx++}`);
+    values.push(cleanProjectView);
+  }
+
+  // 11. Default Task View
+  if (default_task_view !== undefined) {
+    const cleanTaskView = String(default_task_view).trim().toLowerCase();
+    const validTaskViews = ["list", "board"];
+    if (!validTaskViews.includes(cleanTaskView)) {
+      return res.status(400).json({ error: "Invalid default task view selection" });
+    }
+    updates.push(`default_task_view = $${paramIdx++}`);
+    values.push(cleanTaskView);
+  }
+
+  // 12. Default Task Priority
+  if (default_task_priority !== undefined) {
+    const rawPriority = String(default_task_priority || "").trim().toLowerCase();
+    const priorityMap = {
+      "no priority": "No priority",
+      "no_priority": "No priority",
+      "no-priority": "No priority",
+      "none": "No priority",
+      "": "No priority",
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High",
+      "urgent": "Urgent",
+    };
+    const normalizedPriority = priorityMap[rawPriority];
+    if (!normalizedPriority) {
+      return res.status(400).json({ error: "Invalid default task priority selection" });
+    }
+    updates.push(`default_task_priority = $${paramIdx++}`);
+    values.push(normalizedPriority);
+  }
+
+  // 13. Default Project Visibility
+  if (default_project_visibility !== undefined) {
+    const cleanVisibility = String(default_project_visibility).trim().toLowerCase();
+    const validVisibilities = ["private", "workspace"];
+    if (!validVisibilities.includes(cleanVisibility)) {
+      return res.status(400).json({ error: "Invalid project visibility selection" });
+    }
+    updates.push(`default_project_visibility = $${paramIdx++}`);
+    values.push(cleanVisibility);
+  }
+
+  // 14. Default Member Role
+  if (default_member_role !== undefined) {
+    const cleanRole = String(default_member_role).trim().toLowerCase();
+    const roleMap = { member: "Member", viewer: "Viewer", admin: "Admin" };
+    if (!roleMap[cleanRole]) {
+      return res.status(400).json({ error: "Invalid default member role selection" });
+    }
+    updates.push(`default_member_role = $${paramIdx++}`);
+    values.push(roleMap[cleanRole]);
+  }
+
+  // 15. Notification Toggles
+  if (notify_new_members !== undefined) {
+    updates.push(`notify_new_members = $${paramIdx++}`);
+    values.push(Boolean(notify_new_members));
+  }
+  if (notify_workspace_activity !== undefined) {
+    updates.push(`notify_workspace_activity = $${paramIdx++}`);
+    values.push(Boolean(notify_workspace_activity));
+  }
+
+  if (updates.length === 0) {
+    return res.status(400).json({ error: "No settings provided for update" });
+  }
+
+  updates.push(`updated_at = NOW()`);
+  values.push(wsId);
+
+  const queryText = `
+    UPDATE workspaces
+    SET ${updates.join(", ")}
+    WHERE id = $${paramIdx}
+    RETURNING *;
+  `;
 
   try {
-    const { rows } = await db.query(
-      "UPDATE workspaces SET name = $1, updated_at = NOW() WHERE id = $2 RETURNING *",
-      [name, req.workspace.id],
-    );
+    const { rows } = await db.query(queryText, values);
+    const updatedWs = rows[0];
 
-    // Keep Clerk in sync if it's a Clerk org
-    if (req.workspace.clerk_org_id) {
+    // Sync Clerk organization if linked
+    if (updatedWs.clerk_org_id && (name || slug)) {
       try {
         const { clerkClient } = require("@clerk/express");
+        const clerkUpdates = {};
+        if (name) clerkUpdates.name = name.trim();
+        if (slug) clerkUpdates.slug = slug.toLowerCase().trim();
         await clerkClient.organizations.updateOrganization(
-          req.workspace.clerk_org_id,
-          {
-            name: name,
-          },
+          updatedWs.clerk_org_id,
+          clerkUpdates,
         );
-      } catch (err) {
-        console.error("Clerk organization name sync failed:", err);
+      } catch (clerkErr) {
+        console.warn("Clerk organization sync warning:", clerkErr.message);
       }
     }
 
-    res.json(rows[0]);
+    res.json(updatedWs);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Server error" });
+    console.error("updateCurrentWorkspace error:", err);
+    if (err.code === "23505") {
+      return res.status(400).json({ error: "Slug is already in use by another workspace" });
+    }
+    res.status(500).json({ error: "Server error updating workspace" });
   }
 };
 
@@ -140,21 +506,23 @@ exports.getCurrentWorkspaceSummary = async (req, res) => {
     const userId = req.user.id;
 
     const [
-      projRes,
-      statsRes,
+      projectSummaryRes,
+      taskSummaryRes,
       myIssuesRes,
       recentProjectsRes,
       upcomingMilestonesRes,
       milestoneStatsRes,
-      priorityRes,
-      healthRes,
     ] = await Promise.all([
       db.query(
         `SELECT 
              COUNT(*) as "count",
+             COUNT(*) as "total",
              COUNT(*) FILTER (WHERE status = 'Done') as "completed",
              COUNT(*) FILTER (WHERE status = 'In Progress') as "inProgress",
-             COUNT(*) FILTER (WHERE status = 'Planned' OR (status != 'Done' AND status != 'In Progress')) as "pending"
+             COUNT(*) FILTER (WHERE status = 'Planned' OR (status != 'Done' AND status != 'In Progress')) as "pending",
+             COUNT(*) FILTER (WHERE health = 'On Track') as "onTrack",
+             COUNT(*) FILTER (WHERE health = 'At Risk') as "atRisk",
+             COUNT(*) FILTER (WHERE health = 'Off Track') as "offTrack"
            FROM projects WHERE workspace_id = $1 AND status != 'Archived'`,
         [wsId],
       ),
@@ -163,7 +531,12 @@ exports.getCurrentWorkspaceSummary = async (req, res) => {
             COUNT(*) FILTER (WHERE t.status = 'Todo' OR t.status = 'In Progress' OR t.status = 'In Review') as "inProgress",
             COUNT(*) FILTER (WHERE t.status = 'Done' AND t.updated_at >= NOW() - INTERVAL '7 days') as "completedLast7Days",
             COUNT(*) FILTER (WHERE t.due_date < NOW() AND t.status != 'Done') as "overdue",
-            COUNT(*) FILTER (WHERE t.due_date::date = NOW()::date AND t.status != 'Done') as "dueToday"
+            COUNT(*) FILTER (WHERE t.due_date::date = NOW()::date AND t.status != 'Done') as "dueToday",
+            COUNT(*) FILTER (WHERE t.status != 'Done' AND t.status != 'Canceled') as "totalActive",
+            COUNT(*) FILTER (WHERE t.priority = 'Urgent' AND t.status != 'Done' AND t.status != 'Canceled') as "urgent",
+            COUNT(*) FILTER (WHERE t.priority = 'High' AND t.status != 'Done' AND t.status != 'Canceled') as "high",
+            COUNT(*) FILTER (WHERE t.priority = 'Medium' AND t.status != 'Done' AND t.status != 'Canceled') as "medium",
+            COUNT(*) FILTER (WHERE (t.priority = 'Low' OR (t.priority != 'Urgent' AND t.priority != 'High' AND t.priority != 'Medium')) AND t.status != 'Done' AND t.status != 'Canceled') as "low"
           FROM tasks t
           JOIN projects p ON t.project_id = p.id
           WHERE p.workspace_id = $1`,
@@ -208,58 +581,39 @@ exports.getCurrentWorkspaceSummary = async (req, res) => {
          WHERE p.workspace_id = $1 AND p.status != 'Archived'`,
         [wsId],
       ),
-      db.query(
-        `SELECT 
-           COUNT(*) FILTER (WHERE t.status != 'Done' AND t.status != 'Canceled') as "totalActive",
-           COUNT(*) FILTER (WHERE t.priority = 'Urgent' AND t.status != 'Done' AND t.status != 'Canceled') as "urgent",
-           COUNT(*) FILTER (WHERE t.priority = 'High' AND t.status != 'Done' AND t.status != 'Canceled') as "high",
-           COUNT(*) FILTER (WHERE t.priority = 'Medium' AND t.status != 'Done' AND t.status != 'Canceled') as "medium",
-           COUNT(*) FILTER (WHERE (t.priority = 'Low' OR (t.priority != 'Urgent' AND t.priority != 'High' AND t.priority != 'Medium')) AND t.status != 'Done' AND t.status != 'Canceled') as "low"
-         FROM tasks t
-         JOIN projects p ON t.project_id = p.id
-         WHERE p.workspace_id = $1`,
-        [wsId],
-      ),
-      db.query(
-        `SELECT 
-           COUNT(*) as "total",
-           COUNT(*) FILTER (WHERE health = 'On Track') as "onTrack",
-           COUNT(*) FILTER (WHERE health = 'At Risk') as "atRisk",
-           COUNT(*) FILTER (WHERE health = 'Off Track') as "offTrack"
-         FROM projects
-         WHERE workspace_id = $1 AND status != 'Archived'`,
-        [wsId],
-      ),
     ]);
+
+    const projStats = projectSummaryRes.rows[0] || {};
+    const taskStats = taskSummaryRes.rows[0] || {};
 
     const totalMilestones = parseInt(milestoneStatsRes.rows[0]?.total || 0);
     const completedMilestones = parseInt(milestoneStatsRes.rows[0]?.completed || 0);
     const inProgressMilestones = parseInt(milestoneStatsRes.rows[0]?.in_progress || 0);
     const pendingMilestones = parseInt(milestoneStatsRes.rows[0]?.pending || 0);
 
-    const totalProjectsCount = parseInt(healthRes.rows[0]?.total || projRes.rows[0].count) || 0;
-    const onTrackCount = parseInt(healthRes.rows[0]?.onTrack || 0);
-    const atRiskCount = parseInt(healthRes.rows[0]?.atRisk || 0);
-    const offTrackCount = parseInt(healthRes.rows[0]?.offTrack || 0);
+    const totalProjectsCount = parseInt(projStats.total || projStats.count) || 0;
+    const onTrackCount = parseInt(projStats.onTrack || 0);
+    const atRiskCount = parseInt(projStats.atRisk || 0);
+    const offTrackCount = parseInt(projStats.offTrack || 0);
     const onTrackRate = totalProjectsCount > 0 ? Math.round((onTrackCount / totalProjectsCount) * 100) : 100;
 
-    const totalActiveTasks = parseInt(priorityRes.rows[0]?.totalActive || 0);
-    const urgentTasks = parseInt(priorityRes.rows[0]?.urgent || 0);
-    const highTasks = parseInt(priorityRes.rows[0]?.high || 0);
-    const mediumTasks = parseInt(priorityRes.rows[0]?.medium || 0);
-    const lowTasks = parseInt(priorityRes.rows[0]?.low || 0);
+    const totalActiveTasks = parseInt(taskStats.totalActive || 0);
+    const urgentTasks = parseInt(taskStats.urgent || 0);
+    const highTasks = parseInt(taskStats.high || 0);
+    const mediumTasks = parseInt(taskStats.medium || 0);
+    const lowTasks = parseInt(taskStats.low || 0);
 
     const payload = {
-      activeProjectCount: parseInt(projRes.rows[0].count),
+      activeProjectCount: parseInt(projStats.count || 0),
       stats: {
-        inProgress: parseInt(statsRes.rows[0].inProgress),
-        completedLast7Days: parseInt(statsRes.rows[0].completedLast7Days),
-        overdue: parseInt(statsRes.rows[0].overdue),
-        dueToday: parseInt(statsRes.rows[0].dueToday),
-        totalProjects: parseInt(projRes.rows[0].count) || 0,
-        completedProjects: parseInt(projRes.rows[0].completed) || 0,
-        inProgressProjects: parseInt(projRes.rows[0].inProgress) || 0,
-        pendingProjects: parseInt(projRes.rows[0].pending) || 0,
+        inProgress: parseInt(taskStats.inProgress || 0),
+        completedLast7Days: parseInt(taskStats.completedLast7Days || 0),
+        overdue: parseInt(taskStats.overdue || 0),
+        dueToday: parseInt(taskStats.dueToday || 0),
+        totalProjects: parseInt(projStats.count || 0),
+        completedProjects: parseInt(projStats.completed || 0),
+        inProgressProjects: parseInt(projStats.inProgress || 0),
+        pendingProjects: parseInt(projStats.pending || 0),
       },
       myIssues: myIssuesRes.rows,
       recentProjects: recentProjectsRes.rows,
@@ -476,12 +830,9 @@ exports.getCurrentWorkspaceAnalytics = async (req, res) => {
       })
       .slice(0, 4);
 
-    // 4. Real Velocity Buckets Generator for 7d, 30d, 90d
+    // 4. Real Velocity Buckets Generator for 7d, 30d, 90d (Optimized & Trimmed)
     const tVelocityRows = await db.query(
       `SELECT 
-         t.id as task_id,
-         t.title as task_title,
-         t.priority as task_priority,
          DATE(t.updated_at) as update_date,
          DATE(t.created_at) as create_date,
          t.status,
@@ -492,7 +843,8 @@ exports.getCurrentWorkspaceAnalytics = async (req, res) => {
          p.health as project_health
        FROM tasks t
        JOIN projects p ON t.project_id = p.id
-       WHERE p.workspace_id = $1 AND (t.updated_at >= NOW() - INTERVAL '90 days' OR t.created_at >= NOW() - INTERVAL '90 days')`,
+       WHERE p.workspace_id = $1 AND (t.updated_at >= NOW() - INTERVAL '90 days' OR t.created_at >= NOW() - INTERVAL '90 days')
+       ORDER BY t.updated_at DESC LIMIT 5000`,
       [wsId],
     );
 
@@ -506,7 +858,8 @@ exports.getCurrentWorkspaceAnalytics = async (req, res) => {
          p.health as project_health,
          p.status
        FROM projects p
-       WHERE p.workspace_id = $1 AND p.updated_at >= NOW() - INTERVAL '90 days' AND p.status = 'Done'`,
+       WHERE p.workspace_id = $1 AND p.updated_at >= NOW() - INTERVAL '90 days' AND p.status = 'Done'
+       ORDER BY p.updated_at DESC LIMIT 1000`,
       [wsId],
     );
 
@@ -575,20 +928,6 @@ exports.getCurrentWorkspaceAnalytics = async (req, res) => {
           count: 1,
         }));
 
-        const mapTask = (r) => ({
-          id: r.task_id,
-          title: r.task_title,
-          priority: r.task_priority || "Medium",
-          status: r.status,
-          projectId: r.project_id,
-          projectName: r.project_name,
-          projectIdentifier: r.project_identifier,
-          taskIdentifier: r.project_identifier ? `${r.project_identifier}-${r.task_id}` : `TASK-${r.task_id}`,
-        });
-
-        const completedTasks = completedTaskRows.map(mapTask);
-        const createdTasks = createdTaskRows.map(mapTask);
-
         buckets.push({
           date: dateLabel,
           completed: completedTaskRows.length,
@@ -599,8 +938,8 @@ exports.getCurrentWorkspaceAnalytics = async (req, res) => {
             completed: completedProjects,
             created: createdProjects,
             shipped: shippedProjects,
-            completedTasks,
-            createdTasks,
+            completedTasks: [],
+            createdTasks: [],
           },
         });
       }
@@ -752,6 +1091,7 @@ exports.getWorkspaceMembers = async (req, res) => {
           u.id, 
           u.name, 
           u.email, 
+          u.username,
           u.avatar_url, 
           wm.role, 
           wm.created_at as joined_at,
@@ -809,13 +1149,19 @@ exports.updateWorkspaceMemberRole = async (req, res) => {
     return res.status(400).json({ error: "Invalid role" });
   }
 
+  const client = await db.pool.connect();
   try {
-    const memberCheck = await db.query(
+    await client.query("BEGIN");
+    await client.query("SELECT pg_advisory_xact_lock(hashtext('ws_members_' || $1))", [req.workspace.id]);
+
+    const memberCheck = await client.query(
       "SELECT role FROM workspace_members WHERE workspace_id = $1 AND user_id = $2",
       [req.workspace.id, userId],
     );
-    if (memberCheck.rows.length === 0)
+    if (memberCheck.rows.length === 0) {
+      await client.query("ROLLBACK");
       return res.status(404).json({ error: "Member not found in workspace" });
+    }
     const currentRole = memberCheck.rows[0].role;
 
     // Block Owner changes except by Owner
@@ -823,6 +1169,7 @@ exports.updateWorkspaceMemberRole = async (req, res) => {
       (currentRole === "Owner" || role === "Owner") &&
       req.workspaceRole !== "Owner"
     ) {
+      await client.query("ROLLBACK");
       return res
         .status(403)
         .json({ error: "Only Owners can modify Owner roles" });
@@ -830,31 +1177,34 @@ exports.updateWorkspaceMemberRole = async (req, res) => {
 
     // Block last-Owner demotion
     if (currentRole === "Owner" && role !== "Owner") {
-      const ownerCount = await db.query(
+      const ownerCount = await client.query(
         "SELECT COUNT(*) FROM workspace_members WHERE workspace_id = $1 AND role = $2",
         [req.workspace.id, "Owner"],
       );
-      if (parseInt(ownerCount.rows[0].count) <= 1) {
+      if (parseInt(ownerCount.rows[0].count, 10) <= 1) {
+        await client.query("ROLLBACK");
         return res
           .status(400)
           .json({ error: "Cannot demote the last Owner of the workspace" });
       }
     }
 
-    const { rows } = await db.query(
-      `
-      UPDATE workspace_members
-      SET role = $1
-      WHERE workspace_id = $2 AND user_id = $3
-      RETURNING *
-    `,
+    const { rows } = await client.query(
+      `UPDATE workspace_members
+       SET role = $1
+       WHERE workspace_id = $2 AND user_id = $3
+       RETURNING *`,
       [role, req.workspace.id, userId],
     );
 
+    await client.query("COMMIT");
     res.json(rows[0]);
   } catch (error) {
+    await client.query("ROLLBACK").catch(() => {});
     console.error(error);
     res.status(500).json({ error: "Server error" });
+  } finally {
+    client.release();
   }
 };
 
@@ -871,28 +1221,37 @@ exports.removeWorkspaceMember = async (req, res) => {
       .json({ error: "Workspace ID does not match active workspace context" });
   }
 
+  const client = await db.pool.connect();
   try {
-    const userRes = await db.query(
+    await client.query("BEGIN");
+    await client.query("SELECT pg_advisory_xact_lock(hashtext('ws_members_' || $1))", [req.workspace.id]);
+
+    const userRes = await client.query(
       "SELECT clerk_user_id FROM users WHERE id = $1",
       [userId],
     );
-    if (userRes.rows.length === 0)
+    if (userRes.rows.length === 0) {
+      await client.query("ROLLBACK");
       return res.status(404).json({ error: "User not found" });
+    }
     const clerkUserId = userRes.rows[0].clerk_user_id;
 
-    const memberCheck = await db.query(
+    const memberCheck = await client.query(
       "SELECT role FROM workspace_members WHERE workspace_id = $1 AND user_id = $2",
       [req.workspace.id, userId],
     );
-    if (memberCheck.rows.length === 0)
+    if (memberCheck.rows.length === 0) {
+      await client.query("ROLLBACK");
       return res.status(404).json({ error: "Member not found in workspace" });
+    }
 
     if (memberCheck.rows[0].role === "Owner") {
-      const ownerCount = await db.query(
+      const ownerCount = await client.query(
         "SELECT COUNT(*) FROM workspace_members WHERE workspace_id = $1 AND role = $2",
         [req.workspace.id, "Owner"],
       );
-      if (parseInt(ownerCount.rows[0].count) <= 1) {
+      if (parseInt(ownerCount.rows[0].count, 10) <= 1) {
+        await client.query("ROLLBACK");
         return res
           .status(400)
           .json({ error: "Cannot remove the last Owner of the workspace" });
@@ -921,15 +1280,145 @@ exports.removeWorkspaceMember = async (req, res) => {
       }
     }
 
-    await db.query(
+    // 1. Clean up project memberships for this workspace
+    await client.query(
+      `DELETE FROM project_members pm
+       USING projects p
+       WHERE pm.project_id = p.id AND p.workspace_id = $1 AND pm.user_id = $2`,
+      [req.workspace.id, userId],
+    );
+
+    // 2. Unassign tasks in this workspace
+    await client.query(
+      `UPDATE tasks t
+       SET assignee_id = NULL
+       FROM projects p
+       WHERE t.project_id = p.id AND p.workspace_id = $1 AND t.assignee_id = $2`,
+      [req.workspace.id, userId],
+    );
+
+    // 3. Clear project lead in this workspace
+    await client.query(
+      "UPDATE projects SET lead_id = NULL WHERE workspace_id = $1 AND lead_id = $2",
+      [req.workspace.id, userId],
+    );
+
+    // 4. Remove from workspace_members
+    await client.query(
       "DELETE FROM workspace_members WHERE workspace_id = $1 AND user_id = $2",
       [req.workspace.id, userId],
     );
 
+    await client.query("COMMIT");
     res.json({ success: true });
   } catch (error) {
+    await client.query("ROLLBACK").catch(() => {});
     console.error(error);
     res.status(500).json({ error: "Server error" });
+  } finally {
+    client.release();
+  }
+};
+
+exports.transferWorkspaceOwnership = async (req, res) => {
+  if (!req.workspace) {
+    return res.status(404).json({ error: "No active workspace context" });
+  }
+
+  // Personal workspaces cannot be transferred
+  if (!req.workspace.clerk_org_id) {
+    return res
+      .status(400)
+      .json({ error: "Personal workspaces cannot be transferred" });
+  }
+
+  const { newOwnerId, leaveWorkspace } = req.body;
+  if (!newOwnerId) {
+    return res.status(400).json({ error: "newOwnerId is required" });
+  }
+
+  const client = await db.pool.connect();
+  try {
+    await client.query("BEGIN");
+    await client.query(
+      "SELECT pg_advisory_xact_lock(hashtext('ws_members_' || $1))",
+      [req.workspace.id],
+    );
+
+    // Verify current user is owner/admin
+    const isOwner =
+      req.workspace.owner_id === req.user.id ||
+      req.workspaceRole === "Owner" ||
+      req.auth?.orgRole === "org:admin";
+
+    if (!isOwner) {
+      await client.query("ROLLBACK");
+      return res
+        .status(403)
+        .json({ error: "Only the workspace owner can transfer ownership" });
+    }
+
+    // Verify target member is in workspace
+    const memberCheck = await client.query(
+      "SELECT user_id, role FROM workspace_members WHERE workspace_id = $1 AND (user_id = $2 OR user_id = (SELECT id FROM users WHERE clerk_user_id = $2))",
+      [req.workspace.id, String(newOwnerId)],
+    );
+
+    if (memberCheck.rows.length === 0) {
+      await client.query("ROLLBACK");
+      return res
+        .status(404)
+        .json({ error: "Target team member not found in workspace" });
+    }
+
+    const targetUserId = memberCheck.rows[0].user_id;
+
+    if (targetUserId === req.user.id) {
+      await client.query("ROLLBACK");
+      return res
+        .status(400)
+        .json({ error: "Cannot transfer ownership to yourself" });
+    }
+
+    // 1. Demote any existing owners in this workspace to 'Admin'
+    await client.query(
+      "UPDATE workspace_members SET role = 'Admin' WHERE workspace_id = $1 AND role = 'Owner'",
+      [req.workspace.id],
+    );
+
+    // 2. Promote new owner to Owner in workspace_members
+    await client.query(
+      "UPDATE workspace_members SET role = 'Owner' WHERE workspace_id = $1 AND user_id = $2",
+      [req.workspace.id, targetUserId],
+    );
+
+    // 3. Update workspace owner_id in workspaces table
+    await client.query(
+      "UPDATE workspaces SET owner_id = $1, updated_at = NOW() WHERE id = $2",
+      [targetUserId, req.workspace.id],
+    );
+
+    // 4. Remove current user if leaveWorkspace requested
+    if (leaveWorkspace) {
+      await client.query(
+        "DELETE FROM workspace_members WHERE workspace_id = $1 AND user_id = $2",
+        [req.workspace.id, req.user.id],
+      );
+    }
+
+    await client.query("COMMIT");
+    res.json({
+      success: true,
+      message: "Workspace ownership transferred successfully",
+      newOwnerId: targetUserId,
+      leftWorkspace: Boolean(leaveWorkspace),
+    });
+  } catch (error) {
+    await client.query("ROLLBACK").catch(() => {});
+    console.error("Error transferring workspace ownership:", error);
+    res.status(500).json({ error: "Server error transferring ownership" });
+  } finally {
+    client.release();
   }
 };
 

@@ -4,16 +4,43 @@ import {
   useUser,
   useOrganization,
   OrganizationProfile,
-} from "@clerk/clerk-react";
+} from "@clerk/react";
 import { api } from "../lib/api";
 import ConfirmModal from "../components/ConfirmModal";
-import PageLoading from "../components/PageLoading";
+import { TeamSkeleton } from "../components/skeletons/PageSkeletons";
+import TeamWorkloadCard from "../components/ai/TeamWorkloadCard";
+import { useDeferredSkeleton } from "../hooks/useDeferredSkeleton";
 
 export default function Team() {
   const { user } = useUser();
   const { organization } = useOrganization();
-  const [members, setMembers] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [members, setMembers] = useState(() => {
+    if (!organization?.id) {
+      if (user) {
+        return [
+          {
+            id: user.id || "personal",
+            name: user.fullName || "User",
+            email: user.primaryEmailAddress?.emailAddress || "",
+            avatar_url: user.imageUrl,
+            role: "Owner",
+            joined_at: new Date().toISOString(),
+          },
+        ];
+      }
+      return [];
+    }
+    const cached = api.getCached(`/workspaces/${organization.id}/members`);
+    if (Array.isArray(cached) && cached.length > 0) return cached;
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem(`kriri:cache:members:${organization.id}`);
+        if (stored) return JSON.parse(stored);
+      } catch {}
+    }
+    return [];
+  });
+  const [loading, setLoading] = useState(() => members.length === 0);
   const [error, setError] = useState(null);
   const [actionError, setActionError] = useState(null);
   const [showInviteModal, setShowInviteModal] = useState(false);
@@ -51,9 +78,15 @@ export default function Team() {
     }
 
     try {
-      setLoading(true);
+      if (members.length === 0) setLoading(true);
       const data = await api.get(`/workspaces/${organization.id}/members`);
       setMembers(data);
+      api.setCached(`/workspaces/${organization.id}/members`, data);
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem(`kriri:cache:members:${organization.id}`, JSON.stringify(data));
+        } catch {}
+      }
     } catch (err) {
       setError(err.message);
     } finally {
@@ -155,12 +188,14 @@ export default function Team() {
     return `${name} Workspace`;
   };
 
-  if (loading) {
-    return <PageLoading label="Team" />;
+  const showSkeleton = useDeferredSkeleton(loading && members.length === 0, 180);
+
+  if (showSkeleton) {
+    return <TeamSkeleton />;
   }
 
   return (
-    <div className="w-full flex flex-col min-h-full md:h-full animate-in fade-in duration-300 relative">
+    <div className="w-full flex flex-col min-h-full md:h-full relative">
       {/* Top Header Row with Title and Invite Member button */}
       <div className="flex items-center justify-between gap-2 sm:gap-3 min-h-[38px] mb-2 sm:mb-2.5">
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
@@ -188,7 +223,7 @@ export default function Team() {
             disabled={!organization} // Cannot invite to personal workspace
             className={`h-[26px] sm:h-[28px] px-3 rounded-full text-[11px] sm:text-[12px] font-medium transition-all duration-300 flex items-center gap-1.5 shrink-0 active:scale-[0.98] ${
               organization
-                ? "bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-100 shadow-sm dark:shadow-[0_0_20px_rgba(255,255,255,0.14)] dark:hover:shadow-[0_0_28px_rgba(255,255,255,0.22)]"
+                ? "kriri-primary-btn shadow-sm"
                 : "bg-black/5 dark:bg-white/10 text-zinc-400 dark:text-white/50 cursor-not-allowed"
             }`}
             title={
@@ -202,6 +237,9 @@ export default function Team() {
           </button>
         )}
       </div>
+
+      {/* AI Team Workload & Allocation Intelligence */}
+      <TeamWorkloadCard />
 
       {/* Underneath: Tag (members count & tagline) on left, Search icon on right */}
       <div className="flex items-center justify-between gap-2 mb-4 sm:mb-5 min-h-[30px]">
@@ -244,10 +282,10 @@ export default function Team() {
         ) : (
           <>
             <div className="flex items-center gap-2 min-w-0">
-              <span className="px-2 py-0.5 rounded-full bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.08] dark:border-white/[0.08] text-[11px] text-zinc-600 dark:text-[#8a8f98] font-medium shrink-0">
+              <span className="px-2 py-0.5 rounded-full bg-surface-hover border border-border text-[11px] text-text-secondary font-medium shrink-0">
                 {members.length} {members.length === 1 ? "member" : "members"}
               </span>
-              <p className="text-[12px] sm:text-[13px] text-zinc-500 dark:text-text-muted truncate">
+              <p className="text-[12px] sm:text-[13px] text-text-muted truncate">
                 Manage your workspace members and their roles.
               </p>
             </div>
@@ -257,14 +295,14 @@ export default function Team() {
               <div className="hidden sm:block relative">
                 <Search
                   size={14}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 dark:text-text-muted"
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted"
                 />
                 <input
                   type="text"
                   placeholder="Filter by name or email..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-[200px] bg-white dark:bg-surface-elevated border border-black/10 dark:border-border rounded-md pl-9 pr-3 py-1 text-xs text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-text-muted focus:outline-none focus:border-black/20 dark:focus:border-white/20 transition-colors"
+                  className="w-[200px] bg-surface-elevated border border-border rounded-md pl-9 pr-3 py-1 text-xs text-foreground placeholder:text-text-muted focus:outline-none focus:border-border-strong transition-colors"
                 />
               </div>
 
@@ -272,10 +310,10 @@ export default function Team() {
               <button
                 type="button"
                 onClick={() => setIsSearchOpen(true)}
-                className={`sm:hidden h-[26px] w-[26px] flex items-center justify-center rounded-md border border-black/10 dark:border-white/[0.08] transition-colors ${
+                className={`sm:hidden h-[26px] w-[26px] flex items-center justify-center rounded-md border border-border transition-colors ${
                   searchQuery
-                    ? "bg-black/[0.08] dark:bg-white/[0.1] text-zinc-900 dark:text-white border-black/20 dark:border-white/20"
-                    : "bg-black/[0.03] dark:bg-white/[0.03] text-zinc-500 dark:text-[#8a8f98] hover:text-zinc-900 dark:hover:text-white hover:bg-black/[0.06] dark:hover:bg-white/[0.06]"
+                    ? "bg-surface-active text-foreground border-border-strong"
+                    : "bg-surface-hover text-text-muted hover:text-foreground"
                 }`}
                 aria-label="Search members"
                 title="Search members"
@@ -299,12 +337,8 @@ export default function Team() {
         </div>
       )}
 
-      <div className="flex flex-col border border-black/[0.08] dark:border-white/[0.06] rounded-xl bg-white dark:bg-[#141517] overflow-x-auto shadow-xs">
-        {loading ? (
-          <div className="p-8 text-center text-zinc-400 dark:text-text-muted text-[13px]">
-            Loading members...
-          </div>
-        ) : error ? (
+      <div className="flex flex-col border border-border rounded-2xl bg-surface overflow-x-auto shadow-xs">
+        {error ? (
           <div className="p-8 text-center text-danger text-[13px]">{error}</div>
         ) : members.length === 0 ? (
           <div className="p-8 text-center text-zinc-400 dark:text-text-muted text-[13px]">
@@ -313,7 +347,7 @@ export default function Team() {
         ) : (
           <>
             {/* Mobile Card List (< sm) */}
-            <div className="sm:hidden flex flex-col divide-y divide-black/[0.05] dark:divide-white/[0.04]">
+            <div className="sm:hidden flex flex-col divide-y divide-border-subtle">
               {filteredMembers.map((member) => (
                 <div key={member.id} className="p-3.5 flex flex-col gap-2.5">
                   <div className="flex items-center justify-between">
@@ -333,16 +367,16 @@ export default function Team() {
                       </div>
                       <div className="flex flex-col min-w-0">
                         <div className="flex items-center gap-1.5">
-                          <span className="text-[13px] font-medium text-zinc-900 dark:text-[#e8e8e8] truncate">
+                          <span className="text-[13px] font-medium text-foreground truncate">
                             {member.name || member.email}
                           </span>
                           {member.email === currentUserEmail && (
-                            <span className="text-[10px] text-zinc-500 dark:text-text-muted bg-black/[0.04] dark:bg-white/[0.05] border border-black/[0.08] dark:border-white/[0.08] px-1.5 py-0.5 rounded-md shrink-0">
+                            <span className="text-[10px] text-text-muted bg-surface-hover border border-border px-1.5 py-0.5 rounded-md shrink-0">
                               You
                             </span>
                           )}
                         </div>
-                        <span className="text-[12px] text-zinc-500 dark:text-text-muted truncate">
+                        <span className="text-[12px] text-text-muted truncate">
                           {member.email}
                         </span>
                       </div>
@@ -359,7 +393,7 @@ export default function Team() {
                               activeActionMenu === member.id ? null : member.id,
                             );
                           }}
-                          className="w-7 h-7 rounded hover:bg-black/[0.05] dark:hover:bg-white/[0.04] transition-colors flex items-center justify-center text-zinc-400 dark:text-text-muted hover:text-zinc-900 dark:hover:text-white"
+                          className="w-7 h-7 rounded hover:bg-surface-hover transition-colors flex items-center justify-center text-text-muted hover:text-foreground"
                         >
                           <MoreHorizontal size={15} />
                         </button>
@@ -410,17 +444,17 @@ export default function Team() {
             {/* Desktop Table (>= sm) */}
             <table className="hidden sm:table w-full min-w-[550px] text-left border-collapse">
               <thead>
-                <tr className="border-b border-black/[0.08] dark:border-white/[0.06]">
-                <th className="font-normal text-zinc-500 dark:text-text-muted text-[13px] px-4 py-2.5">
+                <tr className="border-b border-border-subtle">
+                <th className="font-normal text-text-muted text-[13px] px-4 py-2.5">
                   User
                 </th>
-                <th className="font-normal text-zinc-500 dark:text-text-muted text-[13px] px-4 py-2.5">
+                <th className="font-normal text-text-muted text-[13px] px-4 py-2.5">
                   Joined
                 </th>
-                <th className="font-normal text-zinc-500 dark:text-text-muted text-[13px] px-4 py-2.5">
+                <th className="font-normal text-text-muted text-[13px] px-4 py-2.5">
                   Role
                 </th>
-                <th className="font-normal text-zinc-500 dark:text-text-muted text-[13px] px-4 py-2.5">
+                <th className="font-normal text-text-muted text-[13px] px-4 py-2.5">
                   Actions
                 </th>
               </tr>
@@ -429,7 +463,7 @@ export default function Team() {
               {filteredMembers.map((member) => (
                 <tr
                   key={member.id}
-                  className="border-b border-black/[0.05] dark:border-white/[0.04] last:border-0 hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-colors group"
+                  className="border-b border-border-subtle last:border-0 hover:bg-surface-hover transition-colors group"
                 >
                   <td className="px-4 py-2.5">
                     <div className="flex items-center gap-2.5">
@@ -449,33 +483,33 @@ export default function Team() {
                       </div>
                       <div className="flex flex-col">
                         <div className="flex items-center gap-1.5">
-                          <span className="text-[13px] font-medium text-zinc-900 dark:text-[#e8e8e8]">
+                          <span className="text-[13px] font-medium text-foreground">
                             {member.name || member.email}
                           </span>
                           {member.email === currentUserEmail && (
-                            <span className="text-[10px] text-zinc-500 dark:text-text-muted bg-black/[0.04] dark:bg-white/[0.05] border border-black/[0.08] dark:border-white/[0.08] px-1.5 py-0.5 rounded-md">
+                            <span className="text-[10px] text-text-muted bg-surface-hover border border-border px-1.5 py-0.5 rounded-md">
                               You
                             </span>
                           )}
                         </div>
-                        <span className="text-[12px] text-zinc-500 dark:text-text-muted">
+                        <span className="text-[12px] text-text-muted">
                           {member.email}
                         </span>
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-2.5 text-[13px] text-zinc-700 dark:text-[#e8e8e8]">
+                  <td className="px-4 py-2.5 text-[13px] text-foreground">
                     {member.joined_at
                       ? new Date(member.joined_at).toLocaleDateString()
                       : "-"}
                   </td>
-                  <td className="px-4 py-2.5 text-[13px] text-zinc-700 dark:text-[#e8e8e8]">
+                  <td className="px-4 py-2.5 text-[13px] text-foreground">
                     {canManageRoles && member.role !== "Owner" ? (
                       <select
                         value={member.role}
                         onChange={(e) => updateRole(member.id, e.target.value)}
                         disabled={member.email === currentUserEmail}
-                        className="bg-white dark:bg-transparent border border-black/10 dark:border-white/[0.1] rounded px-2 py-1 text-[13px] text-zinc-900 dark:text-white focus:outline-none focus:border-black/20 dark:focus:border-white/20 cursor-pointer disabled:opacity-50"
+                        className="bg-surface-elevated border border-border rounded px-2 py-1 text-[13px] text-foreground focus:outline-none focus:border-border-strong cursor-pointer disabled:opacity-50"
                         title={
                           member.email === currentUserEmail
                             ? "You cannot change your own role"
@@ -486,7 +520,7 @@ export default function Team() {
                           <option
                             key={r}
                             value={r}
-                            className="bg-white dark:bg-[#18191b] text-zinc-900 dark:text-white"
+                            className="bg-surface-elevated text-foreground"
                           >
                             {r}
                           </option>
@@ -496,7 +530,7 @@ export default function Team() {
                       <span>{member.role}</span>
                     )}
                   </td>
-                  <td className="px-4 py-2.5 text-[13px] text-zinc-500 dark:text-text-muted">
+                  <td className="px-4 py-2.5 text-[13px] text-text-muted">
                     {canManageRoles &&
                     member.role !== "Owner" &&
                     member.email !== currentUserEmail ? (
@@ -508,7 +542,7 @@ export default function Team() {
                               activeActionMenu === member.id ? null : member.id,
                             );
                           }}
-                          className="w-7 h-7 rounded hover:bg-black/[0.05] dark:hover:bg-white/[0.04] transition-colors flex items-center justify-center text-zinc-400 dark:text-text-muted hover:text-zinc-900 dark:hover:text-white"
+                          className="w-7 h-7 rounded hover:bg-surface-hover transition-colors flex items-center justify-center text-text-muted hover:text-foreground"
                         >
                           <MoreHorizontal size={15} />
                         </button>
