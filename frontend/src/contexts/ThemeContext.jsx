@@ -522,12 +522,33 @@ export function ThemeProvider({ children, defaultTheme }) {
 
   const toggleTheme = useCallback(
     (variant = "eclipse", trigger) => {
-      // In Custom Mode, toggle controls are hidden and disabled
-      if (theme === "custom") return;
-
       playUiSound("toggle");
       const effectiveTheme = resolveEffectiveTheme(theme);
-      const nextTheme = effectiveTheme === "dark" ? "light" : "dark";
+
+      let nextTheme;
+      if (effectiveTheme === "dark") {
+        nextTheme = "light";
+        try {
+          if (theme === "custom") {
+            localStorage.setItem("kriri-last-dark-mode", "custom");
+          } else {
+            localStorage.setItem("kriri-last-dark-mode", "dark");
+          }
+        } catch {}
+      } else {
+        const lastDark =
+          typeof window !== "undefined"
+            ? localStorage.getItem("kriri-last-dark-mode")
+            : null;
+        if (theme === "custom") {
+          nextTheme = "dark";
+        } else if (lastDark === "custom") {
+          nextTheme = "custom";
+        } else {
+          nextTheme = "dark";
+        }
+      }
+
       onThemeChange(nextTheme, variant, trigger);
     },
     [theme, onThemeChange]

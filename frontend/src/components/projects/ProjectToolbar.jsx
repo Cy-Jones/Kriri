@@ -402,6 +402,11 @@ export default function ProjectToolbar({
                             color: "text-[#f2c94c]",
                           },
                           {
+                            label: "In Review",
+                            icon: FileText,
+                            color: "text-[#3b82f6]",
+                          },
+                          {
                             label: "Completed",
                             icon: CheckCircle2,
                             color: "text-[#3b82f6]",

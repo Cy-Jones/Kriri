@@ -248,10 +248,12 @@ export function LineChart({
   legend,
   categoryLabel = "Date",
   curve = "smooth",
+  isAnimationActive = true,
   ref,
   className,
 }) {
-  const reduced = useReducedMotionSafe();
+  const isReduced = useReducedMotionSafe();
+  const reduced = isReduced || isAnimationActive === false;
   const figure = useRef(null);
   const plot = useRef(null);
   const tip = useRef(null);

@@ -575,9 +575,7 @@ export default function Analytics() {
                     dataKey={velocityMetric}
                     radius={[6, 6, 0, 0]}
                     maxBarSize={34}
-                    animationDuration={600}
-                    animationEasing="ease-out"
-                    isAnimationActive={true}
+                    isAnimationActive={false}
                     onClick={(entry) => {
                       if (entry?.date) handleBarClick(entry.date);
                     }}

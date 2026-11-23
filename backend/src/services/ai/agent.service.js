@@ -21,7 +21,7 @@ class AgentService {
               name: { type: "string", description: "Title/name of the project (e.g. Design System & UI Library)" },
               description: { type: "string", description: "Detailed project scope and requirements" },
               priority: { type: "string", enum: ["Low", "Medium", "High", "Urgent"], description: "Project priority" },
-              status: { type: "string", enum: ["Planning", "In Progress", "Paused", "Done"], description: "Initial status" },
+              status: { type: "string", enum: ["Planning", "Planned", "In Progress", "In Review", "Paused", "Done", "Completed", "Backlog", "Canceled"], description: "Initial status" },
               start_date: { type: "string", description: "YYYY-MM-DD start date" },
               due_date: { type: "string", description: "YYYY-MM-DD target delivery date" },
               labels: { type: "array", items: { type: "string" }, description: "Functional category labels" },

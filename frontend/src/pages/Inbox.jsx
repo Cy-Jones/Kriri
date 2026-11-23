@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback, startTransition, memo } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../lib/api";
 import { useUser, useOrganization } from "@clerk/react";
@@ -196,6 +196,132 @@ const SelectDropdown = ({ value, options = [], onChange }) => {
 
 
 
+const areNotificationPropsEqual = (prevProps, nextProps) => {
+  if (prevProps.notif !== nextProps.notif) {
+    if (prevProps.notif.id !== nextProps.notif.id) return false;
+    if (prevProps.notif.is_read !== nextProps.notif.is_read) return false;
+    if (prevProps.notif.title !== nextProps.notif.title) return false;
+    if (prevProps.notif.message !== nextProps.notif.message) return false;
+    if (prevProps.notif.created_at !== nextProps.notif.created_at) return false;
+  }
+  if (prevProps.isSelected !== nextProps.isSelected) return false;
+  if (prevProps.isActive !== nextProps.isActive) return false;
+  if (prevProps.onSelect !== nextProps.onSelect) return false;
+  if (prevProps.onMarkAsRead !== nextProps.onMarkAsRead) return false;
+  return true;
+};
+
+const NotificationRow = memo(function NotificationRow({
+  notif,
+  idx,
+  isSelected,
+  isActive,
+  onSelect,
+  onMarkAsRead,
+}) {
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={() => onSelect(notif, idx)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onSelect(notif, idx);
+        }
+      }}
+      className={`w-full flex items-start gap-3 px-3.5 py-2.5 text-left transition-colors relative group outline-none cursor-pointer border-b border-black/[0.04] dark:border-white/[0.03] select-none ${
+        isSelected || isActive
+          ? "bg-black/[0.04] dark:bg-white/[0.07]"
+          : "hover:bg-black/[0.02] dark:hover:bg-white/[0.035] active:bg-black/[0.04] dark:active:bg-white/[0.05]"
+      } ${isActive ? "ring-1 ring-inset ring-black/10 dark:ring-white/10" : ""}`}
+      style={{ contentVisibility: "auto", containIntrinsicSize: "0 60px" }}
+    >
+      {isSelected && (
+        <div className="absolute left-0 top-0 bottom-0 w-[2.5px] bg-zinc-900 dark:bg-white shadow-[0_0_8px_rgba(0,0,0,0.15)] dark:shadow-[0_0_8px_rgba(255,255,255,0.4)]" />
+      )}
+      <div className="mt-0.5 flex-shrink-0 text-zinc-500 dark:text-[#8a8f98] group-hover:text-zinc-900 dark:group-hover:text-[#e8e8e8] transition-colors">
+        <NotificationIcon notif={notif} size={14} />
+      </div>
+      <div className="flex-1 min-w-0 pr-1">
+        <div className="flex justify-between items-baseline gap-2 transition-[padding] duration-150 group-hover:pr-20">
+          <span
+            className={`truncate text-[13px] tracking-tight ${
+              notif.is_read
+                ? "text-zinc-500 dark:text-[#8a8f98] font-normal"
+                : "text-zinc-900 dark:text-[#e8e8e8] font-medium"
+            }`}
+          >
+            {notif.title}
+          </span>
+          <span
+            className={`text-[12px] flex-shrink-0 tabular-nums transition-opacity duration-150 ${
+              notif.is_read ? "text-zinc-400 dark:text-[#8a8f98] opacity-60" : "text-zinc-500 dark:text-[#8a8f98] opacity-100"
+            } group-hover:opacity-0`}
+          >
+            {new Date(notif.created_at).toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
+          </span>
+        </div>
+        <span
+          className={`text-[13px] truncate block mt-0.5 ${
+            notif.is_read ? "text-zinc-400 dark:text-[#8a8f98] opacity-70" : "text-zinc-600 dark:text-[#8a8f98]"
+          }`}
+        >
+          {notif.message}
+        </span>
+      </div>
+      {!notif.is_read && (
+        <div className="w-1.5 h-1.5 flex-shrink-0 rounded-full bg-blue-600 dark:bg-white mt-2 transition-opacity group-hover:opacity-0 shadow-[0_0_6px_rgba(37,99,235,0.4)] dark:shadow-[0_0_6px_rgba(255,255,255,0.7)]" />
+      )}
+
+      {/* Hover Actions Pill - positioned cleanly at top right aligned with first line */}
+      <div
+        className="absolute right-2.5 top-2 opacity-0 group-hover:opacity-100 flex items-center gap-0.5 bg-white dark:bg-[#1a1b1f] border border-black/10 dark:border-white/10 shadow-[0_4px_12px_rgba(0,0,0,0.08)] dark:shadow-[0_4px_12px_rgba(0,0,0,0.5)] rounded-md p-0.5 transition-all duration-150 z-20 pointer-events-none group-hover:pointer-events-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onMarkAsRead(notif.id, !notif.is_read);
+          }}
+          title={notif.is_read ? "Mark as unread" : "Mark as read"}
+          className="h-6 w-6 flex items-center justify-center rounded-[4px] hover:bg-black/[0.05] dark:hover:bg-white/[0.08] text-zinc-500 hover:text-zinc-900 dark:text-[#8a8f98] dark:hover:text-[#e8e8e8] transition-colors cursor-pointer"
+        >
+          {notif.is_read ? (
+            <CheckCheck size={13} className="text-emerald-500 dark:text-emerald-400" />
+          ) : (
+            <Check size={13} />
+          )}
+        </button>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+          }}
+          title="Snooze"
+          className="h-6 w-6 flex items-center justify-center rounded-[4px] hover:bg-black/[0.05] dark:hover:bg-white/[0.08] text-zinc-500 hover:text-zinc-900 dark:text-[#8a8f98] dark:hover:text-[#e8e8e8] transition-colors cursor-pointer"
+        >
+          <Clock size={13} />
+        </button>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+          }}
+          title="More options"
+          className="h-6 w-6 flex items-center justify-center rounded-[4px] hover:bg-black/[0.05] dark:hover:bg-white/[0.08] text-zinc-500 hover:text-zinc-900 dark:text-[#8a8f98] dark:hover:text-[#e8e8e8] transition-colors cursor-pointer"
+        >
+          <MoreHorizontal size={13} />
+        </button>
+      </div>
+    </div>
+  );
+}, areNotificationPropsEqual);
+
 export default function Inbox() {
   const { effectiveTheme } = useTheme();
   const isAuditMock = typeof window !== "undefined" && import.meta.env.DEV && (window.__AUDIT_MOCK_AUTH__ || window.localStorage?.getItem("audit_mock_auth") === "true");
@@ -301,33 +427,40 @@ export default function Inbox() {
     }
   }, [organization?.id, isLoaded, isSignedIn, user?.id, isAuditMock]);
 
-  const markAsRead = async (id, status = true) => {
+  const markAsRead = useCallback(async (id, status = true) => {
     try {
       await api.patch(`/workspaces/current/notifications/${id}/read`, { is_read: status });
-      setNotifications((prev) =>
-        prev.map((n) => (String(n.id) === String(id) ? { ...n, is_read: status } : n)),
-      );
+      startTransition(() => {
+        setNotifications((prev) =>
+          prev.map((n) => (String(n.id) === String(id) ? { ...n, is_read: status } : n)),
+        );
+      });
     } catch (err) {
       console.error("Failed to mark read/unread", err);
     }
-  };
+  }, []);
 
-
-  const handleSelect = (notif, idx) => {
+  const handleSelect = useCallback((notif, idx) => {
     if (!notif) return;
+    // 1. URGENT: highlight clicked row immediately for instant 120Hz frame render (< 5ms)
     setSelectedNotifId(notif.id);
     if (idx !== undefined) {
       setActiveIndex(idx);
     }
-    if (!notif.is_read) {
-      markAsRead(notif.id, true);
-    }
-  };
+    // 2. NON-URGENT: mark read and heavy thread rendering in concurrent transition
+    startTransition(() => {
+      if (!notif.is_read) {
+        markAsRead(notif.id, true);
+      }
+    });
+  }, [markAsRead]);
 
-  const handleBackToList = () => {
-    setSelectedNotifId(null);
-    setActiveIndex(null);
-  };
+  const handleBackToList = useCallback(() => {
+    startTransition(() => {
+      setSelectedNotifId(null);
+      setActiveIndex(null);
+    });
+  }, []);
 
   useEffect(() => {
     const handleInboxShortcuts = (e) => {
@@ -369,7 +502,7 @@ export default function Inbox() {
     };
     window.addEventListener("keydown", handleInboxShortcuts);
     return () => window.removeEventListener("keydown", handleInboxShortcuts);
-  }, [selectedNotifId, notifications]);
+  }, [selectedNotifId, notifications, handleBackToList, markAsRead]);
 
   const toggleFilter = (category, val) => {
     setFilterState((prev) => {
@@ -381,56 +514,59 @@ export default function Inbox() {
     });
   };
 
-  const filteredNotifications = notifications
-    .filter((n) => {
-      if (filter === "unread" && n.is_read) return false;
+  const filteredNotifications = useMemo(() => {
+    return notifications
+      .filter((n) => {
+        if (filter === "unread" && n.is_read) return false;
 
-      if (filterState.types.length > 0) {
-        const typeMapping = {
-          task_assigned: "Assignments",
-          task_comment: "Comments",
-          task_completed: "Status changes",
-        };
-        const mappedType = typeMapping[n.type];
-        if (!mappedType || !filterState.types.includes(mappedType)) {
-          return false;
+        if (filterState.types.length > 0) {
+          const typeMapping = {
+            task_assigned: "Assignments",
+            task_comment: "Comments",
+            task_completed: "Status changes",
+          };
+          const mappedType = typeMapping[n.type];
+          if (!mappedType || !filterState.types.includes(mappedType)) {
+            return false;
+          }
         }
-      }
 
-      if (filterState.teammates.length > 0) {
-        if (!n.actor_name || !filterState.teammates.includes(n.actor_name))
-          return false;
-      }
+        if (filterState.teammates.length > 0) {
+          if (!n.actor_name || !filterState.teammates.includes(n.actor_name))
+            return false;
+        }
 
-      if (filterState.projects.length > 0) {
-        if (!n.project_name || !filterState.projects.includes(n.project_name))
-          return false;
-      }
+        if (filterState.projects.length > 0) {
+          if (!n.project_name || !filterState.projects.includes(n.project_name))
+            return false;
+        }
 
-      return true;
-    })
-    .sort((a, b) => {
-      if (displayOptions.showUnreadFirst) {
-        if (!a.is_read && b.is_read) return -1;
-        if (a.is_read && !b.is_read) return 1;
-      }
+        return true;
+      })
+      .sort((a, b) => {
+        if (displayOptions.showUnreadFirst) {
+          if (!a.is_read && b.is_read) return -1;
+          if (a.is_read && !b.is_read) return 1;
+        }
 
-      const dateA = new Date(a.created_at).getTime();
-      const dateB = new Date(b.created_at).getTime();
+        const dateA = new Date(a.created_at).getTime();
+        const dateB = new Date(b.created_at).getTime();
 
-      if (displayOptions.ordering === "Oldest") {
-        return dateA - dateB;
-      }
-      return dateB - dateA;
-    });
+        if (displayOptions.ordering === "Oldest") {
+          return dateA - dateB;
+        }
+        return dateB - dateA;
+      });
+  }, [notifications, filter, filterState, displayOptions]);
 
   const unreadCount = useMemo(
     () => notifications.filter((n) => !n.is_read).length,
     [notifications],
   );
 
-  const selectedNotif = notifications.find(
-    (n) => String(n.id) === String(selectedNotifId),
+  const selectedNotif = useMemo(
+    () => notifications.find((n) => String(n.id) === String(selectedNotifId)),
+    [notifications, selectedNotifId],
   );
 
   const navigate = useNavigate();
@@ -981,115 +1117,19 @@ export default function Inbox() {
             </div>
           ) : (
             <div className="flex flex-col py-1">
-              {filteredNotifications.map((notif, idx) => {
-                const isSelected = Boolean(
-                  selectedNotifId && String(selectedNotifId) === String(notif.id),
-                );
-                const isActive = Boolean(selectedNotifId && activeIndex === idx);
-                return (
-                  <div
-                    role="button"
-                    tabIndex={0}
-                    key={notif.id}
-                    onClick={() => {
-                      handleSelect(notif, idx);
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        handleSelect(notif, idx);
-                      }
-                    }}
-                    className={`w-full flex items-start gap-3 px-3.5 py-2.5 text-left transition-colors relative group outline-none cursor-pointer border-b border-black/[0.04] dark:border-white/[0.03] select-none ${
-                      isSelected || isActive
-                        ? "bg-black/[0.04] dark:bg-white/[0.07]"
-                        : "hover:bg-black/[0.02] dark:hover:bg-white/[0.035] active:bg-black/[0.04] dark:active:bg-white/[0.05]"
-                    } ${isActive ? "ring-1 ring-inset ring-black/10 dark:ring-white/10" : ""}`}
-                  >
-                    {isSelected && (
-                      <div className="absolute left-0 top-0 bottom-0 w-[2.5px] bg-zinc-900 dark:bg-white shadow-[0_0_8px_rgba(0,0,0,0.15)] dark:shadow-[0_0_8px_rgba(255,255,255,0.4)]" />
-                    )}
-                    <div className="mt-0.5 flex-shrink-0 text-zinc-500 dark:text-[#8a8f98] group-hover:text-zinc-900 dark:group-hover:text-[#e8e8e8] transition-colors">
-                      <NotificationIcon notif={notif} size={14} />
-                    </div>
-                    <div className="flex-1 min-w-0 pr-1">
-                      <div className="flex justify-between items-baseline gap-2 transition-[padding] duration-150 group-hover:pr-20">
-                        <span
-                          className={`truncate text-[13px] tracking-tight ${
-                            notif.is_read
-                              ? "text-zinc-500 dark:text-[#8a8f98] font-normal"
-                              : "text-zinc-900 dark:text-[#e8e8e8] font-medium"
-                          }`}
-                        >
-                          {notif.title}
-                        </span>
-                        <span
-                          className={`text-[12px] flex-shrink-0 tabular-nums transition-opacity duration-150 ${
-                            notif.is_read ? "text-zinc-400 dark:text-[#8a8f98] opacity-60" : "text-zinc-500 dark:text-[#8a8f98] opacity-100"
-                          } group-hover:opacity-0`}
-                        >
-                          {new Date(notif.created_at).toLocaleTimeString([], {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </span>
-                      </div>
-                      <span
-                        className={`text-[13px] truncate block mt-0.5 ${
-                          notif.is_read ? "text-zinc-400 dark:text-[#8a8f98] opacity-70" : "text-zinc-600 dark:text-[#8a8f98]"
-                        }`}
-                      >
-                        {notif.message}
-                      </span>
-                    </div>
-                    {!notif.is_read && (
-                      <div className="w-1.5 h-1.5 flex-shrink-0 rounded-full bg-blue-600 dark:bg-white mt-2 transition-opacity group-hover:opacity-0 shadow-[0_0_6px_rgba(37,99,235,0.4)] dark:shadow-[0_0_6px_rgba(255,255,255,0.7)]" />
-                    )}
-
-                    {/* Hover Actions Pill - positioned cleanly at top right aligned with first line */}
-                    <div
-                      className="absolute right-2.5 top-2 opacity-0 group-hover:opacity-100 flex items-center gap-0.5 bg-white dark:bg-[#1a1b1f] border border-black/10 dark:border-white/10 shadow-[0_4px_12px_rgba(0,0,0,0.08)] dark:shadow-[0_4px_12px_rgba(0,0,0,0.5)] rounded-md p-0.5 transition-all duration-150 z-20 pointer-events-none group-hover:pointer-events-auto"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          markAsRead(notif.id, !notif.is_read);
-                        }}
-                        title={notif.is_read ? "Mark as unread" : "Mark as read"}
-                        className="h-6 w-6 flex items-center justify-center rounded-[4px] hover:bg-black/[0.05] dark:hover:bg-white/[0.08] text-zinc-500 hover:text-zinc-900 dark:text-[#8a8f98] dark:hover:text-[#e8e8e8] transition-colors"
-                      >
-                        {notif.is_read ? (
-                          <CheckCheck size={13} className="text-emerald-500 dark:text-emerald-400" />
-                        ) : (
-                          <Check size={13} />
-                        )}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                        }}
-                        title="Snooze"
-                        className="h-6 w-6 flex items-center justify-center rounded-[4px] hover:bg-black/[0.05] dark:hover:bg-white/[0.08] text-zinc-500 hover:text-zinc-900 dark:text-[#8a8f98] dark:hover:text-[#e8e8e8] transition-colors"
-                      >
-                        <Clock size={13} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                        }}
-                        title="More options"
-                        className="h-6 w-6 flex items-center justify-center rounded-[4px] hover:bg-black/[0.05] dark:hover:bg-white/[0.08] text-zinc-500 hover:text-zinc-900 dark:text-[#8a8f98] dark:hover:text-[#e8e8e8] transition-colors"
-                      >
-                        <MoreHorizontal size={13} />
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
+              {filteredNotifications.map((notif, idx) => (
+                <NotificationRow
+                  key={notif.id}
+                  notif={notif}
+                  idx={idx}
+                  isSelected={Boolean(
+                    selectedNotifId && String(selectedNotifId) === String(notif.id),
+                  )}
+                  isActive={Boolean(selectedNotifId && activeIndex === idx)}
+                  onSelect={handleSelect}
+                  onMarkAsRead={markAsRead}
+                />
+              ))}
             </div>
           )}
         </div>

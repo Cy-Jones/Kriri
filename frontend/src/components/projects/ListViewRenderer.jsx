@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, memo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback, startTransition, memo } from "react";
 import { useNavigate } from "react-router-dom";
 import { getAvatarColor, getInitial } from "../../lib/avatarUtils";
 import MembersAvatarStack from "./MembersAvatarStack";
@@ -71,6 +71,529 @@ import MemberPicker from "../../components/MemberPicker";
 import PickerWrapper from "../../components/PickerWrapper";
 
 // ============================================================================
+// DND & ROW MEMOIZATION HELPERS
+// ============================================================================
+const areProjectListRowPropsEqual = (prevProps, nextProps) => {
+  if (prevProps.project !== nextProps.project) {
+    const p = prevProps.project;
+    const n = nextProps.project;
+    if (p.id !== n.id) return false;
+    if (p.name !== n.name) return false;
+    if (p.identifier !== n.identifier) return false;
+    if (p.description !== n.description) return false;
+    if (p.status !== n.status) return false;
+    if (p.priority !== n.priority) return false;
+    if (p.health !== n.health) return false;
+    if (p.lead?.id !== n.lead?.id) return false;
+    if (p.lead?.name !== n.lead?.name) return false;
+    if (p.lead?.avatar_url !== n.lead?.avatar_url) return false;
+    if (p.start_date !== n.start_date) return false;
+    if (p.due_date !== n.due_date) return false;
+    if (p.issue_count !== n.issue_count) return false;
+    if (p.progress !== n.progress) return false;
+    if (p.members !== n.members) return false;
+    if (p.labels !== n.labels) return false;
+    if (p.milestones !== n.milestones) return false;
+    if (p.dependencies !== n.dependencies) return false;
+  }
+  const prevPickerActive =
+    prevProps.activePicker?.projectId === prevProps.project.id
+      ? prevProps.activePicker.type
+      : null;
+  const nextPickerActive =
+    nextProps.activePicker?.projectId === nextProps.project.id
+      ? nextProps.activePicker.type
+      : null;
+  if (prevPickerActive !== nextPickerActive) return false;
+  if (prevProps.gridCols !== nextProps.gridCols) return false;
+  if (prevProps.properties !== nextProps.properties) return false;
+  if (prevProps.config !== nextProps.config) return false;
+  if (prevProps.canManageProjects !== nextProps.canManageProjects) return false;
+  if (prevProps.onProjectClick !== nextProps.onProjectClick) return false;
+  if (prevProps.onUpdateProject !== nextProps.onUpdateProject) return false;
+  if (prevProps.onDeleteProject !== nextProps.onDeleteProject) return false;
+  if (prevProps.setActivePicker !== nextProps.setActivePicker) return false;
+  if (prevProps.onDragStart !== nextProps.onDragStart) return false;
+  if (prevProps.onDropOnRow !== nextProps.onDropOnRow) return false;
+  return true;
+};
+
+const ProjectListRow = memo(function ProjectListRow({
+  project,
+  config,
+  properties,
+  gridCols,
+  activePicker,
+  canManageProjects,
+  onUpdateProject,
+  onDeleteProject,
+  setActivePicker,
+  onProjectClick,
+  onDragStart,
+  onDropOnRow,
+}) {
+  return (
+    <div
+      draggable={config.ordering === "manual"}
+      onDragStart={(e) => onDragStart(e, project)}
+      onDragOver={(e) => e.preventDefault()}
+      onDrop={(e) => onDropOnRow(e, project)}
+      onClick={() => onProjectClick(project)}
+      className="grid gap-8 items-center px-6 py-2 hover:bg-black/[0.03] dark:hover:bg-white/[0.02] rounded-xl transition-colors cursor-pointer text-[13px] group mx-2 text-foreground select-none"
+      style={{ gridTemplateColumns: gridCols, contentVisibility: "auto", containIntrinsicSize: "0 44px" }}
+    >
+      <div className="flex items-center gap-2.5 min-w-0 pr-2">
+        <div className="w-3.5 h-3.5 flex items-center justify-center flex-shrink-0">
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 14 14"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            className="text-[#e95454]"
+          >
+            <path
+              d="M7 1L12.5 4.17742V10.5323L7 13.7097L1.5 10.5323V4.17742L7 1Z"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinejoin="round"
+            />
+            <circle
+              cx="7"
+              cy="7.35484"
+              r="2"
+              fill="currentColor"
+            />
+          </svg>
+        </div>
+        <div className="flex flex-col min-w-0 max-w-[280px] sm:max-w-[350px] lg:max-w-[450px]">
+          <div className="flex items-center gap-2">
+            <span className="font-medium text-foreground truncate group-hover:text-foreground transition-colors">
+              {project.name}
+            </span>
+            {properties.id && (
+              <span className="text-[12px] text-text-muted font-mono whitespace-nowrap flex-shrink-0">
+                {project.identifier || project.id}
+              </span>
+            )}
+          </div>
+          {properties.summary && project.description && (
+            <span className="text-[12px] text-text-muted line-clamp-2 leading-tight mt-[1px] whitespace-normal break-words">
+              {project.description.split("\n\n")[0]}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {properties.health && (
+        <div className="relative">
+          <ActionTooltip label="Update health status">
+            <div
+              className={`text-[12px] text-text-muted flex items-center gap-1.5 px-2 py-1 -ml-2 rounded-full transition-colors ${canManageProjects ? "cursor-pointer hover:bg-black/[0.04] dark:hover:bg-white/[0.04]" : "cursor-default"}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                setActivePicker({
+                  type: "health",
+                  projectId: project.id,
+                });
+              }}
+            >
+              {getHealthIcon(project.health || "No updates")}
+              <span>{project.health || "No updates"}</span>
+            </div>
+          </ActionTooltip>
+          {activePicker.type === "health" &&
+            activePicker.projectId === project.id && (
+              <HealthPicker
+                value={project.health || "No updates"}
+                onChange={(val) =>
+                  onUpdateProject(project.id, { health: val })
+                }
+                onClose={() =>
+                  setActivePicker({
+                    type: null,
+                    projectId: null,
+                  })
+                }
+              />
+            )}
+        </div>
+      )}
+
+      {properties.priority && (
+        <div
+          className={`relative flex items-center p-1 -ml-1 rounded-full transition-colors ${canManageProjects ? "cursor-pointer hover:bg-black/[0.04] dark:hover:bg-white/[0.04]" : "cursor-default"}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            setActivePicker({
+              type: "priority",
+              projectId: project.id,
+            });
+          }}
+        >
+          {getPriorityIcon(project.priority)}
+          {activePicker.type === "priority" &&
+            activePicker.projectId === project.id && (
+              <PriorityPicker
+                value={project.priority}
+                onChange={(val) =>
+                  onUpdateProject(project.id, { priority: val })
+                }
+                onClose={() =>
+                  setActivePicker({
+                    type: null,
+                    projectId: null,
+                  })
+                }
+              />
+            )}
+        </div>
+      )}
+
+      {properties.lead && (
+        <div
+          className={`relative flex items-center p-1 -ml-1 rounded-full transition-colors ${canManageProjects ? "cursor-pointer hover:bg-black/[0.04] dark:hover:bg-white/[0.04]" : "cursor-default"}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            setActivePicker({
+              type: "lead",
+              projectId: project.id,
+            });
+          }}
+        >
+          {project.lead ? (
+            <div
+              className={`flex items-center justify-center w-6 h-6 rounded-full text-[10px] font-bold text-white uppercase overflow-hidden ${getAvatarColor(project.lead.name, project.lead.email)}`}
+            >
+              {project.lead.avatar_url ? (
+                <img
+                  src={project.lead.avatar_url}
+                  alt={project.lead.name}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                getInitial(
+                  project.lead.name,
+                  project.lead.email,
+                )
+              )}
+            </div>
+          ) : (
+            <div className="flex items-center justify-center w-6 h-6 rounded-full border border-black/[0.15] dark:border-white/[0.1] border-dashed text-zinc-400 dark:text-white/[0.3]">
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                <circle cx="12" cy="7" r="4" />
+              </svg>
+            </div>
+          )}
+          {activePicker.type === "lead" &&
+            activePicker.projectId === project.id && (
+              <LeadPicker
+                value={project.lead}
+                onChange={(val) =>
+                  onUpdateProject(project.id, { lead: val })
+                }
+                onClose={() =>
+                  setActivePicker({
+                    type: null,
+                    projectId: null,
+                  })
+                }
+              />
+            )}
+        </div>
+      )}
+
+      {properties.due_date && (
+        <div
+          className={`relative text-[12px] text-text-muted flex items-center gap-1.5 px-2 py-1 -ml-2 rounded-full transition-colors ${canManageProjects ? "cursor-pointer hover:bg-black/[0.04] dark:hover:bg-white/[0.04]" : "cursor-default"}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            setActivePicker({
+              type: "dueDate",
+              projectId: project.id,
+            });
+          }}
+        >
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
+            <rect
+              x="3"
+              y="4"
+              width="18"
+              height="18"
+              rx="2"
+              ry="2"
+            ></rect>
+            <line x1="16" y1="2" x2="16" y2="6"></line>
+            <line x1="8" y1="2" x2="8" y2="6"></line>
+            <line x1="3" y1="10" x2="21" y2="10"></line>
+          </svg>
+          {project.due_date
+            ? new Date(project.due_date).toLocaleDateString(
+                "en-US",
+                { month: "short", day: "numeric" },
+              )
+            : "---"}
+          {activePicker.type === "dueDate" &&
+            activePicker.projectId === project.id && (
+              <DatePicker
+                value={project.due_date}
+                onChange={(val) =>
+                  onUpdateProject(project.id, { due_date: val })
+                }
+                onClose={() =>
+                  setActivePicker({
+                    type: null,
+                    projectId: null,
+                  })
+                }
+                placeholder="Target date"
+              />
+            )}
+        </div>
+      )}
+
+      {properties.issues && (
+        <div className="text-[12px] text-text-muted">
+          {project.issue_count ??
+            project.issues_count ??
+            project.issuesCount ??
+            0}
+        </div>
+      )}
+
+      {properties.progress && (
+        <div
+          className={`relative flex items-center gap-2 group/prog ${canManageProjects ? "cursor-pointer" : "cursor-default"}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            setActivePicker({
+              type: "progress",
+              projectId: project.id,
+            });
+          }}
+        >
+          <div className="flex-1 w-12 bg-black/[0.06] dark:bg-white/[0.06] rounded-full h-1.5 overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all duration-300 ${
+                (project.progress || 0) === 100
+                  ? "bg-[#5e6ad2]"
+                  : "bg-emerald-500"
+              }`}
+              style={{ width: `${project.progress || 0}%` }}
+            />
+          </div>
+          <span className="text-[11px] font-mono text-text-muted w-7 text-right">
+            {project.progress || 0}%
+          </span>
+          {activePicker.type === "progress" &&
+            activePicker.projectId === project.id && (
+              <ProgressPicker
+                value={project.progress || 0}
+                onChange={(val) =>
+                  onUpdateProject(project.id, { progress: val })
+                }
+                onClose={() =>
+                  setActivePicker({
+                    type: null,
+                    projectId: null,
+                  })
+                }
+              />
+            )}
+        </div>
+      )}
+
+      {properties.status && (
+        <div className="relative">
+          <ActionTooltip
+            label={project.status || "Planned"}
+            shortcut="P then S"
+          >
+            <div
+              className={`text-[12px] text-text-muted whitespace-nowrap px-2 py-1 -ml-2 rounded-full transition-colors flex items-center gap-1.5 ${canManageProjects ? "cursor-pointer hover:bg-black/[0.04] dark:hover:bg-white/[0.04]" : "cursor-default"}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                setActivePicker({
+                  type: "status",
+                  projectId: project.id,
+                });
+              }}
+            >
+              {getStatusIcon(project.status || "Planned")}
+              <span>{project.status || "Planned"}</span>
+            </div>
+          </ActionTooltip>
+          {activePicker.type === "status" &&
+            activePicker.projectId === project.id && (
+              <StatusPicker
+                value={project.status || "Planned"}
+                onChange={(val) =>
+                  onUpdateProject(project.id, { status: val })
+                }
+                onClose={() =>
+                  setActivePicker({
+                    type: null,
+                    projectId: null,
+                  })
+                }
+              />
+            )}
+        </div>
+      )}
+
+      {properties.members && (
+        <div
+          className={`relative flex items-center px-2 py-1 -ml-2 rounded-full transition-colors ${canManageProjects ? "cursor-pointer hover:bg-black/[0.04] dark:hover:bg-white/[0.04]" : "cursor-default"}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            setActivePicker({
+              type: "members",
+              projectId: project.id,
+            });
+          }}
+        >
+          {project.members && (
+            <MembersAvatarStack
+              members={project.members}
+              max={3}
+            />
+          )}
+          {!project.members?.length && (
+            <User size={12} className="text-text-muted" />
+          )}
+          {activePicker.type === "members" &&
+            activePicker.projectId === project.id && (
+              <MemberPicker
+                currentMembers={project.members || []}
+                onSelect={(val) =>
+                  onUpdateProject(project.id, { members: val })
+                }
+                onClose={() =>
+                  setActivePicker({
+                    type: null,
+                    projectId: null,
+                  })
+                }
+              />
+            )}
+        </div>
+      )}
+
+      {properties.start_date && (
+        <div
+          className={`relative text-[12px] text-text-muted flex items-center gap-1.5 px-2 py-1 -ml-2 rounded-full transition-colors ${canManageProjects ? "cursor-pointer hover:bg-black/[0.04] dark:hover:bg-white/[0.04]" : "cursor-default"}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            setActivePicker({
+              type: "start_date",
+              projectId: project.id,
+            });
+          }}
+        >
+          <Calendar size={12} className="opacity-60" />
+          {project.start_date
+            ? new Date(project.start_date).toLocaleDateString(
+                "en-US",
+                { month: "short", day: "numeric" },
+              )
+            : "---"}
+          {activePicker.type === "start_date" &&
+            activePicker.projectId === project.id && (
+              <DatePicker
+                value={project.start_date}
+                onChange={(val) =>
+                  onUpdateProject(project.id, {
+                    start_date: val,
+                  })
+                }
+                onClose={() =>
+                  setActivePicker({
+                    type: null,
+                    projectId: null,
+                  })
+                }
+                placeholder="Start date"
+              />
+            )}
+        </div>
+      )}
+
+      {properties.labels && (
+        <div
+          className={`relative flex items-center gap-1 overflow-hidden px-2 py-1 -ml-2 rounded-full transition-colors ${canManageProjects ? "cursor-pointer hover:bg-black/[0.04] dark:hover:bg-white/[0.04]" : "cursor-default"}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            setActivePicker({
+              type: "labels",
+              projectId: project.id,
+            });
+          }}
+        >
+          {project.labels?.slice(0, 2).map((label, i) => (
+            <div
+              key={i}
+              className="px-1.5 py-0.5 bg-black/[0.04] dark:bg-white/[0.04] rounded-sm text-[10px] text-text-muted whitespace-nowrap"
+            >
+              {label}
+            </div>
+          ))}
+          {project.labels?.length > 2 && (
+            <span className="text-[10px] text-text-muted">
+              +{project.labels.length - 2}
+            </span>
+          )}
+          {!project.labels?.length && (
+            <Tag size={12} className="text-text-muted" />
+          )}
+          {activePicker.type === "labels" &&
+            activePicker.projectId === project.id && (
+              <LabelPicker
+                selectedLabels={project.labels || []}
+                onChange={(val) =>
+                  onUpdateProject(project.id, { labels: val })
+                }
+                onClose={() =>
+                  setActivePicker({
+                    type: null,
+                    projectId: null,
+                  })
+                }
+              />
+            )}
+        </div>
+      )}
+
+      {properties.milestones && (
+        <div className="text-[11px] text-text-muted">
+          {project.milestones?.length || 0}
+        </div>
+      )}
+
+      {properties.dependencies && (
+        <div className="text-[11px] text-text-muted">
+          {project.dependencies?.length || 0}
+        </div>
+      )}
+    </div>
+  );
+}, areProjectListRowPropsEqual);
+
+// ============================================================================
 // LIST VIEW COMPONENT
 // ============================================================================
 export default memo(function ListViewRenderer({
@@ -95,15 +618,15 @@ export default memo(function ListViewRenderer({
   );
   const properties = config.properties || {};
 
-  const handleDragStart = (e, project) => {
+  const handleDragStart = useCallback((e, project) => {
     if (!canManageProjects) {
       e.preventDefault();
       return;
     }
     e.dataTransfer.setData("text/plain", project.id);
-  };
+  }, [canManageProjects]);
 
-  const handleDropOnRow = (e, targetProject) => {
+  const handleDropOnRow = useCallback((e, targetProject) => {
     if (!canManageProjects) return;
     e.preventDefault();
     const sourceId = e.dataTransfer.getData("text/plain");
@@ -111,7 +634,18 @@ export default memo(function ListViewRenderer({
 
     const targetPos = targetProject.position || 1;
     onUpdateProject(sourceId, { position: targetPos - 0.5 });
-  };
+  }, [canManageProjects, onUpdateProject]);
+
+  const handleProjectClick = useCallback(
+    (project) => {
+      navigate(`/projects/${project.id}`, {
+        state: {
+          loadingTitle: project.name || project.title || "Project Details",
+        },
+      });
+    },
+    [navigate],
+  );
 
   const gridCols = [
     "minmax(200px, 1fr)",
@@ -186,487 +720,22 @@ export default memo(function ListViewRenderer({
                 )}
 
                 {!isCollapsed &&
-                  sortedItems.map((project, idx) => (
-                    <div
+                  sortedItems.map((project) => (
+                    <ProjectListRow
                       key={project.id}
-                      draggable={config.ordering === "manual"}
-                      onDragStart={(e) => handleDragStart(e, project)}
-                      onDragOver={(e) => e.preventDefault()}
-                      onDrop={(e) => handleDropOnRow(e, project)}
-                      onClick={() =>
-                        navigate(`/projects/${project.id}`, {
-                          state: {
-                            loadingTitle:
-                              project.name || project.title || "Project Details",
-                          },
-                        })
-                      }
-                      className="grid gap-8 items-center px-6 py-2 hover:bg-black/[0.03] dark:hover:bg-white/[0.02] rounded-xl transition-colors cursor-pointer text-[13px] group mx-2 text-foreground"
-                      style={{ gridTemplateColumns: gridCols, contentVisibility: "auto", containIntrinsicSize: "0 44px" }}
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0 pr-2">
-                        <div className="w-3.5 h-3.5 flex items-center justify-center flex-shrink-0">
-                          <svg
-                            width="14"
-                            height="14"
-                            viewBox="0 0 14 14"
-                            fill="none"
-                            xmlns="http://www.w3.org/2000/svg"
-                            className="text-[#e95454]"
-                          >
-                            <path
-                              d="M7 1L12.5 4.17742V10.5323L7 13.7097L1.5 10.5323V4.17742L7 1Z"
-                              stroke="currentColor"
-                              strokeWidth="1.5"
-                              strokeLinejoin="round"
-                            />
-                            <circle
-                              cx="7"
-                              cy="7.35484"
-                              r="2"
-                              fill="currentColor"
-                            />
-                          </svg>
-                        </div>
-                        <div className="flex flex-col min-w-0 max-w-[280px] sm:max-w-[350px] lg:max-w-[450px]">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium text-foreground truncate group-hover:text-foreground transition-colors">
-                              {project.name}
-                            </span>
-                            {properties.id && (
-                              <span className="text-[12px] text-text-muted font-mono whitespace-nowrap flex-shrink-0">
-                                {project.identifier || project.id}
-                              </span>
-                            )}
-                          </div>
-                          {properties.summary && project.description && (
-                            <span className="text-[12px] text-text-muted line-clamp-2 leading-tight mt-[1px] whitespace-normal break-words">
-                              {project.description.split("\n\n")[0]}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      {properties.health && (
-                        <div className="relative">
-                          <ActionTooltip label="Update health status">
-                            <div
-                              className={`text-[12px] text-text-muted flex items-center gap-1.5 px-2 py-1 -ml-2 rounded-full transition-colors ${canManageProjects ? "cursor-pointer hover:bg-black/[0.04] dark:hover:bg-white/[0.04]" : "cursor-default"}`}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setActivePicker({
-                                  type: "health",
-                                  projectId: project.id,
-                                });
-                              }}
-                            >
-                              {getHealthIcon(project.health || "No updates")}
-                              <span>{project.health || "No updates"}</span>
-                            </div>
-                          </ActionTooltip>
-                          {activePicker.type === "health" &&
-                            activePicker.projectId === project.id && (
-                              <HealthPicker
-                                value={project.health || "No updates"}
-                                onChange={(val) =>
-                                  onUpdateProject(project.id, { health: val })
-                                }
-                                onClose={() =>
-                                  setActivePicker({
-                                    type: null,
-                                    projectId: null,
-                                  })
-                                }
-                              />
-                            )}
-                        </div>
-                      )}
-
-                      {properties.priority && (
-                        <div
-                          className={`relative flex items-center p-1 -ml-1 rounded-full transition-colors ${canManageProjects ? "cursor-pointer hover:bg-black/[0.04] dark:hover:bg-white/[0.04]" : "cursor-default"}`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setActivePicker({
-                              type: "priority",
-                              projectId: project.id,
-                            });
-                          }}
-                        >
-                          {getPriorityIcon(project.priority)}
-                          {activePicker.type === "priority" &&
-                            activePicker.projectId === project.id && (
-                              <PriorityPicker
-                                value={project.priority}
-                                onChange={(val) =>
-                                  onUpdateProject(project.id, { priority: val })
-                                }
-                                onClose={() =>
-                                  setActivePicker({
-                                    type: null,
-                                    projectId: null,
-                                  })
-                                }
-                              />
-                            )}
-                        </div>
-                      )}
-
-                      {properties.lead && (
-                        <div
-                          className={`relative flex items-center p-1 -ml-1 rounded-full transition-colors ${canManageProjects ? "cursor-pointer hover:bg-black/[0.04] dark:hover:bg-white/[0.04]" : "cursor-default"}`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setActivePicker({
-                              type: "lead",
-                              projectId: project.id,
-                            });
-                          }}
-                        >
-                          {project.lead ? (
-                            <div
-                              className={`flex items-center justify-center w-6 h-6 rounded-full text-[10px] font-bold text-white uppercase overflow-hidden ${getAvatarColor(project.lead.name, project.lead.email)}`}
-                            >
-                              {project.lead.avatar_url ? (
-                                <img
-                                  src={project.lead.avatar_url}
-                                  alt={project.lead.name}
-                                  className="w-full h-full object-cover"
-                                />
-                              ) : (
-                                getInitial(
-                                  project.lead.name,
-                                  project.lead.email,
-                                )
-                              )}
-                            </div>
-                          ) : (
-                            <div className="flex items-center justify-center w-6 h-6 rounded-full border border-black/[0.15] dark:border-white/[0.1] border-dashed text-zinc-400 dark:text-white/[0.3]">
-                              <svg
-                                width="12"
-                                height="12"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                              >
-                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                                <circle cx="12" cy="7" r="4" />
-                              </svg>
-                            </div>
-                          )}
-                          {activePicker.type === "lead" &&
-                            activePicker.projectId === project.id && (
-                              <LeadPicker
-                                value={project.lead}
-                                onChange={(val) =>
-                                  onUpdateProject(project.id, { lead: val })
-                                }
-                                onClose={() =>
-                                  setActivePicker({
-                                    type: null,
-                                    projectId: null,
-                                  })
-                                }
-                              />
-                            )}
-                        </div>
-                      )}
-
-                      {properties.due_date && (
-                        <div
-                          className={`relative text-[12px] text-text-muted flex items-center gap-1.5 px-2 py-1 -ml-2 rounded-full transition-colors ${canManageProjects ? "cursor-pointer hover:bg-black/[0.04] dark:hover:bg-white/[0.04]" : "cursor-default"}`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setActivePicker({
-                              type: "dueDate",
-                              projectId: project.id,
-                            });
-                          }}
-                        >
-                          <svg
-                            width="12"
-                            height="12"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                          >
-                            <rect
-                              x="3"
-                              y="4"
-                              width="18"
-                              height="18"
-                              rx="2"
-                              ry="2"
-                            ></rect>
-                            <line x1="16" y1="2" x2="16" y2="6"></line>
-                            <line x1="8" y1="2" x2="8" y2="6"></line>
-                            <line x1="3" y1="10" x2="21" y2="10"></line>
-                          </svg>
-                          {project.due_date
-                            ? new Date(project.due_date).toLocaleDateString(
-                                "en-US",
-                                { month: "short", day: "numeric" },
-                              )
-                            : "---"}
-                          {activePicker.type === "dueDate" &&
-                            activePicker.projectId === project.id && (
-                              <DatePicker
-                                value={project.due_date}
-                                onChange={(val) =>
-                                  onUpdateProject(project.id, { due_date: val })
-                                }
-                                onClose={() =>
-                                  setActivePicker({
-                                    type: null,
-                                    projectId: null,
-                                  })
-                                }
-                                placeholder="Target date"
-                              />
-                            )}
-                        </div>
-                      )}
-
-                      {properties.issues && (
-                        <div
-                          className={`flex items-center gap-1.5 text-[12px] text-text-muted px-2 py-1 -ml-2 rounded-full transition-colors ${canManageProjects ? "cursor-pointer hover:bg-black/[0.04] dark:hover:bg-white/[0.04]" : "cursor-default"}`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigate(`/projects/${project.id}?tab=issues`, {
-                              state: {
-                                loadingTitle:
-                                  project.name || project.title || "Project Issues",
-                              },
-                            });
-                          }}
-                        >
-                          <CheckCircle2 size={12} className="opacity-60" />
-                          <span>{project.issues || "0"}</span>
-                        </div>
-                      )}
-
-                      {properties.progress && (
-                        <div className="relative">
-                          <ActionTooltip label="Update progress">
-                            <div
-                              className={`flex items-center gap-1.5 text-[12px] text-text-muted px-2 py-1 -ml-2 rounded-full transition-colors ${canManageProjects ? "cursor-pointer hover:bg-black/[0.04] dark:hover:bg-white/[0.04]" : "cursor-default"}`}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setActivePicker({
-                                  type: "progress",
-                                  projectId: project.id,
-                                });
-                              }}
-                            >
-                              <svg
-                                width="12"
-                                height="12"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                strokeDasharray="2 2"
-                                className="text-[#c28431]"
-                              >
-                                <circle cx="12" cy="12" r="10"></circle>
-                              </svg>
-                              <span>{project.progress || 0}%</span>
-                            </div>
-                          </ActionTooltip>
-                          {activePicker.type === "progress" &&
-                            activePicker.projectId === project.id && (
-                              <ProgressPicker
-                                value={project.progress || 0}
-                                onChange={(val) =>
-                                  onUpdateProject(project.id, { progress: val })
-                                }
-                                onClose={() =>
-                                  setActivePicker({
-                                    type: null,
-                                    projectId: null,
-                                  })
-                                }
-                              />
-                            )}
-                        </div>
-                      )}
-
-                      {properties.status && (
-                        <div className="relative">
-                          <ActionTooltip
-                            label={project.status || "Planned"}
-                            shortcut="P then S"
-                          >
-                            <div
-                              className={`text-[12px] text-text-muted whitespace-nowrap px-2 py-1 -ml-2 rounded-full transition-colors flex items-center gap-1.5 ${canManageProjects ? "cursor-pointer hover:bg-black/[0.04] dark:hover:bg-white/[0.04]" : "cursor-default"}`}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setActivePicker({
-                                  type: "status",
-                                  projectId: project.id,
-                                });
-                              }}
-                            >
-                              {getStatusIcon(project.status || "Planned")}
-                              <span>{project.status || "Planned"}</span>
-                            </div>
-                          </ActionTooltip>
-                          {activePicker.type === "status" &&
-                            activePicker.projectId === project.id && (
-                              <StatusPicker
-                                value={project.status || "Planned"}
-                                onChange={(val) =>
-                                  onUpdateProject(project.id, { status: val })
-                                }
-                                onClose={() =>
-                                  setActivePicker({
-                                    type: null,
-                                    projectId: null,
-                                  })
-                                }
-                              />
-                            )}
-                        </div>
-                      )}
-
-                      {properties.members && (
-                        <div
-                          className={`relative flex items-center px-2 py-1 -ml-2 rounded-full transition-colors ${canManageProjects ? "cursor-pointer hover:bg-black/[0.04] dark:hover:bg-white/[0.04]" : "cursor-default"}`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setActivePicker({
-                              type: "members",
-                              projectId: project.id,
-                            });
-                          }}
-                        >
-                          {project.members && (
-                            <MembersAvatarStack
-                              members={project.members}
-                              max={3}
-                            />
-                          )}
-                          {!project.members?.length && (
-                            <User size={12} className="text-text-muted" />
-                          )}
-                          {activePicker.type === "members" &&
-                            activePicker.projectId === project.id && (
-                              <MemberPicker
-                                currentMembers={project.members || []}
-                                onSelect={(val) =>
-                                  onUpdateProject(project.id, { members: val })
-                                }
-                                onClose={() =>
-                                  setActivePicker({
-                                    type: null,
-                                    projectId: null,
-                                  })
-                                }
-                              />
-                            )}
-                        </div>
-                      )}
-
-                      {properties.start_date && (
-                        <div
-                          className={`relative text-[12px] text-text-muted flex items-center gap-1.5 px-2 py-1 -ml-2 rounded-full transition-colors ${canManageProjects ? "cursor-pointer hover:bg-black/[0.04] dark:hover:bg-white/[0.04]" : "cursor-default"}`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setActivePicker({
-                              type: "start_date",
-                              projectId: project.id,
-                            });
-                          }}
-                        >
-                          <Calendar size={12} className="opacity-60" />
-                          {project.start_date
-                            ? new Date(project.start_date).toLocaleDateString(
-                                "en-US",
-                                { month: "short", day: "numeric" },
-                              )
-                            : "---"}
-                          {activePicker.type === "start_date" &&
-                            activePicker.projectId === project.id && (
-                              <DatePicker
-                                value={project.start_date}
-                                onChange={(val) =>
-                                  onUpdateProject(project.id, {
-                                    start_date: val,
-                                  })
-                                }
-                                onClose={() =>
-                                  setActivePicker({
-                                    type: null,
-                                    projectId: null,
-                                  })
-                                }
-                                placeholder="Start date"
-                              />
-                            )}
-                        </div>
-                      )}
-
-                      {properties.labels && (
-                        <div
-                          className={`relative flex items-center gap-1 overflow-hidden px-2 py-1 -ml-2 rounded-full transition-colors ${canManageProjects ? "cursor-pointer hover:bg-black/[0.04] dark:hover:bg-white/[0.04]" : "cursor-default"}`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setActivePicker({
-                              type: "labels",
-                              projectId: project.id,
-                            });
-                          }}
-                        >
-                          {project.labels?.slice(0, 2).map((label, i) => (
-                            <div
-                              key={i}
-                              className="px-1.5 py-0.5 bg-black/[0.04] dark:bg-white/[0.04] rounded-sm text-[10px] text-text-muted whitespace-nowrap"
-                            >
-                              {label}
-                            </div>
-                          ))}
-                          {project.labels?.length > 2 && (
-                            <span className="text-[10px] text-text-muted">
-                              +{project.labels.length - 2}
-                            </span>
-                          )}
-                          {!project.labels?.length && (
-                            <Tag size={12} className="text-text-muted" />
-                          )}
-                          {activePicker.type === "labels" &&
-                            activePicker.projectId === project.id && (
-                              <LabelPicker
-                                selectedLabels={project.labels || []}
-                                onChange={(val) =>
-                                  onUpdateProject(project.id, { labels: val })
-                                }
-                                onClose={() =>
-                                  setActivePicker({
-                                    type: null,
-                                    projectId: null,
-                                  })
-                                }
-                              />
-                            )}
-                        </div>
-                      )}
-
-                      {properties.milestones && (
-                        <div className="text-[11px] text-text-muted">
-                          {project.milestones?.length || 0}
-                        </div>
-                      )}
-
-                      {properties.dependencies && (
-                        <div className="text-[11px] text-text-muted">
-                          {project.dependencies?.length || 0}
-                        </div>
-                      )}
-
-                      {/* Optional delete button could go here or on context menu */}
-                    </div>
+                      project={project}
+                      config={config}
+                      properties={properties}
+                      gridCols={gridCols}
+                      activePicker={activePicker}
+                      canManageProjects={canManageProjects}
+                      onUpdateProject={onUpdateProject}
+                      onDeleteProject={onDeleteProject}
+                      setActivePicker={setActivePicker}
+                      onProjectClick={handleProjectClick}
+                      onDragStart={handleDragStart}
+                      onDropOnRow={handleDropOnRow}
+                    />
                   ))}
               </div>
             );

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback, memo } from "react";
+import React, { useState, useEffect, useMemo, useCallback, startTransition, memo } from "react";
 import {
   useOutletContext,
   useLocation,
@@ -7,7 +7,7 @@ import {
 } from "react-router-dom";
 import {
   DndContext,
-  closestCorners,
+  closestCenter,
   KeyboardSensor,
   MouseSensor,
   TouchSensor,
@@ -32,10 +32,11 @@ import {
   Menu,
   CheckSquare,
   AlertCircle,
-  Box,
   Calendar,
   User,
   FileText,
+  ChevronRight,
+  ChevronDown,
 } from "lucide-react";
 import ActionTooltip from "../components/ActionTooltip";
 import StatusPicker, { getStatusIcon } from "../components/StatusPicker";
@@ -59,36 +60,56 @@ import { useTheme } from "../contexts/ThemeContext";
 // Arc Components
 import { Button } from "../registry/components/button/button";
 import { Avatar } from "../registry/components/avatar/avatar";
-import { motion, LayoutGroup } from "motion/react";
 
 const COLUMNS = [
-  { id: "Todo", label: "To Do", dotColor: "#8d9a92" },
-  { id: "In Progress", label: "In Progress", dotColor: "#e8a317" },
+  { id: "Backlog", label: "Backlog", dotColor: "#8a8f98" },
+  { id: "Todo", label: "Todo", dotColor: "#cbd5e1" },
+  { id: "In Progress", label: "In Progress", dotColor: "#f5a623" },
   { id: "In Review", label: "In Review", dotColor: "#38bdf8" },
-  { id: "Done", label: "Done", dotColor: "#10b981" },
+  { id: "Done", label: "Done", dotColor: "#5e6ad2" },
+  { id: "Canceled", label: "Canceled", dotColor: "#8a8f98" },
 ];
+
+const matchesColumnStatus = (taskStatus, columnId) => {
+  const s = (taskStatus || "Todo").toLowerCase().trim();
+  const c = columnId.toLowerCase().trim();
+  if (c === "todo") return s === "todo" || s === "to do" || s === "planned" || s === "planning";
+  if (c === "done") return s === "done" || s === "completed";
+  if (c === "in progress") return s === "in progress" || s === "in-progress" || s === "active";
+  if (c === "in review") return s === "in review" || s === "review";
+  if (c === "backlog") return s === "backlog";
+  if (c === "canceled") return s === "canceled" || s === "cancelled";
+  return s === c;
+};
 
 import { formatKririDate, formatMemberDisplayName } from "../lib/userPreferences";
 
 function getTaskProgressDetails(task) {
-  const isDone = task.status === "Done";
+  const isDone = task.status === "Done" || task.status === "Completed";
+  const isCanceled = task.status === "Canceled" || task.status === "Cancelled";
   const progressPct =
     isDone
       ? 100
-      : task.status === "In Review"
-        ? 85
-        : task.status === "In Progress"
-          ? 55
-          : 15;
+      : isCanceled
+        ? 0
+        : task.status === "In Review"
+          ? 85
+          : task.status === "In Progress"
+            ? 55
+            : task.status === "Backlog"
+              ? 5
+              : 15;
 
   const progressColor =
     isDone
       ? "bg-emerald-500"
-      : task.status === "In Progress"
-        ? "bg-amber-400"
-        : task.status === "In Review"
-          ? "bg-sky-400"
-          : "bg-black/20 dark:bg-white/20";
+      : isCanceled
+        ? "bg-zinc-400 dark:bg-zinc-600"
+        : task.status === "In Progress"
+          ? "bg-amber-400"
+          : task.status === "In Review"
+            ? "bg-sky-400"
+            : "bg-black/20 dark:bg-white/20";
 
   return { isDone, progressPct, progressColor };
 }
@@ -101,6 +122,32 @@ const DEFAULT_VISIBLE_PROPERTIES = {
   project: true,
   dueDate: true,
   subtasks: true,
+};
+
+const areTaskPropsEqual = (prevProps, nextProps) => {
+  if (prevProps.task !== nextProps.task) {
+    const p = prevProps.task;
+    const n = nextProps.task;
+    if (p.id !== n.id) return false;
+    if (p.title !== n.title) return false;
+    if (p.status !== n.status) return false;
+    if (p.priority !== n.priority) return false;
+    if (p.due_date !== n.due_date) return false;
+    if (p.assignee_id !== n.assignee_id) return false;
+    if (p.assignee_name !== n.assignee_name) return false;
+    if (p.assignee_avatar_url !== n.assignee_avatar_url) return false;
+    if (p.subtask_count !== n.subtask_count) return false;
+    if (p.completed_subtask_count !== n.completed_subtask_count) return false;
+    if (p.blocked_count !== n.blocked_count) return false;
+    if (p.project_identifier !== n.project_identifier) return false;
+    if (p.project_name !== n.project_name) return false;
+  }
+  if (prevProps.isSelected !== nextProps.isSelected) return false;
+  if (prevProps.isHighlighted !== nextProps.isHighlighted) return false;
+  if (prevProps.activePickerType !== nextProps.activePickerType) return false;
+  if (prevProps.visibleProperties !== nextProps.visibleProperties) return false;
+  if (prevProps.availableMembers !== nextProps.availableMembers) return false;
+  return true;
 };
 
 const SortableTaskItem = memo(function SortableTaskItem({
@@ -128,9 +175,9 @@ const SortableTaskItem = memo(function SortableTaskItem({
   } = useSortable({ id: task.id, data: task });
 
   const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    "--task-stagger": index,
+    transform: CSS.Translate.toString(transform),
+    transition: isDragging ? "none" : transition,
+    ...(isDragging ? { willChange: "transform", zIndex: 50 } : {}),
   };
 
   const { isDone, progressPct, progressColor } = getTaskProgressDetails(task);
@@ -155,18 +202,18 @@ const SortableTaskItem = memo(function SortableTaskItem({
     <article
       ref={setNodeRef}
       id={`task-card-${task.id}`}
-      style={{ ...style, contentVisibility: "auto", containIntrinsicSize: "0 90px" }}
+      style={style}
       {...attributes}
       {...listeners}
       onClick={onClick || (() => onTaskClick?.(task.id))}
-      className={`kriri-task-card group relative rounded-xl p-3.5 flex flex-col gap-2.5 cursor-grab active:cursor-grabbing select-none transition-all duration-200 ${
+      className={`group rounded-xl p-3.5 flex flex-col gap-3 select-none ${
         isDragging
-          ? "opacity-30 border-2 border-dashed border-black/20 dark:border-white/20 bg-transparent scale-[0.98]"
+          ? "!transition-none opacity-30 border-2 border-dashed border-black/20 dark:border-white/20 bg-transparent scale-[0.98]"
           : isHighlighted
-            ? "bg-surface-hover border-border shadow-[0_12px_32px_rgba(0,0,0,0.1)] dark:shadow-[0_12px_32px_rgba(0,0,0,0.6)] before:absolute before:left-0 before:top-3 before:bottom-3 before:w-[3px] before:rounded-r-full before:bg-emerald-500"
+            ? "bg-surface-hover border-border shadow-[0_12px_32px_rgba(0,0,0,0.1)] dark:shadow-[0_12px_32px_rgba(0,0,0,0.6)] before:absolute before:left-0 before:top-3 before:bottom-3 before:w-[3px] before:rounded-r-full before:bg-emerald-500 cursor-grab active:cursor-grabbing transition-colors"
             : isSelected
-              ? "bg-[#3b82f6]/10 border border-[#3b82f6]/40 shadow-sm"
-              : "bg-white dark:bg-[#18191c] hover:bg-zinc-50 dark:hover:bg-[#1c1d21] border border-black/[0.08] dark:border-[var(--border,rgba(255,255,255,0.05))] shadow-xs hover:shadow-md text-zinc-900 dark:text-zinc-100"
+              ? "bg-[#3b82f6]/10 border border-[#3b82f6]/40 shadow-sm cursor-grab active:cursor-grabbing transition-colors"
+              : "bg-white dark:bg-[#18191c] hover:bg-zinc-50 dark:hover:bg-[#1c1d21] border border-black/[0.08] dark:border-white/[0.05] shadow-xs hover:shadow-md cursor-grab active:cursor-grabbing text-zinc-900 dark:text-zinc-100 transition-colors"
       }`}
     >
       {/* Top Header: Identifier, Interactive Priority, Options (No duplicate avatar, No text) */}
@@ -183,6 +230,49 @@ const SortableTaskItem = memo(function SortableTaskItem({
         )}
 
         <div className="flex items-center gap-1.5 -mr-1 shrink-0">
+          {visibleProperties?.status !== false && (
+            <PickerWrapper
+              open={activePickerType === "status"}
+              onOpenChange={(open) => {
+                if (open) {
+                  setActivePicker({ type: "status", taskId: task.id });
+                } else {
+                  setActivePicker({ type: null, taskId: null });
+                }
+              }}
+              trigger={
+                <div>
+                  <ActionTooltip
+                    label={task.status ? `Status: ${task.status}` : "Change status"}
+                    shortcut="S"
+                  >
+                    <button
+                      type="button"
+                      className="relative text-zinc-500 hover:text-zinc-900 dark:text-[#8a8f98] dark:hover:text-[#e8e8e8] transition-colors flex items-center justify-center w-5 h-5 rounded hover:bg-black/[0.06] dark:hover:bg-white/[0.08] cursor-pointer outline-none active:scale-95"
+                      aria-label="Change status"
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActivePicker({ type: "status", taskId: task.id });
+                      }}
+                    >
+                      {getStatusIcon(task.status || "Todo")}
+                    </button>
+                  </ActionTooltip>
+                </div>
+              }
+            >
+              <StatusPicker
+                value={task.status || "Todo"}
+                onChange={(val) => {
+                  onUpdateTaskProperty?.(task.id, "status", val);
+                  setActivePicker({ type: null, taskId: null });
+                }}
+                onClose={() => setActivePicker({ type: null, taskId: null })}
+              />
+            </PickerWrapper>
+          )}
+
           {visibleProperties?.priority !== false && (
             <PickerWrapper
               open={activePickerType === "priority"}
@@ -194,23 +284,25 @@ const SortableTaskItem = memo(function SortableTaskItem({
                 }
               }}
               trigger={
-                <ActionTooltip
-                  label={task.priority ? `Priority: ${task.priority}` : "Change priority"}
-                  shortcut="P"
-                >
-                  <button
-                    type="button"
-                    className="relative text-zinc-500 hover:text-zinc-900 dark:text-[#8a8f98] dark:hover:text-[#e8e8e8] transition-colors flex items-center justify-center w-5 h-5 rounded hover:bg-black/[0.06] dark:hover:bg-white/[0.08] cursor-pointer outline-none active:scale-95"
-                    aria-label="Change priority"
-                    onPointerDown={(e) => e.stopPropagation()}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setActivePicker({ type: "priority", taskId: task.id });
-                    }}
+                <div>
+                  <ActionTooltip
+                    label={task.priority ? `Priority: ${task.priority}` : "Change priority"}
+                    shortcut="P"
                   >
-                    {getPriorityIcon(task.priority || "No priority")}
-                  </button>
-                </ActionTooltip>
+                    <button
+                      type="button"
+                      className="relative text-zinc-500 hover:text-zinc-900 dark:text-[#8a8f98] dark:hover:text-[#e8e8e8] transition-colors flex items-center justify-center w-5 h-5 rounded hover:bg-black/[0.06] dark:hover:bg-white/[0.08] cursor-pointer outline-none active:scale-95"
+                      aria-label="Change priority"
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActivePicker({ type: "priority", taskId: task.id });
+                      }}
+                    >
+                      {getPriorityIcon(task.priority || "No priority")}
+                    </button>
+                  </ActionTooltip>
+                </div>
               }
             >
               <PriorityPicker
@@ -240,51 +332,9 @@ const SortableTaskItem = memo(function SortableTaskItem({
         </div>
       </div>
 
-      {/* Title with Status / Red Box Icon */}
-      <div className="flex items-start gap-2">
-        {visibleProperties?.status !== false && (
-          <PickerWrapper
-            open={activePickerType === "status"}
-            onOpenChange={(open) => {
-              if (open) {
-                setActivePicker({ type: "status", taskId: task.id });
-              } else {
-                setActivePicker({ type: null, taskId: null });
-              }
-            }}
-            trigger={
-              <ActionTooltip label={task.status ? `Status: ${task.status}` : "Change status"} shortcut="S">
-                <button
-                  type="button"
-                  className="mt-0.5 shrink-0 cursor-pointer outline-none p-1 -m-1 rounded hover:bg-black/[0.06] dark:hover:bg-white/[0.08] hover:scale-105 active:scale-95 transition-all flex items-center justify-center"
-                  aria-label="Change status"
-                  onPointerDown={(e) => e.stopPropagation()}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setActivePicker({ type: "status", taskId: task.id });
-                  }}
-                >
-                  <Box
-                    size={16}
-                    className={`min-w-[16px] ${
-                      isDone ? "text-zinc-400 dark:text-[#8a8f98]" : "text-[#f87171]"
-                    }`}
-                  />
-                </button>
-              </ActionTooltip>
-            }
-          >
-            <StatusPicker
-              value={task.status || "Todo"}
-              onChange={(val) => {
-                onUpdateTaskProperty?.(task.id, "status", val);
-                setActivePicker({ type: null, taskId: null });
-              }}
-              onClose={() => setActivePicker({ type: null, taskId: null })}
-            />
-          </PickerWrapper>
-        )}
-        <span
+      {/* Title */}
+      <div>
+        <h3
           className={`text-[14px] font-medium leading-snug line-clamp-2 cursor-pointer hover:text-blue-500 dark:hover:text-blue-400 transition-colors ${
             isDone
               ? "text-zinc-400 dark:text-[#8a8f98] line-through"
@@ -293,7 +343,7 @@ const SortableTaskItem = memo(function SortableTaskItem({
           title={task.title}
         >
           {task.title}
-        </span>
+        </h3>
       </div>
 
       {/* Description if present */}
@@ -327,26 +377,28 @@ const SortableTaskItem = memo(function SortableTaskItem({
               }
             }}
             trigger={
-              <ActionTooltip label={isOverdue ? "Overdue - click to reschedule" : "Change due date"} shortcut="D">
-                <span
-                  className={`inline-flex items-center gap-1.5 font-medium rounded px-1.5 py-0.5 -ml-1 cursor-pointer hover:bg-black/[0.06] dark:hover:bg-white/[0.08] hover:text-zinc-900 dark:hover:text-white active:scale-95 transition-all ${
-                    isOverdue
-                      ? "text-rose-600 dark:text-rose-400 font-semibold"
-                      : "text-zinc-500 dark:text-[#8a8f98]"
-                  }`}
-                  onPointerDown={(e) => e.stopPropagation()}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setActivePicker({ type: "dueDate", taskId: task.id });
-                  }}
-                >
-                  <Clock
-                    size={12}
-                    className={isOverdue ? "text-rose-500 shrink-0" : "text-[#5e636e] shrink-0"}
-                  />
-                  <span>{isOverdue ? `${formattedDue} (Overdue)` : formattedDue}</span>
-                </span>
-              </ActionTooltip>
+              <span>
+                <ActionTooltip label={isOverdue ? "Overdue - click to reschedule" : "Change due date"} shortcut="D">
+                  <span
+                    className={`inline-flex items-center gap-1.5 font-medium rounded px-1.5 py-0.5 -ml-1 cursor-pointer hover:bg-black/[0.06] dark:hover:bg-white/[0.08] hover:text-zinc-900 dark:hover:text-white active:scale-95 transition-all ${
+                      isOverdue
+                        ? "text-rose-600 dark:text-rose-400 font-semibold"
+                        : "text-zinc-500 dark:text-[#8a8f98]"
+                    }`}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActivePicker({ type: "dueDate", taskId: task.id });
+                    }}
+                  >
+                    <Clock
+                      size={12}
+                      className={isOverdue ? "text-rose-500 shrink-0" : "text-[#5e636e] shrink-0"}
+                    />
+                    <span>{isOverdue ? `${formattedDue} (Overdue)` : formattedDue}</span>
+                  </span>
+                </ActionTooltip>
+              </span>
             }
           >
             <DatePicker
@@ -437,44 +489,46 @@ const SortableTaskItem = memo(function SortableTaskItem({
                   }
                 }}
                 trigger={
-                  <ActionTooltip label={task.assignee_name ? `Assigned to ${task.assignee_name}` : "Assign task"} shortcut="A">
-                    <div
-                      className="flex items-center gap-2 px-1.5 py-0.5 -ml-1 rounded-md transition-all w-fit cursor-pointer hover:bg-black/[0.06] dark:hover:bg-white/[0.08] hover:text-zinc-900 dark:hover:text-[#e8e8e8] active:scale-95"
-                      onPointerDown={(e) => e.stopPropagation()}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setActivePicker({ type: "assignee", taskId: task.id });
-                      }}
-                    >
-                      {task.assignee_name ? (
-                        <>
-                          <div
-                            className={`flex items-center justify-center w-5 h-5 rounded-full text-[9px] font-bold text-white uppercase overflow-hidden shrink-0 ${getAvatarColor(task.assignee_name, task.assignee_email)}`}
-                          >
-                            {assigneeAvatarUrl ? (
-                              <img
-                                src={assigneeAvatarUrl}
-                                alt={task.assignee_name}
-                                className="w-full h-full object-cover"
-                              />
-                            ) : (
-                              getInitial(task.assignee_name, task.assignee_email)
-                            )}
+                  <div>
+                    <ActionTooltip label={task.assignee_name ? `Assigned to ${task.assignee_name}` : "Assign task"} shortcut="A">
+                      <div
+                        className="flex items-center gap-2 px-1.5 py-0.5 -ml-1 rounded-md transition-all w-fit cursor-pointer hover:bg-black/[0.06] dark:hover:bg-white/[0.08] hover:text-zinc-900 dark:hover:text-[#e8e8e8] active:scale-95"
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActivePicker({ type: "assignee", taskId: task.id });
+                        }}
+                      >
+                        {task.assignee_name ? (
+                          <>
+                            <div
+                              className={`flex items-center justify-center w-5 h-5 rounded-full text-[9px] font-bold text-white uppercase overflow-hidden shrink-0 ${getAvatarColor(task.assignee_name, task.assignee_email)}`}
+                            >
+                              {assigneeAvatarUrl ? (
+                                <img
+                                  src={assigneeAvatarUrl}
+                                  alt={task.assignee_name}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                getInitial(task.assignee_name, task.assignee_email)
+                              )}
+                            </div>
+                            <span className="text-[13px] text-zinc-600 dark:text-[#8a8f98] truncate max-w-[150px]">
+                              {task.assignee_name}
+                            </span>
+                          </>
+                        ) : (
+                          <div className="flex items-center gap-1.5 text-zinc-400 dark:text-[#8a8f98]">
+                            <div className="flex items-center justify-center w-4 h-4 rounded-[4px] border border-zinc-400 dark:border-white/20 bg-transparent">
+                              <User size={10} />
+                            </div>
+                            <span className="text-[12px]">Unassigned</span>
                           </div>
-                          <span className="text-[13px] text-zinc-600 dark:text-[#8a8f98] truncate max-w-[150px]">
-                            {task.assignee_name}
-                          </span>
-                        </>
-                      ) : (
-                        <div className="flex items-center gap-1.5 text-zinc-400 dark:text-[#8a8f98]">
-                          <div className="flex items-center justify-center w-4 h-4 rounded-[4px] border border-zinc-400 dark:border-white/20 bg-transparent">
-                            <User size={10} />
-                          </div>
-                          <span className="text-[12px]">Unassigned</span>
-                        </div>
-                      )}
-                    </div>
-                  </ActionTooltip>
+                        )}
+                      </div>
+                    </ActionTooltip>
+                  </div>
                 }
               >
                 <LeadPicker
@@ -510,7 +564,7 @@ const SortableTaskItem = memo(function SortableTaskItem({
       )}
     </article>
   );
-});
+}, areTaskPropsEqual);
 
 function TaskCardPreview({ task, visibleProperties = DEFAULT_VISIBLE_PROPERTIES }) {
   const { isDone, progressPct, progressColor } = getTaskProgressDetails(task);
@@ -532,7 +586,10 @@ function TaskCardPreview({ task, visibleProperties = DEFAULT_VISIBLE_PROPERTIES 
   const assigneeAvatarUrl = task.assignee_avatar_url || task.assignee_avatar;
 
   return (
-    <article className="kriri-task-card group relative rounded-xl p-3.5 flex flex-col gap-2.5 select-none cursor-grabbing rotate-2 scale-[1.03] w-[320px] bg-white dark:bg-[#18191c] border border-black/[0.08] dark:border-white/[0.08] shadow-[0_20px_45px_rgba(0,0,0,0.18)] dark:shadow-[0_20px_45px_rgba(0,0,0,0.7)] text-zinc-900 dark:text-zinc-100 pointer-events-none">
+    <article
+      style={{ willChange: "transform" }}
+      className="group rounded-xl p-3.5 flex flex-col gap-3 select-none pointer-events-none rotate-1 scale-[1.02] w-[320px] bg-white dark:bg-[#18191c] border border-black/[0.08] dark:border-white/[0.08] shadow-[0_20px_45px_rgba(0,0,0,0.18)] dark:shadow-[0_20px_45px_rgba(0,0,0,0.7)] text-zinc-900 dark:text-zinc-100 !transition-none"
+    >
       {/* Top Header: Identifier, Priority Icon, Options (No duplicate avatar, No text) */}
       <div className="flex items-center justify-between gap-2">
         {visibleProperties?.id !== false ? (
@@ -544,6 +601,12 @@ function TaskCardPreview({ task, visibleProperties = DEFAULT_VISIBLE_PROPERTIES 
         )}
 
         <div className="flex items-center gap-1.5 -mr-1 shrink-0">
+          {visibleProperties?.status !== false && (
+            <div className="text-zinc-600 dark:text-[#8a8f98] flex items-center justify-center w-5 h-5">
+              {getStatusIcon(task.status || "Todo")}
+            </div>
+          )}
+
           {visibleProperties?.priority !== false && (
             <div className="inline-flex items-center text-[11px] text-zinc-500 dark:text-[#8a8f98]">
               {getPriorityIcon(task.priority || "No priority")}
@@ -556,17 +619,9 @@ function TaskCardPreview({ task, visibleProperties = DEFAULT_VISIBLE_PROPERTIES 
         </div>
       </div>
 
-      {/* Title with Red Box Icon */}
-      <div className="flex items-start gap-2">
-        {visibleProperties?.status !== false && (
-          <Box
-            size={16}
-            className={`min-w-[16px] mt-0.5 shrink-0 ${
-              isDone ? "text-zinc-400 dark:text-[#8a8f98]" : "text-[#f87171]"
-            }`}
-          />
-        )}
-        <span
+      {/* Title */}
+      <div>
+        <h4
           className={`text-[14px] font-medium leading-snug line-clamp-2 ${
             isDone
               ? "text-zinc-400 dark:text-[#8a8f98] line-through"
@@ -574,7 +629,7 @@ function TaskCardPreview({ task, visibleProperties = DEFAULT_VISIBLE_PROPERTIES 
           }`}
         >
           {task.title}
-        </span>
+        </h4>
       </div>
 
       {/* Description if present */}
@@ -590,7 +645,7 @@ function TaskCardPreview({ task, visibleProperties = DEFAULT_VISIBLE_PROPERTIES 
         aria-hidden="true"
       >
         <div
-          className={`h-full rounded-full transition-all duration-300 ${progressColor}`}
+          className={`h-full rounded-full ${progressColor}`}
           style={{ width: `${progressPct}%` }}
         />
       </div>
@@ -692,6 +747,67 @@ function TaskCardPreview({ task, visibleProperties = DEFAULT_VISIBLE_PROPERTIES 
   );
 }
 
+const HiddenTaskColumnCard = memo(function HiddenTaskColumnCard({
+  col,
+  count,
+  onCreateTask,
+}) {
+  const { setNodeRef, isOver } = useDroppable({ id: col.id });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={`flex items-center justify-between px-3 py-2.5 rounded-lg border transition-colors ${
+        isOver
+          ? "bg-primary/10 border-primary/40 ring-1 ring-primary/40"
+          : "bg-black/[0.01] dark:bg-white/[0.01] border-black/[0.06] dark:border-white/[0.02]"
+      }`}
+    >
+      <div className="flex items-center gap-2 text-[12px] text-zinc-900 dark:text-[#e8e8e8] font-medium">
+        <div className="flex items-center justify-center shrink-0 w-4 h-4">
+          {getStatusIcon(col.id)}
+        </div>
+        <span>{col.label || col.id}</span>
+      </div>
+      <div className="flex items-center gap-1.5">
+        <span className="text-zinc-600 dark:text-[#8a8f98] text-[11px] font-medium px-1.5 py-0.5 bg-black/[0.04] dark:bg-white/[0.04] rounded-md">
+          {count}
+        </span>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onCreateTask(col.id);
+          }}
+          className="h-6 w-6 flex items-center justify-center text-zinc-500 hover:text-zinc-900 dark:text-[#8a8f98] dark:hover:text-[#e8e8e8] rounded hover:bg-black/[0.04] dark:hover:bg-white/[0.04] transition-colors cursor-pointer"
+          title={`New ${col.label || col.id} task`}
+        >
+          <Plus size={12} />
+        </button>
+      </div>
+    </div>
+  );
+});
+
+const areColumnPropsEqual = (prevProps, nextProps) => {
+  if (prevProps.col.id !== nextProps.col.id) return false;
+  if (prevProps.col.label !== nextProps.col.label) return false;
+  if (prevProps.tasks !== nextProps.tasks) return false;
+  if (prevProps.selectedTaskId !== nextProps.selectedTaskId) return false;
+  if (prevProps.highlightedTaskId !== nextProps.highlightedTaskId) return false;
+  if (prevProps.showColumnBackgrounds !== nextProps.showColumnBackgrounds) return false;
+  if (prevProps.visibleProperties !== nextProps.visibleProperties) return false;
+  if (prevProps.availableMembers !== nextProps.availableMembers) return false;
+  const prevPickerActive = prevProps.activePicker?.taskId
+    ? prevProps.tasks.some((t) => t.id === prevProps.activePicker.taskId)
+    : false;
+  const nextPickerActive = nextProps.activePicker?.taskId
+    ? nextProps.tasks.some((t) => t.id === nextProps.activePicker.taskId)
+    : false;
+  if (prevPickerActive !== nextPickerActive) return false;
+  return true;
+};
+
 const KanbanColumn = memo(function KanbanColumn({
   col,
   colIndex,
@@ -708,7 +824,7 @@ const KanbanColumn = memo(function KanbanColumn({
   availableMembers = [],
   visibleProperties,
 }) {
-  const { setNodeRef, isOver } = useDroppable({ id: col.id });
+  const { setNodeRef } = useDroppable({ id: col.id });
 
   const [renderLimit, setRenderLimit] = useState(25);
 
@@ -736,20 +852,15 @@ const KanbanColumn = memo(function KanbanColumn({
 
   const effectiveLimit = Math.max(renderLimit, targetIndex >= 0 ? targetIndex + 5 : 0);
   const visibleTasks = tasks.slice(0, effectiveLimit);
+  const visibleTaskIds = useMemo(() => visibleTasks.map((t) => t.id), [visibleTasks]);
 
   return (
     <section
-      ref={setNodeRef}
       id={`kanban-column-${col.id}`}
-      style={{ "--col-stagger": colIndex }}
-      className={`kriri-kanban-col flex flex-col h-full max-h-full min-h-0 w-[320px] min-w-[320px] max-w-[320px] shrink-0 snap-center transition-all duration-300 ${
+      className={`flex flex-col h-full max-h-full min-h-0 w-[320px] min-w-[320px] max-w-[320px] shrink-0 ${
         showColumnBackgrounds
-          ? "has-bg bg-black/[0.02] dark:bg-white/[0.02] border border-black/[0.06] dark:border-white/[0.05] rounded-2xl px-3 pt-3 pb-0 overflow-hidden"
+          ? "bg-black/[0.02] dark:bg-white/[0.02] border border-black/[0.06] dark:border-white/[0.05] rounded-2xl px-3 pt-3 pb-0 overflow-hidden"
           : "bg-transparent p-0 border border-transparent"
-      } ${
-        isOver
-          ? "!border-emerald-500/70 !bg-emerald-500/[0.05] dark:!bg-emerald-500/[0.07] ring-4 ring-emerald-500/10 rounded-2xl"
-          : ""
       }`}
     >
       {/* Column Header */}
@@ -761,11 +872,9 @@ const KanbanColumn = memo(function KanbanColumn({
         }`}
       >
         <div className="flex items-center gap-2">
-          <span
-            className="w-2.5 h-2.5 rounded-full shrink-0 shadow-xs"
-            style={{ backgroundColor: col.dotColor }}
-            aria-hidden="true"
-          />
+          <div className="flex items-center justify-center shrink-0 w-4 h-4">
+            {getStatusIcon(col.id)}
+          </div>
           <h2 className="text-[13.5px] font-medium text-zinc-900 dark:text-[#e8e8e8] tracking-tight">
             {col.label}
           </h2>
@@ -786,12 +895,13 @@ const KanbanColumn = memo(function KanbanColumn({
 
       {/* Droppable Task List */}
       <div
+        ref={setNodeRef}
         onScroll={handleScroll}
-        className="flex-1 min-h-0 flex flex-col overflow-y-auto overflow-x-hidden gap-3 pb-24 scrollbar-hide"
+        className="flex-1 min-h-0 flex flex-col overflow-y-auto overflow-x-hidden gap-3 pb-24 scrollbar-hide min-h-[150px]"
       >
         <SortableContext
           id={col.id}
-          items={visibleTasks.map((t) => t.id)}
+          items={visibleTaskIds}
           strategy={verticalListSortingStrategy}
         >
           {visibleTasks.map((task, taskIdx) => (
@@ -819,7 +929,7 @@ const KanbanColumn = memo(function KanbanColumn({
       </div>
     </section>
   );
-});
+}, areColumnPropsEqual);
 
 export default memo(function Kanban({
   embedded = false,
@@ -887,9 +997,9 @@ export default memo(function Kanban({
   const [localShowEmptyColumns, setLocalShowEmptyColumns] = useState(() => {
     try {
       const val = localStorage.getItem("kriri-task-show-empty-columns");
-      return val !== null ? val === "true" : true;
+      return val !== null ? val === "true" : false;
     } catch {
-      return true;
+      return false;
     }
   });
   const showEmptyColumns =
@@ -976,7 +1086,9 @@ export default memo(function Kanban({
       const parsedId = Number(taskIdParam) || taskIdParam;
       setHighlightedTaskId(parsedId);
       if (searchParams.get("modal") === "true" || location.state?.openModal) {
-        setSelectedTaskId(parsedId);
+        startTransition(() => {
+          setSelectedTaskId(parsedId);
+        });
       }
     }
   }, [location.search, location.state]);
@@ -1101,6 +1213,7 @@ export default memo(function Kanban({
 
   const dropAnimationConfig = useMemo(
     () => ({
+      duration: 0,
       sideEffects: defaultDropAnimationSideEffects({
         styles: {
           active: {
@@ -1116,46 +1229,6 @@ export default memo(function Kanban({
     const { active } = event;
     const task = tasks.find((t) => t.id === active.id);
     setActiveTask(task || null);
-  };
-
-  const handleDragOver = (event) => {
-    const { active, over } = event;
-    if (!over) return;
-
-    const activeId = active.id;
-    const overId = over.id;
-
-    if (activeId === overId) return;
-
-    const activeTaskData = tasks.find((t) => t.id === activeId);
-    if (!activeTaskData) return;
-
-    // Check if dragging over a column directly or another task card
-    const isOverAColumn = COLUMNS.some((c) => c.id === overId);
-    const overTaskData = tasks.find((t) => t.id === overId);
-
-    const targetStatus = isOverAColumn ? overId : overTaskData?.status;
-    if (!targetStatus || activeTaskData.status === targetStatus) return;
-
-    // Fluid real-time column shift: update local state so cards slide out of the way smoothly
-    updateTasks((prev) => {
-      const activeIndex = prev.findIndex((t) => t.id === activeId);
-      if (activeIndex === -1) return prev;
-
-      const updated = [...prev];
-      let newIndex = overTaskData
-        ? updated.findIndex((t) => t.id === overId)
-        : updated.length - 1;
-
-      if (newIndex < 0) newIndex = updated.length - 1;
-
-      updated[activeIndex] = {
-        ...updated[activeIndex],
-        status: targetStatus,
-      };
-
-      return arrayMove(updated, activeIndex, newIndex);
-    });
   };
 
   const handleDragEnd = (event) => {
@@ -1184,9 +1257,10 @@ export default memo(function Kanban({
         saveBoardTasksCache(reordered);
         return reordered;
       });
+      return;
     }
 
-    // Persist final status to backend and cache
+    // Persist final status to backend and cache if moved to different status/column
     if (activeTaskData.status !== targetStatus) {
       if (targetStatus === "Done") {
         playUiSound("success");
@@ -1194,15 +1268,33 @@ export default memo(function Kanban({
         playUiSound("toggle");
       }
       updateTasks((prev) => {
-        const updated = prev.map((t) =>
-          t.id === activeId ? { ...t, status: targetStatus } : t,
-        );
-        saveBoardTasksCache(updated);
-        return updated;
+        const activeIndex = prev.findIndex((t) => t.id === activeId);
+        if (activeIndex === -1) return prev;
+
+        const updated = [...prev];
+        updated[activeIndex] = {
+          ...updated[activeIndex],
+          status: targetStatus,
+        };
+
+        let newIndex = overTaskData
+          ? updated.findIndex((t) => t.id === overId)
+          : -1;
+
+        if (newIndex < 0) {
+          // If dropped on column container, find last task in target column
+          const lastColTask = [...updated].reverse().find((t) => t.status === targetStatus && t.id !== activeId);
+          newIndex = lastColTask ? updated.findIndex((t) => t.id === lastColTask.id) + 1 : updated.length - 1;
+        }
+
+        if (newIndex < 0) newIndex = 0;
+        if (newIndex >= updated.length) newIndex = updated.length - 1;
+
+        const reordered = arrayMove(updated, activeIndex, newIndex);
+        saveBoardTasksCache(reordered);
+        return reordered;
       });
       api.put(`/tasks/${activeId}`, { status: targetStatus }).catch(console.error);
-    } else {
-      api.put(`/tasks/${activeId}`, { status: activeTaskData.status }).catch(console.error);
     }
   };
 
@@ -1245,21 +1337,35 @@ export default memo(function Kanban({
     return list;
   }, [tasks, currentFilter, currentSearch, user]);
 
-  const visibleColumns = useMemo(() => {
-    if (showEmptyColumns || hiddenColumnsRevealed) return COLUMNS;
-    return COLUMNS.filter((col) => {
-      const columnTasks = filteredTasks.filter((t) => t.status === col.id);
-      return columnTasks.length > 0;
+  const tasksByColumn = useMemo(() => {
+    const map = {};
+    COLUMNS.forEach((col) => {
+      map[col.id] = [];
     });
-  }, [showEmptyColumns, hiddenColumnsRevealed, filteredTasks]);
+    filteredTasks.forEach((t) => {
+      const col = COLUMNS.find((c) => matchesColumnStatus(t.status, c.id));
+      if (col && map[col.id]) {
+        map[col.id].push(t);
+      }
+    });
+    return map;
+  }, [filteredTasks]);
 
-  const hiddenColumns = useMemo(() => {
-    if (showEmptyColumns || hiddenColumnsRevealed) return [];
+  const emptyColumns = useMemo(() => {
     return COLUMNS.filter((col) => {
-      const columnTasks = filteredTasks.filter((t) => t.status === col.id);
+      const columnTasks = tasksByColumn[col.id] || [];
       return columnTasks.length === 0;
     });
-  }, [showEmptyColumns, hiddenColumnsRevealed, filteredTasks]);
+  }, [tasksByColumn]);
+
+  const nonEmptyColumns = useMemo(() => {
+    return COLUMNS.filter((col) => {
+      const columnTasks = tasksByColumn[col.id] || [];
+      return columnTasks.length > 0;
+    });
+  }, [tasksByColumn]);
+
+  const hasHiddenColumns = !showEmptyColumns && emptyColumns.length > 0;
 
   const handleUpdateTaskProperty = useCallback(async (taskId, property, value) => {
     setActivePicker({ type: null, taskId: null });
@@ -1323,7 +1429,7 @@ export default memo(function Kanban({
   }, []);
 
   const renderColumn = (col, colIndex) => {
-    const columnTasks = filteredTasks.filter((t) => t.status === col.id);
+    const columnTasks = tasksByColumn[col.id] || [];
 
     return (
       <KanbanColumn
@@ -1390,7 +1496,7 @@ export default memo(function Kanban({
 
       {/* Empty State vs Kanban Board */}
       {tasks.length === 0 ? (
-        <div className="flex flex-col items-center justify-center flex-1 max-w-sm mx-auto text-center gap-6 mt-10 animate-in fade-in zoom-in-95 duration-500">
+        <div className="flex flex-col items-center justify-center flex-1 max-w-sm mx-auto text-center gap-6 mt-10">
           <div className="w-64 h-64 flex items-center justify-center relative overflow-visible">
             <Abacus
               theme={effectiveTheme}
@@ -1429,39 +1535,31 @@ export default memo(function Kanban({
           {/* Toolbar: Fluid Filter Switcher & Tasks Count (only when not embedded) */}
           {!embedded && (
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 mb-3.5 shrink-0">
-              <LayoutGroup id="kanbanFilterGroup">
-                <div className="w-full sm:w-fit grid grid-cols-4 sm:flex items-center p-1 rounded-full bg-surface border border-border backdrop-blur-sm relative">
-                  {filterOptions.map((opt) => {
-                    const isActive = activeFilter === opt.value;
-                    return (
-                      <button
-                        key={opt.value}
-                        type="button"
-                        onClick={() => setActiveFilter(opt.value)}
-                        className={`relative text-[11px] sm:text-[12px] px-1 sm:px-3 py-1.5 rounded-full font-medium transition-colors cursor-pointer flex items-center justify-center text-center select-none ${
-                          isActive
-                            ? "text-foreground font-semibold"
-                            : "text-text-muted hover:text-foreground"
-                        }`}
-                      >
-                        {isActive && (
-                          <motion.div
-                            layoutId="kanbanFilterActivePill"
-                            className="absolute inset-0 bg-surface-elevated border border-border-subtle rounded-full shadow-xs pointer-events-none"
-                            transition={{
-                              type: "spring",
-                              stiffness: 450,
-                              damping: 35,
-                            }}
-                          />
-                        )}
-                        <span className="relative z-10 hidden sm:inline whitespace-nowrap">{opt.label}</span>
-                        <span className="relative z-10 sm:hidden truncate">{opt.shortLabel || opt.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </LayoutGroup>
+              <div className="w-full sm:w-fit grid grid-cols-4 sm:flex items-center p-1 rounded-full bg-surface border border-border backdrop-blur-sm relative">
+                {filterOptions.map((opt) => {
+                  const isActive = activeFilter === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setActiveFilter(opt.value)}
+                      className={`relative text-[11px] sm:text-[12px] px-1 sm:px-3 py-1.5 rounded-full font-medium transition-colors cursor-pointer flex items-center justify-center text-center select-none ${
+                        isActive
+                          ? "text-foreground font-semibold"
+                          : "text-text-muted hover:text-foreground"
+                      }`}
+                    >
+                      {isActive && (
+                        <div
+                          className="absolute inset-0 bg-surface-elevated border border-border-subtle rounded-full shadow-xs pointer-events-none"
+                        />
+                      )}
+                      <span className="relative z-10 hidden sm:inline whitespace-nowrap">{opt.label}</span>
+                      <span className="relative z-10 sm:hidden truncate">{opt.shortLabel || opt.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
 
               <div className="flex items-center justify-between px-0.5 text-[12px] sm:text-[12.5px] font-medium text-text-muted">
                 <p>
@@ -1473,26 +1571,61 @@ export default memo(function Kanban({
           )}
         <DndContext
           sensors={sensors}
-          collisionDetection={closestCorners}
+          collisionDetection={closestCenter}
           onDragStart={handleDragStart}
-          onDragOver={handleDragOver}
           onDragEnd={handleDragEnd}
         >
-          <div className="flex-1 flex gap-5 overflow-x-auto overflow-y-hidden pb-0 min-h-0 min-w-0 snap-x snap-mandatory sm:snap-none scrollbar-hide">
-            {visibleColumns.map((col, index) => renderColumn(col, index))}
-            {hiddenColumns.length > 0 && (
-              <div className="flex items-start self-start pt-1 shrink-0">
+          <div className="flex-1 flex gap-5 overflow-x-auto overflow-y-hidden pb-0 min-h-0 min-w-0 scrollbar-hide">
+            {(showEmptyColumns ? COLUMNS : nonEmptyColumns).map((col, index) =>
+              renderColumn(col, index),
+            )}
+            {hasHiddenColumns && (
+              <div
+                className={`flex flex-col flex-shrink-0 ${
+                  hiddenColumnsRevealed ? "w-[260px] min-w-[260px]" : "shrink-0"
+                } ml-1`}
+              >
                 <button
                   type="button"
-                  onClick={() => setHiddenColumnsRevealed(true)}
-                  className="text-[13px] font-medium text-zinc-500 dark:text-[#8a8f98] hover:text-zinc-900 dark:hover:text-white flex items-center gap-1.5 py-1 px-2 rounded-md hover:bg-black/[0.04] dark:hover:bg-white/[0.04] transition-colors whitespace-nowrap cursor-pointer"
+                  onClick={() => setHiddenColumnsRevealed((prev) => !prev)}
+                  className={`flex items-center gap-1.5 py-1 px-1.5 rounded-md text-[12.5px] font-medium text-zinc-500 hover:text-zinc-900 dark:text-[#8a8f98] dark:hover:text-[#e8e8e8] hover:bg-black/[0.04] dark:hover:bg-white/[0.04] self-start transition-colors whitespace-nowrap cursor-pointer select-none ${
+                    hiddenColumnsRevealed ? "mb-2.5" : ""
+                  }`}
                 >
-                  <span className="text-[10px]">▶</span>
+                  {hiddenColumnsRevealed ? (
+                    <ChevronDown
+                      size={13}
+                      className="text-zinc-400 dark:text-[#8a8f98] shrink-0"
+                    />
+                  ) : (
+                    <ChevronRight
+                      size={13}
+                      className="text-zinc-400 dark:text-[#8a8f98] shrink-0"
+                    />
+                  )}
                   <span>Hidden columns</span>
                   <span className="text-zinc-400 dark:text-[#5e636e] ml-0.5">
-                    {hiddenColumns.length}
+                    {emptyColumns.length}
                   </span>
                 </button>
+
+                {hiddenColumnsRevealed && (
+                  <div className="flex flex-col gap-1.5">
+                    {emptyColumns.map((col) => {
+                      const count = filteredTasks.filter((t) =>
+                        matchesColumnStatus(t.status, col.id),
+                      ).length;
+                      return (
+                        <HiddenTaskColumnCard
+                          key={col.id}
+                          col={col}
+                          count={count}
+                          onCreateTask={handleCreateTask}
+                        />
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             )}
           </div>

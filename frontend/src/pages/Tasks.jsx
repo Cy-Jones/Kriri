@@ -29,7 +29,6 @@ import {
   GitFork,
   Type,
 } from "lucide-react";
-import { motion, LayoutGroup } from "motion/react";
 import StatusPicker, { getStatusIcon } from "../components/StatusPicker";
 import PriorityPicker, { getPriorityIcon } from "../components/PriorityPicker";
 import LeadPicker from "../components/LeadPicker";
@@ -90,6 +89,47 @@ const calculateTimeInStatus = (task) => {
   return `${months}mo`;
 };
 
+const areTaskRowPropsEqual = (prevProps, nextProps) => {
+  if (prevProps.task !== nextProps.task) {
+    const p = prevProps.task;
+    const n = nextProps.task;
+    if (p.id !== n.id) return false;
+    if (p.title !== n.title) return false;
+    if (p.status !== n.status) return false;
+    if (p.priority !== n.priority) return false;
+    if (p.due_date !== n.due_date) return false;
+    if (p.assignee_id !== n.assignee_id) return false;
+    if (p.assignee_name !== n.assignee_name) return false;
+    if (p.assignee_avatar_url !== n.assignee_avatar_url) return false;
+    if (p.subtask_count !== n.subtask_count) return false;
+    if (p.completed_subtask_count !== n.completed_subtask_count) return false;
+    if (p.blocked_count !== n.blocked_count) return false;
+    if (p.project_identifier !== n.project_identifier) return false;
+    if (p.project_name !== n.project_name) return false;
+  }
+  if (prevProps.isHighlighted !== nextProps.isHighlighted) return false;
+  if (prevProps.isSelected !== nextProps.isSelected) return false;
+  if (prevProps.isChecked !== nextProps.isChecked) return false;
+  if (prevProps.visibleProperties !== nextProps.visibleProperties) return false;
+  if (prevProps.hoveredTooltipType !== nextProps.hoveredTooltipType) return false;
+  if (prevProps.hoveredAssigneeTaskId !== nextProps.hoveredAssigneeTaskId) return false;
+  if (prevProps.activePickerType !== nextProps.activePickerType) return false;
+  if (prevProps.availableMembers !== nextProps.availableMembers) return false;
+  if (prevProps.organization !== nextProps.organization) return false;
+  if (prevProps.onMouseEnter !== nextProps.onMouseEnter) return false;
+  if (prevProps.onMouseLeave !== nextProps.onMouseLeave) return false;
+  if (prevProps.onClick !== nextProps.onClick) return false;
+  if (prevProps.onTaskClick !== nextProps.onTaskClick) return false;
+  if (prevProps.onToggleSelection !== nextProps.onToggleSelection) return false;
+  if (prevProps.onSetHoveredTooltip !== nextProps.onSetHoveredTooltip) return false;
+  if (prevProps.onTogglePicker !== nextProps.onTogglePicker) return false;
+  if (prevProps.onSetHoveredAssignee !== nextProps.onSetHoveredAssignee) return false;
+  if (prevProps.onUpdateProperty !== nextProps.onUpdateProperty) return false;
+  if (prevProps.onUpdateAssignee !== nextProps.onUpdateAssignee) return false;
+  if (prevProps.getAssigneeUsername !== nextProps.getAssigneeUsername) return false;
+  return true;
+};
+
 const TaskRow = memo(function TaskRow({
   task,
   idx,
@@ -105,6 +145,7 @@ const TaskRow = memo(function TaskRow({
   onMouseEnter,
   onMouseLeave,
   onClick,
+  onTaskClick,
   onToggleSelection,
   onSetHoveredTooltip,
   onTogglePicker,
@@ -122,9 +163,9 @@ const TaskRow = memo(function TaskRow({
   return (
     <div
       id={`task-row-desktop-${task.id}`}
-      onMouseEnter={onMouseEnter}
+      onMouseEnter={onMouseEnter ? () => onMouseEnter(task.id) : undefined}
       onMouseLeave={onMouseLeave}
-      onClick={onClick}
+      onClick={onClick || (() => onTaskClick?.(task.id))}
       className={`group relative flex items-center px-4 py-2.5 transition-colors cursor-pointer text-[13px] rounded-lg mx-1 ${
         isHighlighted
           ? "bg-black/[0.05] dark:bg-white/[0.08]"
@@ -440,7 +481,7 @@ const TaskRow = memo(function TaskRow({
       )}
     </div>
   );
-});
+}, areTaskRowPropsEqual);
 
 const TaskGroupSection = memo(function TaskGroupSection({
   groupTitle,
@@ -488,6 +529,36 @@ const TaskGroupSection = memo(function TaskGroupSection({
 
   const effectiveLimit = Math.max(renderLimit, targetIdx >= 0 ? targetIdx + 5 : 0);
   const visibleTasks = groupTasks.slice(0, effectiveLimit);
+
+  const handleTaskClick = useCallback((taskId) => {
+    navigate(`/tasks/${taskId}`);
+  }, [navigate]);
+
+  const handleMouseEnter = useCallback((taskId) => {
+    setHoveredTaskId(taskId);
+  }, [setHoveredTaskId]);
+
+  const handleMouseLeave = useCallback(() => {
+    setHoveredTaskId(null);
+    setHoveredTooltip(null);
+    setHoveredAssignee(null);
+  }, [setHoveredTaskId, setHoveredTooltip, setHoveredAssignee]);
+
+  const handleSetHoveredTooltip = useCallback((taskId, type) => {
+    setHoveredTooltip(type ? { type, taskId } : null);
+  }, [setHoveredTooltip]);
+
+  const handleTogglePicker = useCallback((taskId, type) => {
+    setActivePicker((prev) =>
+      prev.type === type && prev.taskId === taskId
+        ? { type: null, taskId: null }
+        : { type, taskId }
+    );
+  }, [setActivePicker]);
+
+  const handleSetHoveredAssignee = useCallback((taskId, val) => {
+    setHoveredAssignee(val ? taskId : null);
+  }, [setHoveredAssignee]);
 
   return (
     <div className="flex flex-col mb-3">
@@ -543,23 +614,13 @@ const TaskGroupSection = memo(function TaskGroupSection({
               activePickerType={activePicker.taskId === task.id ? activePicker.type : null}
               availableMembers={availableMembers}
               organization={organization}
-              onMouseEnter={() => setHoveredTaskId(task.id)}
-              onMouseLeave={() => {
-                setHoveredTaskId(null);
-                setHoveredTooltip(null);
-                setHoveredAssignee(null);
-              }}
-              onClick={() => navigate(`/tasks/${task.id}`)}
+              onMouseEnter={handleMouseEnter}
+              onMouseLeave={handleMouseLeave}
+              onTaskClick={handleTaskClick}
               onToggleSelection={toggleTaskSelection}
-              onSetHoveredTooltip={(type) => setHoveredTooltip(type ? { type, taskId: task.id } : null)}
-              onTogglePicker={(type) =>
-                setActivePicker((prev) =>
-                  prev.type === type && prev.taskId === task.id
-                    ? { type: null, taskId: null }
-                    : { type, taskId: task.id }
-                )
-              }
-              onSetHoveredAssignee={(val) => setHoveredAssignee(val ? task.id : null)}
+              onSetHoveredTooltip={handleSetHoveredTooltip}
+              onTogglePicker={handleTogglePicker}
+              onSetHoveredAssignee={handleSetHoveredAssignee}
               onUpdateProperty={handleUpdateTaskProperty}
               onUpdateAssignee={handleUpdateTaskAssignee}
               getAssigneeUsername={getAssigneeUsername}
@@ -960,9 +1021,9 @@ export default memo(function Tasks({ isActive = true }) {
     if (savedViewState.showEmptyColumns !== null) return savedViewState.showEmptyColumns;
     try {
       const val = localStorage.getItem("kriri-task-show-empty-columns");
-      return val !== null ? val === "true" : true;
+      return val !== null ? val === "true" : false;
     } catch {
-      return true;
+      return false;
     }
   });
 
@@ -1186,24 +1247,28 @@ export default memo(function Tasks({ isActive = true }) {
       : "priority_desc";
   });
 
-  const toggleGroupCollapse = (groupKey) => {
-    setCollapsedGroups((prev) => {
-      const next = {
-        ...prev,
-        [groupKey]: !prev[groupKey],
-      };
-      viewStateStore.setTasksView({ collapsedGroups: next });
-      return next;
+  const toggleGroupCollapse = useCallback((groupKey) => {
+    startTransition(() => {
+      setCollapsedGroups((prev) => {
+        const next = {
+          ...prev,
+          [groupKey]: !prev[groupKey],
+        };
+        viewStateStore.setTasksView({ collapsedGroups: next });
+        return next;
+      });
     });
-  };
+  }, []);
 
-  const handleGroupingChange = (val) => {
-    setGrouping(val);
-    viewStateStore.setTasksView({ grouping: val });
+  const handleGroupingChange = useCallback((val) => {
+    startTransition(() => {
+      setGrouping(val);
+      viewStateStore.setTasksView({ grouping: val });
+    });
     try {
       localStorage.setItem("kriri_tasks_grouping", val);
     } catch {}
-  };
+  }, []);
 
   const filterRef = useRef(null);
   const displayOptionsRef = useRef(null);
@@ -1844,7 +1909,9 @@ export default memo(function Tasks({ isActive = true }) {
         setActiveIndex(targetIdx);
       }
       if (searchParams.get("modal") === "true") {
-        setSelectedTaskId(parsedId);
+        startTransition(() => {
+          setSelectedTaskId(parsedId);
+        });
       } else {
         navigate(`/tasks/${parsedId}`, { replace: true });
       }
@@ -1923,7 +1990,11 @@ export default memo(function Tasks({ isActive = true }) {
               <button
                 key={opt.value}
                 type="button"
-                onClick={() => setActiveFilter(opt.value)}
+                onClick={() => {
+                  startTransition(() => {
+                    setActiveFilter(opt.value);
+                  });
+                }}
                 className={`relative px-3.5 py-1.5 text-[12.5px] font-medium rounded-full transition-colors cursor-pointer select-none whitespace-nowrap ${
                   isActive
                     ? "text-zinc-900 dark:text-white"
@@ -1931,14 +2002,8 @@ export default memo(function Tasks({ isActive = true }) {
                 }`}
               >
                 {isActive && (
-                  <motion.div
-                    layoutId="tasksScopeActivePill"
+                  <div
                     className="absolute inset-0 bg-black/[0.08] dark:bg-white/[0.12] rounded-full pointer-events-none"
-                    transition={{
-                      type: "spring",
-                      stiffness: 450,
-                      damping: 35,
-                    }}
                   />
                 )}
                 <span className="relative z-10">{opt.label}</span>

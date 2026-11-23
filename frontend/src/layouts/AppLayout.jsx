@@ -67,7 +67,11 @@ export default function AppLayout() {
       : "Switch to dark mode";
 
   const profileThemeLabel =
-    effectiveTheme === "dark"
+    theme === "custom"
+      ? effectiveTheme === "dark"
+        ? "Theme: Custom (Dark)"
+        : "Theme: Custom (Light)"
+      : effectiveTheme === "dark"
       ? "Theme: Dark Mode"
       : "Theme: Light Mode";
   const { organization, membership } = useOrganization();
@@ -690,23 +694,20 @@ export default function AppLayout() {
 
             {/* Footer Help & Theme */}
             <div className="p-2 mt-auto relative flex flex-col items-center gap-1.5">
-              {theme !== "custom" && (
-                <ActionTooltip label={switcherActionLabel} side="right" sideOffset={10}>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      toggleTheme("eclipse", e.currentTarget);
-                    }}
-                    className="w-[22px] h-[22px] flex items-center justify-center rounded-full bg-black/[0.04] hover:bg-black/[0.08] text-[#52525b] hover:text-black dark:bg-white/[0.04] dark:hover:bg-white/[0.08] dark:text-[#8a8f98] dark:hover:text-[#e8e8e8] transition-colors cursor-pointer"
-                    aria-label={switcherActionLabel}
-                    title={switcherActionLabel}
-                  >
-                    {effectiveTheme === "dark" ? <Sun size={12} strokeWidth={1.8} /> : <Moon size={12} strokeWidth={1.8} />}
-                  </button>
-                </ActionTooltip>
-              )}
+              <ActionTooltip label={switcherActionLabel} side="right" sideOffset={10}>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleTheme("eclipse", e.currentTarget);
+                  }}
+                  className="w-[22px] h-[22px] flex items-center justify-center rounded-full bg-black/[0.04] hover:bg-black/[0.08] text-[#52525b] hover:text-black dark:bg-white/[0.04] dark:hover:bg-white/[0.08] dark:text-[#8a8f98] dark:hover:text-[#e8e8e8] transition-colors cursor-pointer"
+                  aria-label={switcherActionLabel}
+                  title={switcherActionLabel}
+                >
+                  {effectiveTheme === "dark" ? <Sun size={12} strokeWidth={1.8} /> : <Moon size={12} strokeWidth={1.8} />}
+                </button>
+              </ActionTooltip>
               <ActionTooltip label="Help & resources" shortcut="?" side="right" sideOffset={10}>
                 <button
                   type="button"
@@ -952,23 +953,20 @@ export default function AppLayout() {
                 >
                   <span className="text-[11px] font-bold">?</span>
                 </button>
-                {theme !== "custom" && (
-                  <ActionTooltip label={switcherActionLabel} side="top" sideOffset={6}>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        toggleTheme("eclipse", e.currentTarget);
-                      }}
-                      className="w-[24px] h-[24px] flex items-center justify-center rounded-full bg-black/[0.04] dark:bg-white/[0.04] hover:bg-[var(--sidebar-hover,rgba(255,255,255,0.08))] text-[var(--sidebar-muted)] hover:text-[var(--sidebar-foreground)] transition-colors cursor-pointer"
-                      aria-label={switcherActionLabel}
-                      title={switcherActionLabel}
-                    >
-                      {effectiveTheme === "dark" ? <Sun size={13} strokeWidth={1.8} /> : <Moon size={13} strokeWidth={1.8} />}
-                    </button>
-                  </ActionTooltip>
-                )}
+                <ActionTooltip label={switcherActionLabel} side="top" sideOffset={6}>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleTheme("eclipse", e.currentTarget);
+                    }}
+                    className="w-[24px] h-[24px] flex items-center justify-center rounded-full bg-black/[0.04] dark:bg-white/[0.04] hover:bg-[var(--sidebar-hover,rgba(255,255,255,0.08))] text-[var(--sidebar-muted)] hover:text-[var(--sidebar-foreground)] transition-colors cursor-pointer"
+                    aria-label={switcherActionLabel}
+                    title={switcherActionLabel}
+                  >
+                    {effectiveTheme === "dark" ? <Sun size={13} strokeWidth={1.8} /> : <Moon size={13} strokeWidth={1.8} />}
+                  </button>
+                </ActionTooltip>
               </div>
               {isHelpMenuOpen && (
                 <Suspense fallback={null}>
@@ -1061,25 +1059,22 @@ export default function AppLayout() {
               >
                 <span>Invite and manage members</span>
               </button>
-              {theme !== "custom" && (
-                <button
-                  type="button"
-                  className="w-full px-2.5 py-1.5 rounded-lg hover:bg-[var(--surface-hover)] cursor-pointer flex items-center justify-between text-[var(--popover-foreground)] transition-colors select-none text-left"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    toggleTheme("eclipse", e.currentTarget);
-                    setIsProfileOpen(false);
-                  }}
-                >
-                  <span>{profileThemeLabel}</span>
-                  {effectiveTheme === "dark" ? (
-                    <Sun size={13} strokeWidth={1.8} className="text-[var(--muted-foreground)]" />
-                  ) : (
-                    <Moon size={13} strokeWidth={1.8} className="text-[var(--muted-foreground)]" />
-                  )}
-                </button>
-              )}
+              <button
+                type="button"
+                className="w-full px-2.5 py-1.5 rounded-lg hover:bg-[var(--surface-hover)] cursor-pointer flex items-center justify-between text-[var(--popover-foreground)] transition-colors select-none text-left"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleTheme("eclipse", e.currentTarget);
+                  setIsProfileOpen(false);
+                }}
+              >
+                <span>{profileThemeLabel}</span>
+                {effectiveTheme === "dark" ? (
+                  <Sun size={13} strokeWidth={1.8} className="text-[var(--muted-foreground)]" />
+                ) : (
+                  <Moon size={13} strokeWidth={1.8} className="text-[var(--muted-foreground)]" />
+                )}
+              </button>
             </div>
 
             <div className="h-[1px] bg-[var(--border)] my-1 mx-1"></div>
@@ -1413,21 +1408,18 @@ export default function AppLayout() {
                 <span>Log out</span>
               </button>
               <div className="relative flex items-center gap-1.5">
-                {theme !== "custom" && (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      toggleTheme("eclipse", e.currentTarget);
-                    }}
-                    className="w-6 h-6 flex items-center justify-center rounded-full bg-black/[0.04] hover:bg-black/[0.08] text-[#52525b] hover:text-black dark:bg-white/[0.04] dark:hover:bg-white/[0.08] dark:text-[#8a8f98] dark:hover:text-white text-xs transition-colors cursor-pointer"
-                    aria-label={switcherActionLabel}
-                    title={switcherActionLabel}
-                  >
-                    {effectiveTheme === "dark" ? <Sun size={13} strokeWidth={1.8} /> : <Moon size={13} strokeWidth={1.8} />}
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleTheme("eclipse", e.currentTarget);
+                  }}
+                  className="w-6 h-6 flex items-center justify-center rounded-full bg-black/[0.04] hover:bg-black/[0.08] text-[#52525b] hover:text-black dark:bg-white/[0.04] dark:hover:bg-white/[0.08] dark:text-[#8a8f98] dark:hover:text-white text-xs transition-colors cursor-pointer"
+                  aria-label={switcherActionLabel}
+                  title={switcherActionLabel}
+                >
+                  {effectiveTheme === "dark" ? <Sun size={13} strokeWidth={1.8} /> : <Moon size={13} strokeWidth={1.8} />}
+                </button>
                 <button
                   type="button"
                   onClick={() => setIsHelpMenuOpen((prev) => !prev)}

@@ -14,7 +14,9 @@ export default function PickerWrapper({
 
   return (
     <PopoverPrimitive.Root open={open} onOpenChange={onOpenChange}>
-      <PopoverPrimitive.Trigger asChild>{trigger}</PopoverPrimitive.Trigger>
+      <PopoverPrimitive.Trigger asChild>
+        <div className="inline-flex shrink-0 outline-none">{trigger}</div>
+      </PopoverPrimitive.Trigger>
       <PopoverPrimitive.Portal>
         <PopoverPrimitive.Content
           align={align}

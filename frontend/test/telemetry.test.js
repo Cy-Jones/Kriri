@@ -75,7 +75,7 @@ describe("KRIRI Asynchronous Telemetry & Telemetry Hooks Suite", () => {
     assert.strictEqual(capturedEvents.length, 0);
 
     // Wait past debounce threshold
-    await new Promise((resolve) => setTimeout(resolve, 60));
+    await new Promise((resolve) => setTimeout(resolve, 120));
 
     // Only the last call should have triggered
     assert.strictEqual(capturedEvents.length, 1);

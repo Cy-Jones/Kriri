@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import * as Tooltip from "@radix-ui/react-tooltip";
 
 function renderShortcutKeys(shortcut) {
@@ -46,35 +46,49 @@ function renderShortcutKeys(shortcut) {
   );
 }
 
-export default function ActionTooltip({
+const ActionTooltip = React.forwardRef(function ActionTooltip({
   children,
   label,
   shortcut,
   side = "bottom",
   align = "center",
   sideOffset = 6,
-}) {
+}, ref) {
   if (!label) return children;
 
-  const [open, setOpen] = useState(false);
+  const [isTouch, setIsTouch] = useState(() => {
+    return typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
+  });
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mq = window.matchMedia("(pointer: coarse)");
+    const handler = (e) => setIsTouch(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+
+  if (isTouch) {
+    return children;
+  }
 
   return (
-    <Tooltip.Root open={open} onOpenChange={setOpen}>
-      <Tooltip.Trigger asChild>{children}</Tooltip.Trigger>
-      {open && (
-        <Tooltip.Portal>
-          <Tooltip.Content
-            side={side}
-            align={align}
-            sideOffset={sideOffset}
-            className="z-[9999] px-2.5 py-1.5 flex items-center gap-1.5 bg-white dark:bg-[#2a2b2d] border border-black/10 dark:border-[#3c3f44] text-zinc-900 dark:text-[#e8e8e8] text-[12px] rounded-lg shadow-xl animate-in fade-in zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out data-[state=closed]:zoom-out-95 pointer-events-none select-none"
-          >
-            <span className="font-medium whitespace-nowrap">{label}</span>
-            {renderShortcutKeys(shortcut)}
-            <Tooltip.Arrow className="fill-white dark:fill-[#2a2b2d]" />
-          </Tooltip.Content>
-        </Tooltip.Portal>
-      )}
+    <Tooltip.Root delayDuration={150} skipDelayDuration={300}>
+      <Tooltip.Trigger asChild ref={ref}>{children}</Tooltip.Trigger>
+      <Tooltip.Portal>
+        <Tooltip.Content
+          side={side}
+          align={align}
+          sideOffset={sideOffset}
+          className="z-[9999] px-2.5 py-1.5 flex items-center gap-1.5 bg-white dark:bg-[#2a2b2d] border border-black/10 dark:border-[#3c3f44] text-zinc-900 dark:text-[#e8e8e8] text-[12px] rounded-lg shadow-xl animate-in fade-in zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out data-[state=closed]:zoom-out-95 pointer-events-none select-none"
+        >
+          <span className="font-medium whitespace-nowrap">{label}</span>
+          {renderShortcutKeys(shortcut)}
+          <Tooltip.Arrow className="fill-white dark:fill-[#2a2b2d]" />
+        </Tooltip.Content>
+      </Tooltip.Portal>
     </Tooltip.Root>
   );
-}
+});
+
+export default ActionTooltip;

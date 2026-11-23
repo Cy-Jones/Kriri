@@ -1,5 +1,5 @@
 import { ActionMenu, ActionMenuItem, ActionMenuSeparator } from "../ActionMenu";
-import { useState, useEffect, useRef, useMemo, memo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback, memo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Plus,
@@ -76,6 +76,7 @@ import {
   DragOverlay,
   closestCorners,
   closestCenter,
+  defaultDropAnimationSideEffects,
   KeyboardSensor,
   MouseSensor,
   TouchSensor,
@@ -96,9 +97,50 @@ import { useDroppable } from "@dnd-kit/core";
 // ============================================================================
 // DND-KIT COMPONENTS FOR BOARD
 // ============================================================================
+const areProjectPropsEqual = (prevProps, nextProps) => {
+  if (prevProps.project !== nextProps.project) {
+    const p = prevProps.project;
+    const n = nextProps.project;
+    if (p.id !== n.id) return false;
+    if (p.name !== n.name) return false;
+    if (p.identifier !== n.identifier) return false;
+    if (p.status !== n.status) return false;
+    if (p.priority !== n.priority) return false;
+    if (p.health !== n.health) return false;
+    if (p.lead?.id !== n.lead?.id) return false;
+    if (p.lead?.name !== n.lead?.name) return false;
+    if (p.lead?.avatar_url !== n.lead?.avatar_url) return false;
+    if (p.start_date !== n.start_date) return false;
+    if (p.due_date !== n.due_date) return false;
+    if (p.issue_count !== n.issue_count) return false;
+    if (p.issues_count !== n.issues_count) return false;
+    if (p.issuesCount !== n.issuesCount) return false;
+    if (p.description !== n.description) return false;
+  }
+  if (prevProps.isSelected !== nextProps.isSelected) return false;
+  const prevPickerActive =
+    prevProps.activePicker?.projectId === prevProps.project.id
+      ? prevProps.activePicker.type
+      : null;
+  const nextPickerActive =
+    nextProps.activePicker?.projectId === nextProps.project.id
+      ? nextProps.activePicker.type
+      : null;
+  if (prevPickerActive !== nextPickerActive) return false;
+  if (prevProps.config !== nextProps.config) return false;
+  if (prevProps.canManageProjects !== nextProps.canManageProjects) return false;
+  if (prevProps.onClick !== nextProps.onClick) return false;
+  if (prevProps.onProjectClick !== nextProps.onProjectClick) return false;
+  if (prevProps.onUpdateProject !== nextProps.onUpdateProject) return false;
+  if (prevProps.onDeleteProject !== nextProps.onDeleteProject) return false;
+  if (prevProps.setActivePicker !== nextProps.setActivePicker) return false;
+  return true;
+};
+
 const SortableProjectItem = memo(function SortableProjectItem({
   project,
   onClick,
+  onProjectClick,
   config,
   onDeleteProject,
   isSelected,
@@ -117,8 +159,11 @@ const SortableProjectItem = memo(function SortableProjectItem({
   } = useSortable({ id: project.id, data: project });
 
   const style = {
-    transform: CSS.Transform.toString(transform),
+    transform: CSS.Translate.toString(transform),
     transition,
+    contentVisibility: "auto",
+    containIntrinsicSize: "0 140px",
+    ...(isDragging ? { willChange: "transform", zIndex: 50 } : {}),
   };
 
   const issuesCount = useMemo(() => {
@@ -134,13 +179,13 @@ const SortableProjectItem = memo(function SortableProjectItem({
       style={style}
       {...attributes}
       {...listeners}
-      onClick={onClick}
-      className={`group rounded-xl p-3.5 flex flex-col gap-3 transition-all ${
+      onClick={onClick || (onProjectClick ? (e) => onProjectClick(project, e) : undefined)}
+      className={`group rounded-xl p-3.5 flex flex-col gap-3 select-none ${
         isDragging
-          ? "opacity-40 border-2 border-dashed border-black/20 dark:border-white/20 bg-transparent scale-[1.02] shadow-2xl"
+          ? "opacity-30 border-2 border-dashed border-black/20 dark:border-white/20 bg-transparent scale-[0.98]"
           : isSelected
-            ? "bg-[#3b82f6]/10 border border-[#3b82f6]/40 shadow-sm cursor-grab active:cursor-grabbing"
-            : "bg-white dark:bg-[#18191c] hover:bg-zinc-50 dark:hover:bg-[#1c1d21] border border-black/[0.08] dark:border-white/[0.05] shadow-xs hover:shadow-md cursor-grab active:cursor-grabbing text-zinc-900 dark:text-zinc-100"
+            ? "bg-[#3b82f6]/10 border border-[#3b82f6]/40 shadow-sm cursor-grab active:cursor-grabbing transition-colors"
+            : "bg-white dark:bg-[#18191c] hover:bg-zinc-50 dark:hover:bg-[#1c1d21] border border-black/[0.08] dark:border-white/[0.05] shadow-xs hover:shadow-md cursor-grab active:cursor-grabbing text-zinc-900 dark:text-zinc-100 transition-colors"
       }`}
     >
       <div className="flex items-start justify-between">
@@ -459,7 +504,128 @@ const SortableProjectItem = memo(function SortableProjectItem({
       </div>
     </div>
   );
-});
+}, areProjectPropsEqual);
+
+function ProjectCardPreview({ project, config }) {
+  const issuesCount =
+    typeof project.issue_count === "number"
+      ? project.issue_count
+      : typeof project.issues_count === "number"
+        ? project.issues_count
+        : typeof project.issuesCount === "number"
+          ? project.issuesCount
+          : 0;
+
+  return (
+    <article
+      style={{ willChange: "transform" }}
+      className="group rounded-xl p-3.5 flex flex-col gap-3 select-none pointer-events-none rotate-1 scale-[1.02] w-[320px] bg-white dark:bg-[#18191c] border border-black/[0.08] dark:border-white/[0.08] shadow-[0_20px_45px_rgba(0,0,0,0.18)] dark:shadow-[0_20px_45px_rgba(0,0,0,0.7)] text-zinc-900 dark:text-zinc-100"
+    >
+      <div className="flex items-start justify-between">
+        <div className="font-mono text-[11px] text-zinc-400 dark:text-[#8a8f98] font-medium tracking-wider pt-0.5">
+          {config?.properties?.id !== false ? (project.identifier || project.id) : ""}
+        </div>
+
+        <div className="flex items-center gap-1.5 -mr-1">
+          {config?.properties?.status !== false && (
+            <div className="text-zinc-600 dark:text-[#8a8f98] flex items-center justify-center w-5 h-5">
+              {getStatusIcon(project.status || "Planned")}
+            </div>
+          )}
+
+          {config?.properties?.priority !== false && (
+            <div className="text-zinc-600 dark:text-[#8a8f98] flex items-center justify-center w-5 h-5">
+              {getPriorityIcon(project.priority || "No priority")}
+            </div>
+          )}
+
+          <div className="text-zinc-500 dark:text-[#8a8f98] flex items-center justify-center h-5 w-5 ml-1">
+            <MoreHorizontal size={13} />
+          </div>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2 -mt-1">
+        <Box size={16} className="text-[#f87171] min-w-[16px]" />
+        <span
+          className="text-[14px] font-medium text-zinc-900 dark:text-[#e8e8e8] truncate"
+          title={project.name}
+        >
+          {project.name || "Untitled"}
+        </span>
+      </div>
+
+      {project.description && (
+        <div className="text-[13px] text-zinc-500 dark:text-[#8a8f98] leading-relaxed line-clamp-2 pr-2">
+          {project.description}
+        </div>
+      )}
+
+      {config?.properties?.due_date !== false && (
+        <div className="flex flex-wrap items-center gap-3 text-[12px] text-zinc-600 dark:text-[#8a8f98] mt-1">
+          <span className="flex items-center gap-1.5 px-1 py-0.5 -ml-1">
+            <span>
+              {project.start_date
+                ? new Date(project.start_date).toLocaleDateString("en-US", {
+                    month: "short",
+                    day: "numeric",
+                  })
+                : "Sep 30th"}
+            </span>
+            <span className="text-[#5e636e]">&rarr;</span>
+            <span>
+              {project.due_date
+                ? new Date(project.due_date).toLocaleDateString("en-US", {
+                    month: "short",
+                    day: "numeric",
+                  })
+                : "---"}
+            </span>
+          </span>
+          <span className="flex items-center gap-1.5 px-1 py-0.5">
+            <Calendar size={13} className="text-[#5e636e]" /> Sep 29
+          </span>
+        </div>
+      )}
+
+      {/* Footer: Lead on Left & issues on Right */}
+      <div className="flex items-center justify-between pt-1 border-t border-black/[0.06] dark:border-white/[0.04] text-[12.5px] text-zinc-600 dark:text-[#8a8f98] min-w-0">
+        {config?.properties?.lead !== false ? (
+          <div className="flex items-center gap-2 text-[13px] text-zinc-600 dark:text-[#8a8f98] px-1 py-0.5 -ml-1">
+            {project.lead ? (
+              <div
+                className={`flex items-center justify-center w-5 h-5 rounded-full text-[9px] font-bold text-white uppercase overflow-hidden shrink-0 ${getAvatarColor(project.lead.name, project.lead.email)}`}
+              >
+                {project.lead.avatar_url ? (
+                  <img
+                    src={project.lead.avatar_url}
+                    alt={project.lead.name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  getInitial(project.lead.name, project.lead.email)
+                )}
+              </div>
+            ) : (
+              <div className="flex items-center justify-center w-[16px] h-[16px] rounded-[4px] border border-[#e2483d] bg-transparent text-[#e2483d] shrink-0">
+                <User size={10} />
+              </div>
+            )}
+            <span className="truncate max-w-[150px]">
+              {project.lead?.name || "Unassigned"}
+            </span>
+          </div>
+        ) : (
+          <div />
+        )}
+
+        <div className="text-[12.5px] text-zinc-500 dark:text-[#8a8f98] shrink-0 font-normal">
+          {issuesCount} {issuesCount === 1 ? "issue" : "issues"}
+        </div>
+      </div>
+    </article>
+  );
+}
 
 function DroppableProjectColumn({ id, items, children, footer }) {
   const { setNodeRef } = useDroppable({ id });
@@ -511,7 +677,7 @@ export default memo(function BoardViewRenderer({
 
   const columnKeys = useMemo(() => {
     if (colDimension === "status")
-      return ["Backlog", "Planned", "In Progress", "Completed", "Canceled"];
+      return ["Backlog", "Planned", "In Progress", "In Review", "Completed", "Canceled"];
     if (colDimension === "priority")
       return ["Urgent", "High", "Medium", "Low", "No priority"];
     if (colDimension === "health")
@@ -543,6 +709,42 @@ export default memo(function BoardViewRenderer({
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     }),
+  );
+
+  const dropAnimationConfig = useMemo(
+    () => ({
+      duration: 0,
+      sideEffects: defaultDropAnimationSideEffects({
+        styles: {
+          active: {
+            opacity: "0.3",
+          },
+        },
+      }),
+    }),
+    [],
+  );
+
+  const handleProjectClick = useCallback(
+    (project, e) => {
+      if (e.metaKey || e.ctrlKey || e.shiftKey) {
+        e.preventDefault();
+        e.stopPropagation();
+        setSelectedProjects((prev) =>
+          prev.includes(project.id)
+            ? prev.filter((id) => id !== project.id)
+            : [...prev, project.id],
+        );
+      } else {
+        navigate(`/projects/${project.id}`, {
+          state: {
+            loadingTitle:
+              project.name || project.title || "Project Details",
+          },
+        });
+      }
+    },
+    [navigate, setSelectedProjects],
   );
 
   const [activeProject, setActiveProject] = useState(null);
@@ -628,8 +830,17 @@ export default memo(function BoardViewRenderer({
                   const columnsData = columnKeys.map((colKey) => {
                     const colProjects = sortProjects(
                       rowProjects.filter((p) => {
-                        if (colDimension === "status")
-                          return (p.status || "Backlog") === colKey;
+                        if (colDimension === "status") {
+                          const s = (p.status || "Planned").toLowerCase().trim();
+                          const c = colKey.toLowerCase().trim();
+                          if (c === "planned") return s === "planned" || s === "planning" || s === "todo";
+                          if (c === "completed") return s === "completed" || s === "done";
+                          if (c === "in progress") return s === "in progress" || s === "in-progress" || s === "active";
+                          if (c === "in review") return s === "in review" || s === "review";
+                          if (c === "backlog") return s === "backlog";
+                          if (c === "canceled") return s === "canceled" || s === "cancelled";
+                          return s === c;
+                        }
                         if (colDimension === "priority")
                           return (p.priority || "No priority") === colKey;
                         if (colDimension === "health")
@@ -684,7 +895,11 @@ export default memo(function BoardViewRenderer({
                               className="flex items-center justify-between py-1 mb-3 sticky top-0 z-10 transition-colors bg-transparent"
                             >
                               <div className="flex items-center gap-2 text-[13px] font-medium text-zinc-900 dark:text-[#e8e8e8]">
-                                {colKey === "Completed" ? (
+                                {colDimension === "status" ? (
+                                  <div className="flex items-center justify-center shrink-0 w-4 h-4">
+                                    {getStatusIcon(colKey)}
+                                  </div>
+                                ) : colKey === "Completed" ? (
                                   <CheckSquare
                                     size={14}
                                     className="text-success"
@@ -785,28 +1000,7 @@ export default memo(function BoardViewRenderer({
                                   setActivePicker={setActivePicker}
                                   onUpdateProject={onUpdateProject}
                                   canManageProjects={canManageProjects}
-                                  onClick={(e) => {
-                                    if (e.metaKey || e.ctrlKey || e.shiftKey) {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      setSelectedProjects((prev) =>
-                                        prev.includes(project.id)
-                                          ? prev.filter(
-                                              (id) => id !== project.id,
-                                            )
-                                          : [...prev, project.id],
-                                      );
-                                    } else {
-                                      navigate(`/projects/${project.id}`, {
-                                        state: {
-                                          loadingTitle:
-                                            project.name ||
-                                            project.title ||
-                                            "Project Details",
-                                        },
-                                      });
-                                    }
-                                  }}
+                                  onProjectClick={handleProjectClick}
                                   onDeleteProject={onDeleteProject}
                                 />
                               ))}
@@ -816,54 +1010,48 @@ export default memo(function BoardViewRenderer({
                       )}
 
                       {hiddenColumns.length > 0 && (
-                        <div className="flex flex-col flex-shrink-0 min-w-[240px] ml-2">
-                          {!expandedHiddenRows[rowTitle] ? (
-                            <button
-                              onClick={() => toggleHiddenRow(rowTitle)}
-                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-black/[0.08] dark:border-white/[0.05] bg-black/[0.02] dark:bg-white/[0.02] text-zinc-600 dark:text-[#8a8f98] text-[12px] font-medium hover:text-zinc-900 dark:hover:text-[#e8e8e8] hover:bg-black/[0.04] dark:hover:bg-white/[0.04] self-start transition-colors"
-                            >
-                              <svg
-                                width="10"
-                                height="10"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                              >
-                                <polygon points="5 3 19 12 5 21 5 3"></polygon>
-                              </svg>
-                              Hidden columns
-                            </button>
-                          ) : (
-                            <div className="flex flex-col">
-                              <button
-                                onClick={() => toggleHiddenRow(rowTitle)}
-                                className="flex items-center gap-1.5 mb-3 text-[12px] font-medium text-zinc-600 dark:text-[#8a8f98] hover:text-zinc-900 dark:hover:text-[#e8e8e8] self-start transition-colors"
-                              >
-                                <svg
-                                  width="10"
-                                  height="10"
-                                  viewBox="0 0 24 24"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  strokeWidth="2"
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                >
-                                  <polygon points="19 5 12 19 5 5 19 5"></polygon>
-                                </svg>
-                                Hidden columns
-                              </button>
-                              <div className="flex flex-col gap-1.5">
+                        <div
+                          className={`flex flex-col flex-shrink-0 ${
+                            expandedHiddenRows[rowTitle] ? "min-w-[240px]" : ""
+                          } ml-1`}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => toggleHiddenRow(rowTitle)}
+                            className={`flex items-center gap-1.5 py-1 px-1.5 rounded-md text-[12.5px] font-medium text-zinc-500 hover:text-zinc-900 dark:text-[#8a8f98] dark:hover:text-[#e8e8e8] hover:bg-black/[0.04] dark:hover:bg-white/[0.04] self-start transition-colors cursor-pointer select-none ${
+                              expandedHiddenRows[rowTitle] ? "mb-2.5" : ""
+                            }`}
+                          >
+                            {!expandedHiddenRows[rowTitle] ? (
+                              <ChevronRight
+                                size={13}
+                                className="text-zinc-400 dark:text-[#8a8f98] shrink-0"
+                              />
+                            ) : (
+                              <ChevronDown
+                                size={13}
+                                className="text-zinc-400 dark:text-[#8a8f98] shrink-0"
+                              />
+                            )}
+                            <span>Hidden columns</span>
+                            <span className="text-zinc-400 dark:text-[#5e636e] ml-0.5">
+                              {hiddenColumns.length}
+                            </span>
+                          </button>
+
+                          {expandedHiddenRows[rowTitle] && (
+                            <div className="flex flex-col gap-1.5">
                                 {hiddenColumns.map((col) => (
                                   <div
                                     key={col.colKey}
                                     className="flex items-center justify-between px-3 py-2.5 rounded-lg bg-black/[0.01] dark:bg-white/[0.01] border border-black/[0.06] dark:border-white/[0.02]"
                                   >
                                     <div className="flex items-center gap-2 text-[12px] text-zinc-900 dark:text-[#e8e8e8] font-medium">
-                                      {col.colKey === "Completed" ? (
+                                      {colDimension === "status" ? (
+                                        <div className="flex items-center justify-center shrink-0 w-4 h-4">
+                                          {getStatusIcon(col.colKey)}
+                                        </div>
+                                      ) : col.colKey === "Completed" ? (
                                         <CheckSquare
                                           size={13}
                                           className="text-success"
@@ -921,8 +1109,7 @@ export default memo(function BoardViewRenderer({
                                   </div>
                                 ))}
                               </div>
-                            </div>
-                          )}
+                            )}
                         </div>
                       )}
                     </>
@@ -933,13 +1120,9 @@ export default memo(function BoardViewRenderer({
           ))}
         </div>
       </div>
-      <DragOverlay>
+      <DragOverlay dropAnimation={dropAnimationConfig}>
         {activeProject ? (
-          <SortableProjectItem
-            project={activeProject}
-            config={config}
-            canManageProjects={canManageProjects}
-          />
+          <ProjectCardPreview project={activeProject} config={config} />
         ) : null}
       </DragOverlay>
     </DndContext>

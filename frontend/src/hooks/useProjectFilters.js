@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, startTransition } from "react";
 import { viewStateStore } from "../lib/viewStateStore";
 
 export const DEFAULT_VIEW_CONFIG = {
@@ -392,36 +392,44 @@ export function useProjectFilters(projects) {
     });
   }, []);
 
-  const setActiveView = (view) => {
-    setViewConfig((prev) => ({ ...prev, activeView: view }));
-  };
+  const setActiveView = useCallback((view) => {
+    startTransition(() => {
+      setViewConfig((prev) => ({ ...prev, activeView: view }));
+    });
+  }, [setViewConfig]);
 
-  const updateViewSetting = (view, key, val) => {
-    setViewConfig((prev) => ({
-      ...prev,
-      [view]: {
-        ...prev[view],
-        [key]: val,
-      },
-    }));
-  };
-
-  const toggleProperty = (view, propKey) => {
-    setViewConfig((prev) => ({
-      ...prev,
-      [view]: {
-        ...prev[view],
-        properties: {
-          ...prev[view].properties,
-          [propKey]: !prev[view].properties[propKey],
+  const updateViewSetting = useCallback((view, key, val) => {
+    startTransition(() => {
+      setViewConfig((prev) => ({
+        ...prev,
+        [view]: {
+          ...prev[view],
+          [key]: val,
         },
-      },
-    }));
-  };
+      }));
+    });
+  }, [setViewConfig]);
 
-  const toggleGroupCollapse = (groupKey) => {
-    setCollapsedGroups((prev) => ({ ...prev, [groupKey]: !prev[groupKey] }));
-  };
+  const toggleProperty = useCallback((view, propKey) => {
+    startTransition(() => {
+      setViewConfig((prev) => ({
+        ...prev,
+        [view]: {
+          ...prev[view],
+          properties: {
+            ...prev[view].properties,
+            [propKey]: !prev[view].properties[propKey],
+          },
+        },
+      }));
+    });
+  }, [setViewConfig]);
+
+  const toggleGroupCollapse = useCallback((groupKey) => {
+    startTransition(() => {
+      setCollapsedGroups((prev) => ({ ...prev, [groupKey]: !prev[groupKey] }));
+    });
+  }, []);
 
   const resetToDefaults = () => {
     setViewConfig(DEFAULT_VIEW_CONFIG);

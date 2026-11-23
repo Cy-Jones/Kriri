@@ -248,7 +248,7 @@ export default function CreateTaskModal({
               <button
                 type="button"
                 onClick={() => {
-                  const statuses = ["Backlog", "Todo", "In Progress", "Done", "Canceled"];
+                  const statuses = ["Backlog", "Todo", "In Progress", "In Review", "Done", "Canceled"];
                   const next = statuses[(statuses.indexOf(status) + 1) % statuses.length];
                   setStatus(next);
                 }}

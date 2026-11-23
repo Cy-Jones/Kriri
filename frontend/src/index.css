@@ -70,14 +70,14 @@
     cursor: pointer !important;
   }
 
-  button,
-  [role="button"] {
+  button:not([aria-roledescription="sortable"]):not([data-dnd-kit-drag-overlay]),
+  [role="button"]:not([aria-roledescription="sortable"]):not([data-dnd-kit-drag-overlay]) {
     transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.25s ease, opacity 0.15s ease;
   }
 
-  button:active:not(:disabled),
+  button:active:not(:disabled):not([aria-roledescription="sortable"]):not([data-dnd-kit-drag-overlay]),
   a:active:not(:disabled),
-  [role="button"]:active:not(:disabled) {
+  [role="button"]:active:not(:disabled):not([aria-roledescription="sortable"]):not([data-dnd-kit-drag-overlay]) {
     transform: scale(0.98);
     transition: transform 0.08s cubic-bezier(0.16, 1, 0.3, 1);
   }
@@ -1100,12 +1100,10 @@ html:not(.dark) .cl-footer {
   backface-visibility: hidden;
   will-change: transform, box-shadow, border-color;
   transition:
-    transform 0.5s var(--kriri-ease-out),
-    border-color 0.4s var(--kriri-ease-out),
-    box-shadow 0.5s var(--kriri-ease-out),
-    background-color 0.3s var(--kriri-ease-out);
-  animation: kriri-entrance 0.85s var(--kriri-ease-out) backwards;
-  animation-delay: calc(var(--stagger, 0) * 0.07s);
+    transform 0.2s var(--kriri-ease-out),
+    border-color 0.2s var(--kriri-ease-out),
+    box-shadow 0.2s var(--kriri-ease-out),
+    background-color 0.2s var(--kriri-ease-out);
 }
 
 .kriri-card:hover {
@@ -1121,42 +1119,18 @@ html:not(.dark) .cl-footer {
   transition-duration: 0.08s;
 }
 
-@keyframes kriri-entrance {
-  from {
-    opacity: 0;
-    transform: translate3d(0, 36px, 0) scale(0.985);
-  }
-  to {
-    opacity: 1;
-    transform: translate3d(0, 0, 0) scale(1);
-  }
-}
-
 /* Staggered slide-in for items within projects & team lists */
 .kriri-list-item {
   transform: translate3d(0, 0, 0);
   backface-visibility: hidden;
   transition:
-    transform 0.35s var(--kriri-ease-out),
-    background-color 0.25s var(--kriri-ease-out),
-    border-color 0.25s var(--kriri-ease-out);
-  animation: kriri-item-slide 0.55s var(--kriri-ease-out) backwards;
-  animation-delay: calc(0.35s + var(--item-stagger, 0) * 0.045s);
+    transform 0.2s var(--kriri-ease-out),
+    background-color 0.2s var(--kriri-ease-out),
+    border-color 0.2s var(--kriri-ease-out);
 }
 
 .kriri-list-item:hover {
   transform: translate3d(3px, 0, 0);
-}
-
-@keyframes kriri-item-slide {
-  from {
-    opacity: 0;
-    transform: translate3d(18px, 0, 0);
-  }
-  to {
-    opacity: 1;
-    transform: translate3d(0, 0, 0);
-  }
 }
 
 .kriri-arrow-spin {
@@ -1174,65 +1148,6 @@ html:not(.dark) .cl-footer {
 /* ==========================================================================
    Kriri Kanban Board Motion Physics & GPU Compositing
    ========================================================================== */
-.kriri-kanban-col {
-  transform: translate3d(0, 0, 0);
-  backface-visibility: hidden;
-  transition:
-    background-color 0.25s var(--kriri-ease-out),
-    border-color 0.25s var(--kriri-ease-out),
-    box-shadow 0.25s var(--kriri-ease-out);
-  animation: kriri-col-in 0.65s var(--kriri-ease-out) backwards;
-  animation-delay: calc(var(--col-stagger, 0) * 0.08s);
-}
-
-@keyframes kriri-col-in {
-  from {
-    opacity: 0;
-    transform: translate3d(0, 24px, 0) scale(0.99);
-  }
-  to {
-    opacity: 1;
-    transform: translate3d(0, 0, 0) scale(1);
-  }
-}
-
-.kriri-task-card {
-  transform: translate3d(0, 0, 0);
-  backface-visibility: hidden;
-  will-change: transform, box-shadow, border-color;
-  transition:
-    transform 0.4s var(--kriri-ease-out),
-    border-color 0.3s var(--kriri-ease-out),
-    box-shadow 0.4s var(--kriri-ease-out),
-    background-color 0.2s var(--kriri-ease-out);
-  animation: kriri-task-in 0.55s var(--kriri-ease-out) backwards;
-  animation-delay: calc(0.15s + var(--task-stagger, 0) * 0.035s);
-}
-
-.kriri-task-card:hover {
-  transform: translate3d(0, -3px, 0);
-  border-color: rgba(255, 255, 255, 0.16);
-  box-shadow:
-    0 10px 26px -6px rgba(0, 0, 0, 0.55),
-    0 0 0 1px rgba(255, 255, 255, 0.1);
-}
-
-.kriri-task-card:active {
-  transform: translate3d(0, 0, 0) scale(0.985);
-  transition-duration: 0.08s;
-}
-
-@keyframes kriri-task-in {
-  from {
-    opacity: 0;
-    transform: translate3d(0, 18px, 0) scale(0.985);
-  }
-  to {
-    opacity: 1;
-    transform: translate3d(0, 0, 0) scale(1);
-  }
-}
-
 .custom-scrollbar::-webkit-scrollbar {
   width: 4px;
   height: 4px;
@@ -1260,27 +1175,6 @@ html:not(.dark) .kriri-card {
 
 [data-theme="light"] .kriri-card:hover,
 html:not(.dark) .kriri-card:hover {
-  background-color: var(--surface-hover);
-  border-color: var(--border-hover);
-  box-shadow: var(--shadow-raised);
-}
-
-[data-theme="light"] .kriri-kanban-col.has-bg,
-html:not(.dark) .kriri-kanban-col.has-bg {
-  background-color: var(--canvas-deep);
-  border-color: var(--border);
-  box-shadow: var(--shadow-resting);
-}
-
-[data-theme="light"] .kriri-task-card,
-html:not(.dark) .kriri-task-card {
-  background-color: var(--surface);
-  border-color: var(--border);
-  box-shadow: var(--shadow-resting);
-}
-
-[data-theme="light"] .kriri-task-card:hover,
-html:not(.dark) .kriri-task-card:hover {
   background-color: var(--surface-hover);
   border-color: var(--border-hover);
   box-shadow: var(--shadow-raised);

@@ -185,7 +185,7 @@ export default function BulkActionModal({
         }
       });
 
-      ["Backlog", "Planned", "In Progress", "Completed", "Canceled"].forEach(
+      ["Backlog", "Planned", "In Progress", "In Review", "Completed", "Canceled"].forEach(
         (s) => {
           const label = `Change project status > ${s}`;
           if (label.toLowerCase().includes(searchLower)) {
@@ -218,6 +218,7 @@ export default function BulkActionModal({
       "Backlog",
       "Planned",
       "In Progress",
+      "In Review",
       "Completed",
       "Canceled",
     ]

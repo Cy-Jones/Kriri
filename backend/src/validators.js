@@ -11,6 +11,7 @@ exports.projectSchema = z.object({
       "Planning",
       "Planned",
       "In Progress",
+      "In Review",
       "Paused",
       "Done",
       "Completed",

@@ -30,8 +30,6 @@ import { Badge } from "../registry/components/badge/badge";
 import { Button } from "../registry/components/button/button";
 import { Avatar } from "../registry/components/avatar/avatar";
 import { Progress } from "../registry/components/progress/progress";
-import { motion } from "motion/react";
-import { AnimatedCounter } from "../registry/components/animated-counter/animated-counter";
 
 export default function Dashboard() {
   const { effectiveTheme } = useTheme();
@@ -86,12 +84,11 @@ export default function Dashboard() {
       localStorage.removeItem("kriri:cache:dashboard_summary");
       localStorage.removeItem("kriri:cache:dashboard_analytics");
       const cachedSum = localStorage.getItem(`kriri:cache:dashboard_summary:${scopeKey}`);
-      setSummary(cachedSum ? JSON.parse(cachedSum) : null);
+      if (cachedSum) setSummary(JSON.parse(cachedSum));
       const cachedAna = localStorage.getItem(`kriri:cache:dashboard_analytics:${scopeKey}`);
-      setAnalytics(cachedAna ? JSON.parse(cachedAna) : null);
+      if (cachedAna) setAnalytics(JSON.parse(cachedAna));
     } catch {
-      setSummary(null);
-      setAnalytics(null);
+      // Keep existing state if JSON parse fails
     }
   }, [scopeKey]);
 
@@ -148,20 +145,15 @@ export default function Dashboard() {
       return;
     }
 
-    const controller = new AbortController();
+    let isCurrent = true;
     const fetchData = async () => {
       try {
         if (!summary && !analytics) setLoading(true);
         const [sumRes, anaRes] = await Promise.all([
-          api.get("/workspaces/current/summary", { signal: controller.signal }).catch((err) => {
-            if (err.name === "AbortError") throw err;
-            return null;
-          }),
-          api.get("/workspaces/current/analytics", { signal: controller.signal }).catch((err) => {
-            if (err.name === "AbortError") throw err;
-            return null;
-          }),
+          api.get("/workspaces/current/summary").catch(() => null),
+          api.get("/workspaces/current/analytics").catch(() => null),
         ]);
+        if (!isCurrent) return;
         if (sumRes) {
           setSummary(sumRes);
           if (scopeKey) {
@@ -185,11 +177,9 @@ export default function Dashboard() {
           }
         }
       } catch (err) {
-        if (err.name !== "AbortError" && !err.message?.includes("Unauthorized")) {
-          console.error("Error fetching dashboard data:", err);
-        }
+        console.error("Error fetching dashboard data:", err);
       } finally {
-        if (!controller.signal.aborted) {
+        if (isCurrent) {
           setLoading(false);
         }
       }
@@ -197,7 +187,7 @@ export default function Dashboard() {
     fetchData();
 
     return () => {
-      controller.abort();
+      isCurrent = false;
     };
   }, [organization?.id, isUserLoaded, isSignedIn, user?.id]);
 
@@ -280,6 +270,10 @@ export default function Dashboard() {
     (summary && summary.activeProjectCount > 0) ||
     (analytics && analytics.stats?.totalProjects > 0);
 
+  if (loading && !hasData) {
+    return null;
+  }
+
   if (!hasData) {
     return (
       <div className="flex flex-col min-h-full relative">
@@ -302,7 +296,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="flex flex-col items-center justify-center flex-1 max-w-sm mx-auto text-center gap-6 mt-6 sm:mt-10 animate-in fade-in zoom-in-95 duration-500">
+        <div className="flex flex-col items-center justify-center flex-1 max-w-sm mx-auto text-center gap-6 mt-6 sm:mt-10">
           <div className="w-64 h-64 flex items-center justify-center relative overflow-visible">
             <Drawer
               theme={effectiveTheme}
@@ -425,7 +419,6 @@ export default function Dashboard() {
         <div className="kriri-grid w-full">
           {/* Card S1: Stat (Total Projects) */}
           <article
-            style={{ "--stagger": 0 }}
             className="kriri-s1 kriri-card rounded-2xl p-5 sm:p-6 flex flex-col justify-between relative overflow-hidden border border-border bg-surface hover:bg-surface-hover shadow-xs group cursor-pointer"
             onClick={() => navigate("/projects")}
           >
@@ -448,7 +441,7 @@ export default function Dashboard() {
 
             <div className="my-3 sm:my-4">
               <span className="text-3xl sm:text-4xl font-semibold text-foreground tracking-tight">
-                <AnimatedCounter value={totalProjects} />
+                {totalProjects}
               </span>
             </div>
 
@@ -463,7 +456,6 @@ export default function Dashboard() {
 
           {/* Card S2: Ended / Completed Projects */}
           <article
-            style={{ "--stagger": 1 }}
             className="kriri-s2 kriri-card rounded-2xl p-5 sm:p-6 flex flex-col justify-between relative overflow-hidden border border-border bg-surface hover:bg-surface-hover shadow-xs group cursor-pointer"
             onClick={() => navigate("/projects")}
           >
@@ -486,7 +478,7 @@ export default function Dashboard() {
 
             <div className="my-3 sm:my-4">
               <span className="text-3xl sm:text-4xl font-semibold text-foreground tracking-tight">
-                <AnimatedCounter value={completedProjects} />
+                {completedProjects}
               </span>
             </div>
 
@@ -501,7 +493,6 @@ export default function Dashboard() {
 
           {/* Card S3: Running Projects */}
           <article
-            style={{ "--stagger": 2 }}
             className="kriri-s3 kriri-card rounded-2xl p-5 sm:p-6 flex flex-col justify-between relative overflow-hidden border border-border bg-surface hover:bg-surface-hover shadow-xs group cursor-pointer"
             onClick={() => navigate("/projects")}
           >
@@ -524,7 +515,7 @@ export default function Dashboard() {
 
             <div className="my-3 sm:my-4">
               <span className="text-3xl sm:text-4xl font-semibold text-foreground tracking-tight">
-                <AnimatedCounter value={inProgressProjects} />
+                {inProgressProjects}
               </span>
             </div>
 
@@ -539,7 +530,6 @@ export default function Dashboard() {
 
           {/* Card S4: Pending / Attention */}
           <article
-            style={{ "--stagger": 3 }}
             className="kriri-s4 kriri-card rounded-2xl p-5 sm:p-6 flex flex-col justify-between relative overflow-hidden border border-border bg-surface hover:bg-surface-hover shadow-xs group cursor-pointer"
             onClick={() => navigate("/tasks")}
           >
@@ -562,7 +552,7 @@ export default function Dashboard() {
 
             <div className="my-3 sm:my-4">
               <span className="text-3xl sm:text-4xl font-semibold text-foreground tracking-tight">
-                <AnimatedCounter value={pendingAttentionCount} />
+                {pendingAttentionCount}
               </span>
             </div>
 
@@ -583,7 +573,6 @@ export default function Dashboard() {
 
           {/* Card AN: Detailed Project Analytics with Arc LineChart & SegmentedControl */}
           <section
-            style={{ "--stagger": 4 }}
             className="kriri-an kriri-card rounded-2xl p-5 sm:p-6 flex flex-col justify-between border border-border bg-surface hover:bg-surface-hover shadow-xs relative"
           >
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
@@ -626,13 +615,13 @@ export default function Dashboard() {
                 unit="tasks"
                 categoryLabel="Date"
                 formatValue={(val) => `${val} tasks`}
+                isAnimationActive={false}
               />
             </div>
           </section>
 
           {/* Card RE: Reminders / Next Milestone Focus */}
           <section
-            style={{ "--stagger": 5 }}
             className="kriri-re kriri-card rounded-2xl p-5 sm:p-6 flex flex-col justify-between border border-border bg-surface hover:bg-surface-hover shadow-xs relative"
           >
             <div>
@@ -706,7 +695,6 @@ export default function Dashboard() {
 
           {/* Card PR: Active Projects (Spans 8 Columns in expanded grid) */}
           <section
-            style={{ "--stagger": 6 }}
             className="kriri-pr kriri-card rounded-2xl p-5 sm:p-6 border border-border bg-surface hover:bg-surface-hover shadow-xs flex flex-col justify-between"
           >
             <div>
@@ -781,7 +769,6 @@ export default function Dashboard() {
                     return (
                       <div
                         key={p.id || idx}
-                        style={{ "--item-stagger": idx }}
                         onClick={() => navigate(`/projects/${p.id}`)}
                         className="kriri-list-item flex items-center justify-between gap-3 p-2.5 rounded-xl hover:bg-surface-hover transition-colors cursor-pointer group border border-transparent hover:border-border"
                       >
@@ -844,7 +831,6 @@ export default function Dashboard() {
 
           {/* Card TM: Team Collaboration (Spans 4 Columns) */}
           <section
-            style={{ "--stagger": 7 }}
             className="kriri-tm kriri-card rounded-2xl p-5 sm:p-6 flex flex-col justify-between border border-border bg-surface hover:bg-surface-hover shadow-xs"
           >
             <div>
@@ -891,7 +877,6 @@ export default function Dashboard() {
                   return (
                     <div
                       key={m.id || idx}
-                      style={{ "--item-stagger": idx }}
                       className="kriri-list-item flex items-center justify-between gap-3 p-2 rounded-xl hover:bg-surface-hover transition-colors"
                     >
                       <div className="flex items-center gap-3 min-w-0">
