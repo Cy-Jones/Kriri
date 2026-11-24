@@ -10,10 +10,10 @@ import {
 } from "react-router-dom";
 import { useUser, useOrganization } from "@clerk/react";
 import { api } from "../lib/api";
-import posthog from "../lib/posthog";
+import { trackAsync } from "../lib/posthog";
 import { ProjectDetailsSkeleton } from "../components/skeletons/PageSkeletons";
 import { useDeferredSkeleton } from "../hooks/useDeferredSkeleton";
-import { useSocket } from "../contexts/SocketContext";
+import { useSocket } from "../contexts/useSocket";
 import { useTasksStore, dataStore } from "../lib/dataStore";
 import StatusPicker, { getStatusIcon } from "../components/StatusPicker";
 import PriorityPicker, { getPriorityIcon } from "../components/PriorityPicker";
@@ -71,7 +71,7 @@ export default function ProjectDetails() {
   });
   const [loading, setLoading] = useState(() => !project);
   const { user } = useUser();
-  const { organization } = useOrganization();
+  const { organization, membership } = useOrganization();
   const socket = useSocket();
 
   const { tasks: allTasks } = useTasksStore();
@@ -163,10 +163,10 @@ export default function ProjectDetails() {
 
   const [currentUserRole, setCurrentUserRole] = useState(null);
   const [workspaceMembers, setWorkspaceMembers] = useState([]);
+  // A user can manage project properties unless explicitly restricted as Guest or Viewer.
+  // Defaults to true so members are not blocked during initial load or while fetching role.
   const canManageProjects =
-    ["Owner", "Admin", "Project Manager", "Member", "Team Lead"].includes(
-      currentUserRole,
-    ) || !organization;
+    currentUserRole === "Guest" || currentUserRole === "Viewer" ? false : true;
 
   useEffect(() => {
     const controller = new AbortController();
@@ -184,13 +184,37 @@ export default function ProjectDetails() {
           ? response
           : response.data?.members || [];
         setWorkspaceMembers(members);
+        const userEmail = (user?.primaryEmailAddress?.emailAddress || "").toLowerCase();
         const currentMember = members.find(
-          (m) => m.email === user?.primaryEmailAddress?.emailAddress,
+          (m) =>
+            (m.email && m.email.toLowerCase() === userEmail) ||
+            String(m.id) === String(user?.id),
         );
-        if (currentMember) setCurrentUserRole(currentMember.role);
+        if (currentMember) {
+          setCurrentUserRole(currentMember.role);
+        } else if (membership?.role) {
+          const rawRole = (membership.role || "").toLowerCase();
+          setCurrentUserRole(
+            rawRole.includes("admin") || rawRole.includes("owner")
+              ? "Owner"
+              : "Member",
+          );
+        } else {
+          setCurrentUserRole("Member");
+        }
       } catch (err) {
         if (err.name !== "AbortError") {
           console.error("Failed to fetch role", err);
+          if (membership?.role) {
+            const rawRole = (membership.role || "").toLowerCase();
+            setCurrentUserRole(
+              rawRole.includes("admin") || rawRole.includes("owner")
+                ? "Owner"
+                : "Member",
+            );
+          } else {
+            setCurrentUserRole("Member");
+          }
         }
       }
     };
@@ -200,27 +224,42 @@ export default function ProjectDetails() {
     return () => {
       controller.abort();
     };
-  }, [organization, user]);
+  }, [organization, user, membership?.role]);
 
   const [searchParams, setSearchParams] = useSearchParams();
 
   const tabParam = searchParams.get("tab");
-  const [activeTab, setActiveTab] = useState(
-    tabParam
-      ? tabParam.charAt(0).toUpperCase() + tabParam.slice(1)
-      : "Overview",
-  );
+  const [activeTab, setActiveTab] = useState(() => {
+    if (tabParam) {
+      const formatted =
+        tabParam.charAt(0).toUpperCase() + tabParam.slice(1).toLowerCase();
+      if (["Overview", "Issues", "Milestones"].includes(formatted))
+        return formatted;
+    }
+    return "Overview";
+  });
   const [isTabPending, startTabTransition] = useTransition();
   const deferredTab = useDeferredValue(activeTab);
   const tabs = ["Overview", "Issues", "Milestones"];
   const [activePicker, setActivePicker] = useState(null);
+
+  // Sync activeTab when URL searchParams (?tab=...) changes externally
+  useEffect(() => {
+    if (tabParam) {
+      const normalized =
+        tabParam.charAt(0).toUpperCase() + tabParam.slice(1).toLowerCase();
+      if (tabs.includes(normalized) && normalized !== activeTab) {
+        setActiveTab(normalized);
+      }
+    }
+  }, [tabParam, activeTab]);
 
   const handleTabChange = (tab) => {
     setActiveTab(tab);
     startTabTransition(() => {
       setSearchParams({ tab: tab.toLowerCase() });
     });
-    posthog.capture("project_tab_changed", {
+    trackAsync("project_tab_changed", {
       tab: tab.toLowerCase(),
       project_id: id,
     });
@@ -254,7 +293,7 @@ export default function ProjectDetails() {
       .get(`/projects/${id}`, { signal: controller.signal })
       .then((data) => {
         setProject(data);
-        posthog.capture("project_viewed", { project_id: id });
+        trackAsync("project_viewed", { project_id: id });
         setLoading(false);
       })
       .catch((err) => {
@@ -874,7 +913,7 @@ export default function ProjectDetails() {
       </div>
 
       {/* 2. Navigation Tab Row */}
-      <div className="h-[42px] shrink-0 flex items-center justify-between px-3 sm:px-6 border-b border-border bg-[var(--card-bg)] z-10">
+      <div className="relative h-[42px] shrink-0 flex items-center justify-between px-3 sm:px-6 border-b border-border bg-[var(--card-bg)] z-10">
         <div className="flex items-center gap-1 sm:gap-1.5 overflow-x-auto no-scrollbar py-0.5">
           {tabs.map((tab) => {
             const isActive = activeTab === tab;

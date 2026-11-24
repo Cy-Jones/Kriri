@@ -36,11 +36,23 @@ async function seed() {
   const memberIds = teamRes.rows.map((u) => u.id);
 
   // 2. Identify Software Development demo workspace belonging to smartjones07@gmail.com
-  const wsRes = await db.query(
-    `SELECT id, name, slug FROM workspaces WHERE owner_id = $1 AND name = 'Software Development' LIMIT 1`,
+  let wsRes = await db.query(
+    `SELECT id, name, slug FROM workspaces 
+     WHERE (owner_id = $1 OR id IN (SELECT workspace_id FROM workspace_members WHERE user_id = $1))
+       AND name = 'Software Development'`,
     [cyrus.id],
   );
   let targetWorkspaces = wsRes.rows;
+
+  if (targetWorkspaces.length === 0) {
+    wsRes = await db.query(
+      `SELECT id, name, slug FROM workspaces 
+       WHERE (owner_id = $1 OR id IN (SELECT workspace_id FROM workspace_members WHERE user_id = $1))
+       ORDER BY (clerk_org_id NOT LIKE 'org_seed_%') DESC, id DESC`,
+      [cyrus.id],
+    );
+    targetWorkspaces = wsRes.rows;
+  }
 
   console.log(
     `Target workspaces:`,
@@ -382,16 +394,16 @@ async function seed() {
            status, health, priority, progress, position, lead_id, labels,
            start_date, due_date, created_at, updated_at
          ) VALUES (
-           $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14,
-           NOW() - ($15 || ' days')::interval,
+           $1, $2, $3, $4, $5, $6, $7, $8::varchar, $9::varchar, $10, $11, $12, $13, $14,
+           NOW() - ($15::text || ' days')::interval,
            CASE 
-             WHEN $8 = 'Done' THEN NOW() - ($15 || ' days')::interval
-             WHEN $9 = 'At Risk' THEN NOW() - INTERVAL '3 days'
-             WHEN $9 = 'Off Track' THEN NOW() - INTERVAL '5 days'
+             WHEN $8::varchar = 'Done' THEN NOW() - ($15::text || ' days')::interval
+             WHEN $9::varchar = 'At Risk' THEN NOW() - INTERVAL '3 days'
+             WHEN $9::varchar = 'Off Track' THEN NOW() - INTERVAL '5 days'
              ELSE NOW() + INTERVAL '30 days'
            END,
-           NOW() - ($15 || ' days')::interval, 
-           NOW() - ($15 || ' days')::interval
+           NOW() - ($15::text || ' days')::interval, 
+           NOW() - ($15::text || ' days')::interval
          )
          ON CONFLICT (workspace_id, slug) 
          DO UPDATE SET
@@ -496,23 +508,26 @@ async function seed() {
       ];
 
       for (const t of sampleTasks) {
+        const taskDesc = `### Objective\nExecute architectural deliverables for ${t.title} within ${p.name}.\n\n### Technical Requirements\n- Ensure non-blocking async execution with comprehensive telemetry.\n- Maintain 100% test coverage across integration test paths.\n\n### Acceptance Criteria\n- [ ] Functional validation passes in staging environment.\n- [ ] Performance metrics satisfy sub-50ms latency SLA.\n- [ ] Production runbook and architecture documentation published.`;
+
         await db.query(
           `INSERT INTO tasks (
-             project_id, title, status, priority, assignee_id, reporter_id,
+             project_id, title, description, status, priority, assignee_id, reporter_id,
              progress, due_date, completed_at, created_at, updated_at
            ) VALUES (
-             $1, $2, $3, $4, $5, $6, $7,
+             $1, $2, $3, $4::varchar, $5, $6, $7, $8,
              CASE 
-               WHEN $3 = 'Done' THEN NOW() - ($8 || ' days')::interval + ($9 || ' days')::interval
-               ELSE NOW() + ($9 || ' days')::interval
+               WHEN $4::varchar = 'Done' THEN NOW() - ($9::text || ' days')::interval + ($10::text || ' days')::interval
+               ELSE NOW() + ($10::text || ' days')::interval
              END,
-             CASE WHEN $3 = 'Done' THEN NOW() - ($8 || ' days')::interval ELSE NULL END,
-             NOW() - ($8 || ' days')::interval,
-             NOW() - ($8 || ' days')::interval
+             CASE WHEN $4::varchar = 'Done' THEN NOW() - ($9::text || ' days')::interval ELSE NULL END,
+             NOW() - ($9::text || ' days')::interval,
+             NOW() - ($9::text || ' days')::interval
            )`,
           [
             projectId,
             t.title,
+            taskDesc,
             t.status,
             t.priority,
             t.assignee,

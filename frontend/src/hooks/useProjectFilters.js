@@ -20,8 +20,8 @@ export const DEFAULT_VIEW_CONFIG = {
       members: false,
       start_date: false,
       labels: false,
-      milestones: false,
-      dependencies: false,
+      milestones: true,
+      dependencies: true,
       summary: false,
     },
   },
@@ -226,7 +226,14 @@ export function useProjectFilters(projects) {
         return false;
       if (
         activeFilters.lead.length > 0 &&
-        (!p.lead || !activeFilters.lead.includes(p.lead.name))
+        (!p.lead ||
+          !activeFilters.lead.some(
+            (val) =>
+              (p.lead.id != null && String(p.lead.id) === String(val)) ||
+              (p.lead.email && p.lead.email.toLowerCase() === String(val).toLowerCase()) ||
+              (p.lead.username && p.lead.username.toLowerCase() === String(val).toLowerCase()) ||
+              p.lead.name === val
+          ))
       )
         return false;
 
@@ -248,13 +255,28 @@ export function useProjectFilters(projects) {
       if (
         activeFilters.members.length > 0 &&
         (!p.members ||
-          !p.members.some((m) => activeFilters.members.includes(m.name)))
+          !p.members.some((m) =>
+            activeFilters.members.some(
+              (val) =>
+                (m.id != null && String(m.id) === String(val)) ||
+                (m.email && m.email.toLowerCase() === String(val).toLowerCase()) ||
+                (m.username && m.username.toLowerCase() === String(val).toLowerCase()) ||
+                m.name === val
+            )
+          ))
       )
         return false;
 
       if (
         activeFilters.creator.length > 0 &&
-        (!p.creator || !activeFilters.creator.includes(p.creator.name))
+        (!p.creator ||
+          !activeFilters.creator.some(
+            (val) =>
+              (p.creator.id != null && String(p.creator.id) === String(val)) ||
+              (p.creator.email && p.creator.email.toLowerCase() === String(val).toLowerCase()) ||
+              (p.creator.username && p.creator.username.toLowerCase() === String(val).toLowerCase()) ||
+              p.creator.name === val
+          ))
       )
         return false;
 

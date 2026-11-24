@@ -27,6 +27,13 @@ export const defaultLocalization = {
           messageLine2:
             "Leaving will immediately revoke your management privileges and workspace access.",
         },
+        deleteOrganization: {
+          title: "Delete organization",
+          messageLine1:
+            "Are you sure you want to delete this organization? This action is permanent and cannot be undone.",
+          messageLine2:
+            "All projects, tasks, issues, and team data will be permanently deleted.",
+        },
       },
     },
   },

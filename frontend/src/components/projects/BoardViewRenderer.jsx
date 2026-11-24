@@ -118,15 +118,18 @@ const areProjectPropsEqual = (prevProps, nextProps) => {
     if (p.description !== n.description) return false;
   }
   if (prevProps.isSelected !== nextProps.isSelected) return false;
-  const prevPickerActive =
-    prevProps.activePicker?.projectId === prevProps.project.id
-      ? prevProps.activePicker.type
-      : null;
-  const nextPickerActive =
-    nextProps.activePicker?.projectId === nextProps.project.id
-      ? nextProps.activePicker.type
-      : null;
-  if (prevPickerActive !== nextPickerActive) return false;
+  if (prevProps.activePicker !== nextProps.activePicker) {
+    const prevPickerActive =
+      prevProps.activePicker?.projectId === prevProps.project.id
+        ? prevProps.activePicker.type
+        : null;
+    const nextPickerActive =
+      nextProps.activePicker?.projectId === nextProps.project.id
+        ? nextProps.activePicker.type
+        : null;
+    if (prevPickerActive !== nextPickerActive) return false;
+  }
+  if (prevProps.availableMembers !== nextProps.availableMembers) return false;
   if (prevProps.config !== nextProps.config) return false;
   if (prevProps.canManageProjects !== nextProps.canManageProjects) return false;
   if (prevProps.onClick !== nextProps.onClick) return false;
@@ -148,6 +151,7 @@ const SortableProjectItem = memo(function SortableProjectItem({
   setActivePicker,
   canManageProjects,
   onUpdateProject,
+  availableMembers = [],
 }) {
   const {
     attributes,
@@ -489,6 +493,7 @@ const SortableProjectItem = memo(function SortableProjectItem({
               activePicker.projectId === project.id && (
                 <LeadPicker
                   value={project.lead}
+                  availableMembers={availableMembers}
                   onChange={(val) => onUpdateProject(project.id, { lead: val })}
                   onClose={() => setActivePicker({ type: null, projectId: null })}
                 />
@@ -665,6 +670,7 @@ export default memo(function BoardViewRenderer({
   activePicker,
   setActivePicker,
   canManageProjects,
+  availableMembers = [],
 }) {
   const colDimension = config.columnsGrouping || "status";
   const rowDimension = config.rowsSubgrouping || "none";
@@ -1002,6 +1008,7 @@ export default memo(function BoardViewRenderer({
                                   canManageProjects={canManageProjects}
                                   onProjectClick={handleProjectClick}
                                   onDeleteProject={onDeleteProject}
+                                  availableMembers={availableMembers}
                                 />
                               ))}
                             </DroppableProjectColumn>

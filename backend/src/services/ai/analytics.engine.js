@@ -180,22 +180,37 @@ class AnalyticsEngine {
     query += ` GROUP BY u.id, u.name, u.email, u.avatar_url ORDER BY active_tasks DESC`;
 
     const res = await db.query(query, params);
-    const members = res.rows.map((row) => {
-      const activeTasks = parseInt(row.active_tasks, 10) || 0;
+    const rawMembers = res.rows.map((row) => ({
+      userId: row.user_id,
+      name: row.name,
+      email: row.email,
+      avatarUrl: row.avatar_url,
+      totalAssigned: parseInt(row.total_assigned, 10) || 0,
+      activeTasks: parseInt(row.active_tasks, 10) || 0,
+      completedTasks: parseInt(row.completed_tasks, 10) || 0,
+      overdueTasks: parseInt(row.overdue_tasks, 10) || 0,
+      urgentTasks: parseInt(row.urgent_tasks, 10) || 0,
+    }));
+
+    const totalActiveTasks = rawMembers.reduce((sum, m) => sum + m.activeTasks, 0);
+    const totalOverdueTasks = rawMembers.reduce((sum, m) => sum + m.overdueTasks, 0);
+    const avgActive = rawMembers.length > 0 ? totalActiveTasks / rawMembers.length : 0;
+    const overloadThreshold = Math.max(12, Math.round(avgActive * 1.4));
+    const underallocatedThreshold = Math.max(1, Math.round(avgActive * 0.3));
+
+    const members = rawMembers.map((m) => {
       let capacityStatus = "Optimal"; // 'Underallocated', 'Optimal', 'Overloaded'
-      if (activeTasks >= 6) capacityStatus = "Overloaded";
-      else if (activeTasks <= 1) capacityStatus = "Underallocated";
+      if (m.activeTasks >= overloadThreshold) {
+        capacityStatus = "Overloaded";
+      } else if (m.activeTasks <= underallocatedThreshold && m.activeTasks < 6) {
+        capacityStatus = "Underallocated";
+      }
+
+      const loadPercentage = totalActiveTasks > 0 ? Math.round((m.activeTasks / totalActiveTasks) * 100) : 0;
 
       return {
-        userId: row.user_id,
-        name: row.name,
-        email: row.email,
-        avatarUrl: row.avatar_url,
-        totalAssigned: parseInt(row.total_assigned, 10) || 0,
-        activeTasks,
-        completedTasks: parseInt(row.completed_tasks, 10) || 0,
-        overdueTasks: parseInt(row.overdue_tasks, 10) || 0,
-        urgentTasks: parseInt(row.urgent_tasks, 10) || 0,
+        ...m,
+        loadPercentage,
         capacityStatus,
       };
     });
@@ -207,6 +222,8 @@ class AnalyticsEngine {
       members,
       summary: {
         totalMembers: members.length,
+        totalActiveTasks,
+        totalOverdueTasks,
         overloadedCount,
         underallocatedCount,
         balanceIndex: members.length > 0 ? Math.round((1 - overloadedCount / members.length) * 100) : 100,

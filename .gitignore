@@ -70,5 +70,7 @@ frontend/.figma/
 # Local Academic Documents & Internal Specs (Keep local, do not push to public repo)
 PROJECT_PROGRESS_REPORT.md
 KRIRI_DESIGN_SYSTEM.md
+KRIRI_*_LOG.md
+KRIRI_*_FIX.md
 docs/architecture/
 docs/reports/

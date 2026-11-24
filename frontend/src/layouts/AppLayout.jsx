@@ -84,28 +84,96 @@ export default function AppLayout() {
     setOptimisticPath(null);
   }
 
+  const [memberCount, setMemberCount] = useState(() => {
+    if (typeof organization?.membersCount === "number") return organization.membersCount;
+    return 1;
+  });
+
+  useEffect(() => {
+    if (!organization?.id) {
+      document.documentElement.removeAttribute("data-sole-member");
+      return;
+    }
+
+    let isMounted = true;
+    const fetchMemberCount = async () => {
+      try {
+        const cached = api.getCached(`/workspaces/${organization.id}/members`);
+        if (Array.isArray(cached) && cached.length > 0) {
+          if (isMounted) setMemberCount(cached.length);
+        }
+        const data = await api.get(`/workspaces/${organization.id}/members`);
+        if (Array.isArray(data) && isMounted) {
+          setMemberCount(data.length);
+        }
+      } catch {
+        if (typeof organization?.membersCount === "number" && isMounted) {
+          setMemberCount(organization.membersCount);
+        }
+      }
+    };
+
+    fetchMemberCount();
+    return () => {
+      isMounted = false;
+    };
+  }, [organization?.id, organization?.membersCount]);
+
+  const rawRole = (membership?.role || "").toLowerCase();
+  const isOwner = rawRole.includes("owner") || rawRole === "org:admin";
+  const isAdmin = rawRole.includes("admin");
+  const isSoleOwner = isOwner && memberCount <= 1;
+
+  useEffect(() => {
+    if (isSoleOwner) {
+      document.documentElement.setAttribute("data-sole-member", "true");
+    } else {
+      document.documentElement.removeAttribute("data-sole-member");
+    }
+
+    const hideSoleMemberTransfer = () => {
+      if (!isSoleOwner) return;
+      const elements = document.querySelectorAll(
+        '.cl-modalContent [data-localization-key*="leaveOrganization"], .cl-organizationProfile-root [data-localization-key*="leaveOrganization"]'
+      );
+      elements.forEach((el) => {
+        const section = el.closest(".cl-profileSection, [class*='profileSection__organizationDanger'], [class*='profileSection']");
+        if (section) {
+          section.style.display = "none";
+        }
+      });
+    };
+
+    const observer = new MutationObserver(hideSoleMemberTransfer);
+    observer.observe(document.body, { childList: true, subtree: true });
+    hideSoleMemberTransfer();
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [isSoleOwner]);
+
   useEffect(() => {
     if (!organization) return;
     const wsName = organization.name || "Software Development";
-    const rawRole = (membership?.role || "").toLowerCase();
-    const isOwner = rawRole.includes("owner") || rawRole === "org:admin";
-    const isAdmin = rawRole.includes("admin");
 
     if (isOwner) {
-      updateClerkLocalization({
-        organizationProfile: {
-          profilePage: {
-            dangerSection: {
-              leaveOrganization: {
-                title: `Transfer Ownership of "${wsName}"`,
-                messageLine1: `Notice: You are the Owner & Administrator of "${wsName}". You cannot leave this workspace without transferring ownership. Please select a team member in Settings > Profile > Workspace Access to take over ownership before leaving.`,
-                messageLine2: `This action will permanently revoke your access to ${wsName}.`,
-                actionDescription: `Type "${wsName}" below to continue.`,
+      if (memberCount > 1) {
+        updateClerkLocalization({
+          organizationProfile: {
+            profilePage: {
+              dangerSection: {
+                leaveOrganization: {
+                  title: `Transfer Ownership of "${wsName}"`,
+                  messageLine1: `Notice: You are the Owner & Administrator of "${wsName}". You cannot leave this workspace without transferring ownership. Please select a team member in Settings > Profile > Workspace Access to take over ownership before leaving.`,
+                  messageLine2: `This action will permanently revoke your access to ${wsName}.`,
+                  actionDescription: `Type "${wsName}" below to continue.`,
+                },
               },
             },
           },
-        },
-      });
+        });
+      }
     } else if (isAdmin) {
       updateClerkLocalization({
         organizationProfile: {
@@ -137,7 +205,7 @@ export default function AppLayout() {
         },
       });
     }
-  }, [organization?.name, membership?.role]);
+  }, [organization?.name, isOwner, isAdmin, memberCount]);
 
   useEffect(() => {
     if (getToken) {
@@ -273,7 +341,7 @@ export default function AppLayout() {
   const getRouteLabel = (pathname) => {
     if (pathname === "/dashboard" || pathname.startsWith("/dashboard")) return "Dashboard";
     if (pathname === "/inbox" || pathname.startsWith("/inbox")) return "Inbox";
-    if (pathname === "/tasks" || pathname.startsWith("/tasks") || pathname.startsWith("/kanban")) return "Tasks";
+    if (pathname === "/tasks" || pathname.startsWith("/tasks") || pathname.startsWith("/issues") || pathname.startsWith("/kanban")) return "Issues";
     if (pathname === "/agent" || pathname.startsWith("/agent")) return "Agent";
     if (pathname === "/projects" || pathname === "/projects/") return "Projects";
     if (pathname.startsWith("/projects/")) return "Project Details";
@@ -287,8 +355,8 @@ export default function AppLayout() {
     if (itemPath === "/projects") {
       return activePath === "/projects" || activePath.startsWith("/projects/");
     }
-    if (itemPath === "/tasks") {
-      return activePath === "/tasks" || activePath.startsWith("/tasks") || activePath === "/kanban";
+    if (itemPath === "/tasks" || itemPath === "/issues") {
+      return activePath === "/tasks" || activePath.startsWith("/tasks") || activePath === "/issues" || activePath.startsWith("/issues") || activePath === "/kanban";
     }
     return activePath === itemPath || activePath.startsWith(itemPath + "/");
   };
@@ -498,7 +566,7 @@ export default function AppLayout() {
   const topNavItems = [
     { name: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
     { name: "Inbox", path: "/inbox", icon: Inbox },
-    { name: "Tasks", path: "/tasks", icon: CheckSquare },
+    { name: "Issues", path: "/tasks", icon: CheckSquare },
     { name: "Agent", path: "/agent", icon: KririAgentIcon },
   ];
 

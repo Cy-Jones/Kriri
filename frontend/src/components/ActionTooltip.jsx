@@ -54,8 +54,6 @@ const ActionTooltip = React.forwardRef(function ActionTooltip({
   align = "center",
   sideOffset = 6,
 }, ref) {
-  if (!label) return children;
-
   const [isTouch, setIsTouch] = useState(() => {
     return typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
   });
@@ -68,7 +66,7 @@ const ActionTooltip = React.forwardRef(function ActionTooltip({
     return () => mq.removeEventListener("change", handler);
   }, []);
 
-  if (isTouch) {
+  if (!label || isTouch) {
     return children;
   }
 

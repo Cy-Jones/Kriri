@@ -37,6 +37,7 @@ export default memo(function Projects({ isActive = true }) {
     projects,
     loading,
     canManageProjects,
+    availableMembers,
     confirmModal,
     setConfirmModal,
     handleUpdateProject,
@@ -357,7 +358,7 @@ export default memo(function Projects({ isActive = true }) {
       />
 
       {/* 2. MAIN CONTENT VIEWS */}
-      <div className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
+      <div className="flex-1 flex flex-col min-h-0 overflow-hidden relative z-0">
         {showSkeleton ? (
           activeView === "board" ? (
             <ProjectsBoardSkeleton />
@@ -406,6 +407,7 @@ export default memo(function Projects({ isActive = true }) {
                   activePicker={activePicker}
                   setActivePicker={canManageProjects ? setActivePicker : () => {}}
                   canManageProjects={canManageProjects}
+                  availableMembers={availableMembers}
                   listScrollRef={listScrollRef}
                   onScroll={handleListScroll}
                 />
@@ -430,6 +432,7 @@ export default memo(function Projects({ isActive = true }) {
                   activePicker={activePicker}
                   setActivePicker={canManageProjects ? setActivePicker : () => {}}
                   canManageProjects={canManageProjects}
+                  availableMembers={availableMembers}
                 />
               </div>
             )}

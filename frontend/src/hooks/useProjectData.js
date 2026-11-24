@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
 import { api } from "../lib/api";
-import { useSocket } from "../contexts/SocketContext";
+import { useSocket } from "../contexts/useSocket";
 import { useProjectsStore, dataStore } from "../lib/dataStore";
 
 export function useProjectData(user, organization) {
   const userName = user?.fullName || "User";
   const [currentUserRole, setCurrentUserRole] = useState(null);
+  const [availableMembers, setAvailableMembers] = useState([]);
   const isAuditMock = typeof window !== "undefined" && import.meta.env.DEV && (window.__AUDIT_MOCK_AUTH__ || window.localStorage?.getItem("audit_mock_auth") === "true");
   const scopeKey = user?.id ? `${user.id}:${organization?.id || "personal"}` : (isAuditMock ? "mock_user:personal" : null);
 
@@ -33,11 +34,21 @@ export function useProjectData(user, organization) {
     return () => window.removeEventListener("kriri:project-created", handleCreated);
   }, []);
 
-  // Fetch current user role in organization
+  // Fetch current user role and available members in organization
   useEffect(() => {
-    const fetchRole = async () => {
-      if (!organization) {
+    const fetchRoleAndMembers = async () => {
+      if (!organization?.id) {
         setCurrentUserRole("Owner");
+        if (user) {
+          setAvailableMembers([
+            {
+              id: user.id || "personal",
+              name: user.fullName || "User",
+              email: user.primaryEmailAddress?.emailAddress || "",
+              avatar_url: user.imageUrl,
+            },
+          ]);
+        }
         return;
       }
       try {
@@ -52,18 +63,21 @@ export function useProjectData(user, organization) {
             ? response
             : response.data?.members || [];
         }
-        const currentMember = members.find(
-          (m) => m.email === user?.primaryEmailAddress?.emailAddress,
-        );
-        if (currentMember) setCurrentUserRole(currentMember.role);
+        if (Array.isArray(members)) {
+          setAvailableMembers(members);
+          const currentMember = members.find(
+            (m) => m.email === user?.primaryEmailAddress?.emailAddress,
+          );
+          if (currentMember) setCurrentUserRole(currentMember.role);
+        }
       } catch (err) {
-        console.error("Failed to fetch role", err);
+        console.error("Failed to fetch role and members", err);
       }
     };
-    if (user) {
-      fetchRole();
+    if (user || organization?.id) {
+      fetchRoleAndMembers();
     }
-  }, [organization, user]);
+  }, [organization?.id, user]);
 
   // Fetch projects once user context is loaded or workspace changes
   useEffect(() => {
@@ -151,6 +165,7 @@ export function useProjectData(user, organization) {
     loading,
     currentUserRole,
     canManageProjects,
+    availableMembers,
     confirmModal,
     setConfirmModal,
     handleUpdateProject,

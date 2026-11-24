@@ -95,16 +95,21 @@ const areProjectListRowPropsEqual = (prevProps, nextProps) => {
     if (p.labels !== n.labels) return false;
     if (p.milestones !== n.milestones) return false;
     if (p.dependencies !== n.dependencies) return false;
+    if (p.dependencies_count !== n.dependencies_count) return false;
+    if (p.blocked_tasks_count !== n.blocked_tasks_count) return false;
   }
-  const prevPickerActive =
-    prevProps.activePicker?.projectId === prevProps.project.id
-      ? prevProps.activePicker.type
-      : null;
-  const nextPickerActive =
-    nextProps.activePicker?.projectId === nextProps.project.id
-      ? nextProps.activePicker.type
-      : null;
-  if (prevPickerActive !== nextPickerActive) return false;
+  if (prevProps.activePicker !== nextProps.activePicker) {
+    const prevPickerActive =
+      prevProps.activePicker?.projectId === prevProps.project.id
+        ? prevProps.activePicker.type
+        : null;
+    const nextPickerActive =
+      nextProps.activePicker?.projectId === nextProps.project.id
+        ? nextProps.activePicker.type
+        : null;
+    if (prevPickerActive !== nextPickerActive) return false;
+  }
+  if (prevProps.availableMembers !== nextProps.availableMembers) return false;
   if (prevProps.gridCols !== nextProps.gridCols) return false;
   if (prevProps.properties !== nextProps.properties) return false;
   if (prevProps.config !== nextProps.config) return false;
@@ -131,7 +136,9 @@ const ProjectListRow = memo(function ProjectListRow({
   onProjectClick,
   onDragStart,
   onDropOnRow,
+  availableMembers = [],
 }) {
+  const hasActivePicker = activePicker?.projectId === project.id;
   return (
     <div
       draggable={config.ordering === "manual"}
@@ -139,8 +146,15 @@ const ProjectListRow = memo(function ProjectListRow({
       onDragOver={(e) => e.preventDefault()}
       onDrop={(e) => onDropOnRow(e, project)}
       onClick={() => onProjectClick(project)}
-      className="grid gap-8 items-center px-6 py-2 hover:bg-black/[0.03] dark:hover:bg-white/[0.02] rounded-xl transition-colors cursor-pointer text-[13px] group mx-2 text-foreground select-none"
-      style={{ gridTemplateColumns: gridCols, contentVisibility: "auto", containIntrinsicSize: "0 44px" }}
+      className={`grid gap-8 items-center px-6 py-2 hover:bg-black/[0.03] dark:hover:bg-white/[0.02] rounded-xl transition-colors cursor-pointer text-[13px] group mx-2 text-foreground select-none ${
+        hasActivePicker ? "relative z-30" : ""
+      }`}
+      style={{
+        gridTemplateColumns: gridCols,
+        ...(hasActivePicker
+          ? { position: "relative", zIndex: 30 }
+          : { contentVisibility: "auto", containIntrinsicSize: "0 44px" }),
+      }}
     >
       <div className="flex items-center gap-2.5 min-w-0 pr-2">
         <div className="w-3.5 h-3.5 flex items-center justify-center flex-shrink-0">
@@ -172,9 +186,11 @@ const ProjectListRow = memo(function ProjectListRow({
               {project.name}
             </span>
             {properties.id && (
-              <span className="text-[12px] text-text-muted font-mono whitespace-nowrap flex-shrink-0">
-                {project.identifier || project.id}
-              </span>
+              <ActionTooltip label={`Project ID: ${project.identifier || project.id}`}>
+                <span className="text-[12px] text-text-muted font-mono whitespace-nowrap flex-shrink-0 px-1 py-0.5 rounded hover:bg-black/[0.04] dark:hover:bg-white/[0.04] transition-colors">
+                  {project.identifier || project.id}
+                </span>
+              </ActionTooltip>
             )}
           </div>
           {properties.summary && project.description && (
@@ -221,17 +237,28 @@ const ProjectListRow = memo(function ProjectListRow({
       )}
 
       {properties.priority && (
-        <div
-          className={`relative flex items-center p-1 -ml-1 rounded-full transition-colors ${canManageProjects ? "cursor-pointer hover:bg-black/[0.04] dark:hover:bg-white/[0.04]" : "cursor-default"}`}
-          onClick={(e) => {
-            e.stopPropagation();
-            setActivePicker({
-              type: "priority",
-              projectId: project.id,
-            });
-          }}
-        >
-          {getPriorityIcon(project.priority)}
+        <div className="relative">
+          <ActionTooltip
+            label={
+              project.priority
+                ? `Priority: ${project.priority}`
+                : "Set priority"
+            }
+            shortcut="P then P"
+          >
+            <div
+              className={`flex items-center p-1 -ml-1 rounded-full transition-colors ${canManageProjects ? "cursor-pointer hover:bg-black/[0.04] dark:hover:bg-white/[0.04]" : "cursor-default"}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                setActivePicker({
+                  type: "priority",
+                  projectId: project.id,
+                });
+              }}
+            >
+              {getPriorityIcon(project.priority)}
+            </div>
+          </ActionTooltip>
           {activePicker.type === "priority" &&
             activePicker.projectId === project.id && (
               <PriorityPicker
@@ -251,52 +278,73 @@ const ProjectListRow = memo(function ProjectListRow({
       )}
 
       {properties.lead && (
-        <div
-          className={`relative flex items-center p-1 -ml-1 rounded-full transition-colors ${canManageProjects ? "cursor-pointer hover:bg-black/[0.04] dark:hover:bg-white/[0.04]" : "cursor-default"}`}
-          onClick={(e) => {
-            e.stopPropagation();
-            setActivePicker({
-              type: "lead",
-              projectId: project.id,
-            });
-          }}
-        >
-          {project.lead ? (
+        <div className="relative">
+          <ActionTooltip
+            label={
+              project.lead
+                ? `Lead: ${project.lead.name || project.lead.email || "Assigned"}`
+                : "Assign project lead"
+            }
+          >
             <div
-              className={`flex items-center justify-center w-6 h-6 rounded-full text-[10px] font-bold text-white uppercase overflow-hidden ${getAvatarColor(project.lead.name, project.lead.email)}`}
+              className={`flex items-center p-1 -ml-1 rounded-full transition-colors ${canManageProjects ? "cursor-pointer hover:bg-black/[0.04] dark:hover:bg-white/[0.04]" : "cursor-default"}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (canManageProjects) {
+                  setActivePicker({
+                    type:
+                      activePicker.type === "lead" &&
+                      activePicker.projectId === project.id
+                        ? null
+                        : "lead",
+                    projectId:
+                      activePicker.type === "lead" &&
+                      activePicker.projectId === project.id
+                        ? null
+                        : project.id,
+                  });
+                }
+              }}
             >
-              {project.lead.avatar_url ? (
-                <img
-                  src={project.lead.avatar_url}
-                  alt={project.lead.name}
-                  className="w-full h-full object-cover"
-                />
+              {project.lead ? (
+                <div
+                  className={`flex items-center justify-center w-6 h-6 rounded-full text-[10px] font-bold text-white uppercase overflow-hidden ${getAvatarColor(project.lead.name, project.lead.email)}`}
+                >
+                  {project.lead.avatar_url ? (
+                    <img
+                      src={project.lead.avatar_url}
+                      alt={project.lead.name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    getInitial(
+                      project.lead.name,
+                      project.lead.email,
+                    )
+                  )}
+                </div>
               ) : (
-                getInitial(
-                  project.lead.name,
-                  project.lead.email,
-                )
+                <div className="flex items-center justify-center w-6 h-6 rounded-full border border-black/[0.15] dark:border-white/[0.1] border-dashed text-zinc-400 dark:text-white/[0.3]">
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                    <circle cx="12" cy="7" r="4" />
+                  </svg>
+                </div>
               )}
             </div>
-          ) : (
-            <div className="flex items-center justify-center w-6 h-6 rounded-full border border-black/[0.15] dark:border-white/[0.1] border-dashed text-zinc-400 dark:text-white/[0.3]">
-              <svg
-                width="12"
-                height="12"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                <circle cx="12" cy="7" r="4" />
-              </svg>
-            </div>
-          )}
+          </ActionTooltip>
           {activePicker.type === "lead" &&
             activePicker.projectId === project.id && (
               <LeadPicker
                 value={project.lead}
+                availableMembers={availableMembers}
                 onChange={(val) =>
                   onUpdateProject(project.id, { lead: val })
                 }
@@ -312,42 +360,65 @@ const ProjectListRow = memo(function ProjectListRow({
       )}
 
       {properties.due_date && (
-        <div
-          className={`relative text-[12px] text-text-muted flex items-center gap-1.5 px-2 py-1 -ml-2 rounded-full transition-colors ${canManageProjects ? "cursor-pointer hover:bg-black/[0.04] dark:hover:bg-white/[0.04]" : "cursor-default"}`}
-          onClick={(e) => {
-            e.stopPropagation();
-            setActivePicker({
-              type: "dueDate",
-              projectId: project.id,
-            });
-          }}
-        >
-          <svg
-            width="12"
-            height="12"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
+        <div className="relative">
+          <ActionTooltip
+            label={
+              project.due_date
+                ? `Target date: ${new Date(project.due_date).toLocaleDateString(
+                    "en-US",
+                    { month: "short", day: "numeric", year: "numeric" },
+                  )}`
+                : "Set target date"
+            }
           >
-            <rect
-              x="3"
-              y="4"
-              width="18"
-              height="18"
-              rx="2"
-              ry="2"
-            ></rect>
-            <line x1="16" y1="2" x2="16" y2="6"></line>
-            <line x1="8" y1="2" x2="8" y2="6"></line>
-            <line x1="3" y1="10" x2="21" y2="10"></line>
-          </svg>
-          {project.due_date
-            ? new Date(project.due_date).toLocaleDateString(
-                "en-US",
-                { month: "short", day: "numeric" },
-              )
-            : "---"}
+            <div
+              className={`text-[12px] text-text-muted flex items-center gap-1.5 px-2 py-1 -ml-2 rounded-full transition-colors ${canManageProjects ? "cursor-pointer hover:bg-black/[0.04] dark:hover:bg-white/[0.04]" : "cursor-default"}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (canManageProjects) {
+                  setActivePicker({
+                    type:
+                      activePicker.type === "dueDate" &&
+                      activePicker.projectId === project.id
+                        ? null
+                        : "dueDate",
+                    projectId:
+                      activePicker.type === "dueDate" &&
+                      activePicker.projectId === project.id
+                        ? null
+                        : project.id,
+                  });
+                }
+              }}
+            >
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <rect
+                  x="3"
+                  y="4"
+                  width="18"
+                  height="18"
+                  rx="2"
+                  ry="2"
+                ></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+              </svg>
+              {project.due_date
+                ? new Date(project.due_date).toLocaleDateString(
+                    "en-US",
+                    { month: "short", day: "numeric" },
+                  )
+                : "---"}
+            </div>
+          </ActionTooltip>
           {activePicker.type === "dueDate" &&
             activePicker.projectId === project.id && (
               <DatePicker
@@ -368,38 +439,70 @@ const ProjectListRow = memo(function ProjectListRow({
       )}
 
       {properties.issues && (
-        <div className="text-[12px] text-text-muted">
-          {project.issue_count ??
-            project.issues_count ??
-            project.issuesCount ??
-            0}
+        <div className="relative">
+          <ActionTooltip
+            label={`${
+              project.issue_count ??
+              project.issues_count ??
+              project.issuesCount ??
+              0
+            } active issue${
+              (project.issue_count ??
+                project.issues_count ??
+                project.issuesCount ??
+                0) === 1
+                ? ""
+                : "s"
+            }`}
+          >
+            <div className="text-[12px] text-text-muted inline-flex items-center px-2 py-1 -ml-2 rounded-full transition-colors hover:bg-black/[0.04] dark:hover:bg-white/[0.04] cursor-default w-fit">
+              {project.issue_count ??
+                project.issues_count ??
+                project.issuesCount ??
+                0}
+            </div>
+          </ActionTooltip>
         </div>
       )}
 
       {properties.progress && (
-        <div
-          className={`relative flex items-center gap-2 group/prog ${canManageProjects ? "cursor-pointer" : "cursor-default"}`}
-          onClick={(e) => {
-            e.stopPropagation();
-            setActivePicker({
-              type: "progress",
-              projectId: project.id,
-            });
-          }}
-        >
-          <div className="flex-1 w-12 bg-black/[0.06] dark:bg-white/[0.06] rounded-full h-1.5 overflow-hidden">
+        <div className="relative">
+          <ActionTooltip label={`Progress: ${project.progress || 0}%`}>
             <div
-              className={`h-full rounded-full transition-all duration-300 ${
-                (project.progress || 0) === 100
-                  ? "bg-[#5e6ad2]"
-                  : "bg-emerald-500"
-              }`}
-              style={{ width: `${project.progress || 0}%` }}
-            />
-          </div>
-          <span className="text-[11px] font-mono text-text-muted w-7 text-right">
-            {project.progress || 0}%
-          </span>
+              className={`flex items-center gap-2 group/prog px-2 py-1 -ml-2 rounded-full transition-colors ${canManageProjects ? "cursor-pointer hover:bg-black/[0.04] dark:hover:bg-white/[0.04]" : "cursor-default"}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (canManageProjects) {
+                  setActivePicker({
+                    type:
+                      activePicker.type === "progress" &&
+                      activePicker.projectId === project.id
+                        ? null
+                        : "progress",
+                    projectId:
+                      activePicker.type === "progress" &&
+                      activePicker.projectId === project.id
+                        ? null
+                        : project.id,
+                  });
+                }
+              }}
+            >
+              <div className="flex-1 w-12 bg-black/[0.06] dark:bg-white/[0.06] rounded-full h-1.5 overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all duration-300 ${
+                    (project.progress || 0) === 100
+                      ? "bg-[#5e6ad2]"
+                      : "bg-emerald-500"
+                  }`}
+                  style={{ width: `${project.progress || 0}%` }}
+                />
+              </div>
+              <span className="text-[11px] font-mono text-text-muted w-7 text-right">
+                {project.progress || 0}%
+              </span>
+            </div>
+          </ActionTooltip>
           {activePicker.type === "progress" &&
             activePicker.projectId === project.id && (
               <ProgressPicker
@@ -428,10 +531,20 @@ const ProjectListRow = memo(function ProjectListRow({
               className={`text-[12px] text-text-muted whitespace-nowrap px-2 py-1 -ml-2 rounded-full transition-colors flex items-center gap-1.5 ${canManageProjects ? "cursor-pointer hover:bg-black/[0.04] dark:hover:bg-white/[0.04]" : "cursor-default"}`}
               onClick={(e) => {
                 e.stopPropagation();
-                setActivePicker({
-                  type: "status",
-                  projectId: project.id,
-                });
+                if (canManageProjects) {
+                  setActivePicker({
+                    type:
+                      activePicker.type === "status" &&
+                      activePicker.projectId === project.id
+                        ? null
+                        : "status",
+                    projectId:
+                      activePicker.type === "status" &&
+                      activePicker.projectId === project.id
+                        ? null
+                        : project.id,
+                  });
+                }
               }}
             >
               {getStatusIcon(project.status || "Planned")}
@@ -457,29 +570,51 @@ const ProjectListRow = memo(function ProjectListRow({
       )}
 
       {properties.members && (
-        <div
-          className={`relative flex items-center px-2 py-1 -ml-2 rounded-full transition-colors ${canManageProjects ? "cursor-pointer hover:bg-black/[0.04] dark:hover:bg-white/[0.04]" : "cursor-default"}`}
-          onClick={(e) => {
-            e.stopPropagation();
-            setActivePicker({
-              type: "members",
-              projectId: project.id,
-            });
-          }}
-        >
-          {project.members && (
-            <MembersAvatarStack
-              members={project.members}
-              max={3}
-            />
-          )}
-          {!project.members?.length && (
-            <User size={12} className="text-text-muted" />
-          )}
+        <div className="relative">
+          <ActionTooltip
+            label={
+              project.members?.length
+                ? `${project.members.length} team member${project.members.length === 1 ? "" : "s"}`
+                : "Add project members"
+            }
+          >
+            <div
+              className={`flex items-center px-2 py-1 -ml-2 rounded-full transition-colors ${canManageProjects ? "cursor-pointer hover:bg-black/[0.04] dark:hover:bg-white/[0.04]" : "cursor-default"}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (canManageProjects) {
+                  setActivePicker({
+                    type:
+                      activePicker.type === "members" &&
+                      activePicker.projectId === project.id
+                        ? null
+                        : "members",
+                    projectId:
+                      activePicker.type === "members" &&
+                      activePicker.projectId === project.id
+                        ? null
+                        : project.id,
+                  });
+                }
+              }}
+            >
+              {project.members && (
+                <MembersAvatarStack
+                  members={project.members}
+                  max={3}
+                />
+              )}
+              {!project.members?.length && (
+                <User size={12} className="text-text-muted" />
+              )}
+            </div>
+          </ActionTooltip>
           {activePicker.type === "members" &&
             activePicker.projectId === project.id && (
               <MemberPicker
+                align="right"
                 currentMembers={project.members || []}
+                availableMembers={availableMembers}
                 onSelect={(val) =>
                   onUpdateProject(project.id, { members: val })
                 }
@@ -495,26 +630,50 @@ const ProjectListRow = memo(function ProjectListRow({
       )}
 
       {properties.start_date && (
-        <div
-          className={`relative text-[12px] text-text-muted flex items-center gap-1.5 px-2 py-1 -ml-2 rounded-full transition-colors ${canManageProjects ? "cursor-pointer hover:bg-black/[0.04] dark:hover:bg-white/[0.04]" : "cursor-default"}`}
-          onClick={(e) => {
-            e.stopPropagation();
-            setActivePicker({
-              type: "start_date",
-              projectId: project.id,
-            });
-          }}
-        >
-          <Calendar size={12} className="opacity-60" />
-          {project.start_date
-            ? new Date(project.start_date).toLocaleDateString(
-                "en-US",
-                { month: "short", day: "numeric" },
-              )
-            : "---"}
+        <div className="relative">
+          <ActionTooltip
+            label={
+              project.start_date
+                ? `Start date: ${new Date(project.start_date).toLocaleDateString(
+                    "en-US",
+                    { month: "short", day: "numeric", year: "numeric" },
+                  )}`
+                : "Set start date"
+            }
+          >
+            <div
+              className={`text-[12px] text-text-muted flex items-center gap-1.5 px-2 py-1 -ml-2 rounded-full transition-colors ${canManageProjects ? "cursor-pointer hover:bg-black/[0.04] dark:hover:bg-white/[0.04]" : "cursor-default"}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (canManageProjects) {
+                  setActivePicker({
+                    type:
+                      activePicker.type === "start_date" &&
+                      activePicker.projectId === project.id
+                        ? null
+                        : "start_date",
+                    projectId:
+                      activePicker.type === "start_date" &&
+                      activePicker.projectId === project.id
+                        ? null
+                        : project.id,
+                  });
+                }
+              }}
+            >
+              <Calendar size={12} className="opacity-60" />
+              {project.start_date
+                ? new Date(project.start_date).toLocaleDateString(
+                    "en-US",
+                    { month: "short", day: "numeric" },
+                  )
+                : "---"}
+            </div>
+          </ActionTooltip>
           {activePicker.type === "start_date" &&
             activePicker.projectId === project.id && (
               <DatePicker
+                align="right"
                 value={project.start_date}
                 onChange={(val) =>
                   onUpdateProject(project.id, {
@@ -534,35 +693,56 @@ const ProjectListRow = memo(function ProjectListRow({
       )}
 
       {properties.labels && (
-        <div
-          className={`relative flex items-center gap-1 overflow-hidden px-2 py-1 -ml-2 rounded-full transition-colors ${canManageProjects ? "cursor-pointer hover:bg-black/[0.04] dark:hover:bg-white/[0.04]" : "cursor-default"}`}
-          onClick={(e) => {
-            e.stopPropagation();
-            setActivePicker({
-              type: "labels",
-              projectId: project.id,
-            });
-          }}
-        >
-          {project.labels?.slice(0, 2).map((label, i) => (
+        <div className="relative">
+          <ActionTooltip
+            label={
+              project.labels?.length
+                ? `Labels: ${project.labels.join(", ")}`
+                : "Manage labels"
+            }
+          >
             <div
-              key={i}
-              className="px-1.5 py-0.5 bg-black/[0.04] dark:bg-white/[0.04] rounded-sm text-[10px] text-text-muted whitespace-nowrap"
+              className={`flex items-center gap-1 px-2 py-1 -ml-2 rounded-full transition-colors ${canManageProjects ? "cursor-pointer hover:bg-black/[0.04] dark:hover:bg-white/[0.04]" : "cursor-default"}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (canManageProjects) {
+                  setActivePicker({
+                    type:
+                      activePicker.type === "labels" &&
+                      activePicker.projectId === project.id
+                        ? null
+                        : "labels",
+                    projectId:
+                      activePicker.type === "labels" &&
+                      activePicker.projectId === project.id
+                        ? null
+                        : project.id,
+                  });
+                }
+              }}
             >
-              {label}
+              {project.labels?.slice(0, 2).map((label, i) => (
+                <div
+                  key={i}
+                  className="px-1.5 py-0.5 bg-black/[0.04] dark:bg-white/[0.04] rounded-sm text-[10px] text-text-muted whitespace-nowrap"
+                >
+                  {label}
+                </div>
+              ))}
+              {project.labels?.length > 2 && (
+                <span className="text-[10px] text-text-muted">
+                  +{project.labels.length - 2}
+                </span>
+              )}
+              {!project.labels?.length && (
+                <Tag size={12} className="text-text-muted" />
+              )}
             </div>
-          ))}
-          {project.labels?.length > 2 && (
-            <span className="text-[10px] text-text-muted">
-              +{project.labels.length - 2}
-            </span>
-          )}
-          {!project.labels?.length && (
-            <Tag size={12} className="text-text-muted" />
-          )}
+          </ActionTooltip>
           {activePicker.type === "labels" &&
             activePicker.projectId === project.id && (
               <LabelPicker
+                align="right"
                 selectedLabels={project.labels || []}
                 onChange={(val) =>
                   onUpdateProject(project.id, { labels: val })
@@ -579,14 +759,51 @@ const ProjectListRow = memo(function ProjectListRow({
       )}
 
       {properties.milestones && (
-        <div className="text-[11px] text-text-muted">
-          {project.milestones?.length || 0}
+        <div className="relative">
+          <ActionTooltip
+            label={`${project.milestones?.length || 0} milestone${(project.milestones?.length || 0) === 1 ? "" : "s"}`}
+          >
+            <div className="text-[11px] text-text-muted inline-flex items-center px-2 py-1 -ml-2 rounded-full transition-colors hover:bg-black/[0.04] dark:hover:bg-white/[0.04] cursor-default w-fit">
+              {project.milestones?.length || 0}
+            </div>
+          </ActionTooltip>
         </div>
       )}
 
       {properties.dependencies && (
-        <div className="text-[11px] text-text-muted">
-          {project.dependencies?.length || 0}
+        <div className="relative">
+          <ActionTooltip
+            label={`${Number(
+              project.dependencies_count ??
+                project.blocked_tasks_count ??
+                (Array.isArray(project.dependencies)
+                  ? project.dependencies.length
+                  : 0),
+            )} dependenc${
+              Number(
+                project.dependencies_count ??
+                  project.blocked_tasks_count ??
+                  (Array.isArray(project.dependencies)
+                    ? project.dependencies.length
+                    : 0),
+              ) === 1
+                ? "y"
+                : "ies"
+            }`}
+          >
+            <div
+              className="text-[11px] text-text-muted inline-flex items-center px-2 py-1 -ml-2 rounded-full transition-colors hover:bg-black/[0.04] dark:hover:bg-white/[0.04] cursor-default w-fit"
+              data-testid={`project-dependencies-count-${project.id}`}
+            >
+              {Number(
+                project.dependencies_count ??
+                  project.blocked_tasks_count ??
+                  (Array.isArray(project.dependencies)
+                    ? project.dependencies.length
+                    : 0),
+              )}
+            </div>
+          </ActionTooltip>
         </div>
       )}
     </div>
@@ -609,6 +826,7 @@ export default memo(function ListViewRenderer({
   activePicker,
   setActivePicker,
   canManageProjects,
+  availableMembers = [],
   listScrollRef,
   onScroll,
 }) {
@@ -673,7 +891,7 @@ export default memo(function ListViewRenderer({
     >
       <div className="min-w-max flex flex-col min-h-full">
         <div
-          className="grid gap-8 items-center px-6 py-2.5 text-[12px] font-medium text-text-muted sticky top-0 z-20 border-b border-border-subtle/40 bg-transparent select-none"
+          className="grid gap-8 items-center px-6 py-2.5 text-[12px] font-medium text-text-muted sticky top-0 z-20 bg-background select-none mx-2"
           style={{ gridTemplateColumns: gridCols }}
         >
           <div>Name</div>
@@ -691,7 +909,7 @@ export default memo(function ListViewRenderer({
           {properties.dependencies && <div>Dependencies</div>}
         </div>
 
-        <div className="flex flex-col flex-1 pb-10">
+        <div className="flex flex-col flex-1 pb-72">
           {Object.entries(grouped).map(([groupTitle, groupItems]) => {
             const sortedItems = sortProjects(
               groupItems,
@@ -735,6 +953,7 @@ export default memo(function ListViewRenderer({
                       onProjectClick={handleProjectClick}
                       onDragStart={handleDragStart}
                       onDropOnRow={handleDropOnRow}
+                      availableMembers={availableMembers}
                     />
                   ))}
               </div>

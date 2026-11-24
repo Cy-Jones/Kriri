@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, startTransition } from "react";
 import { createPortal } from "react-dom";
+import { useNavigate } from "react-router-dom";
 import { useUser, useOrganization } from "@clerk/react";
 import {
   X,
@@ -20,12 +21,14 @@ import {
   MoreHorizontal,
 } from "lucide-react";
 import { api } from "../lib/api";
+import { dataStore } from "../lib/dataStore";
 import posthog from "../lib/posthog";
 import { playUiSound } from "../lib/sound";
 import StatusPicker, { getStatusIcon } from "./StatusPicker";
 import PriorityPicker, { getPriorityIcon } from "./PriorityPicker";
 import LeadPicker from "./LeadPicker";
 import DatePicker from "./DatePicker";
+import DependencyPicker from "./DependencyPicker";
 import { formatKririDate } from "../lib/userPreferences";
 import { TaskDetailsSkeleton } from "./skeletons/PageSkeletons";
 import { useDeferredSkeleton } from "../hooks/useDeferredSkeleton";
@@ -43,18 +46,30 @@ export default function TaskDetailsModal({
   isOpen,
   onClose,
   taskId,
+  onNavigateTask,
   onTaskUpdated,
   onTaskDeleted,
 }) {
+  const navigate = useNavigate();
   const { user } = useUser();
   const { organization } = useOrganization();
 
   const [task, setTask] = useState(null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [isDescriptionLoading, setIsDescriptionLoading] = useState(false);
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState("");
   const [loading, setLoading] = useState(true);
+
+  const descriptionRef = useRef(null);
+
+  useEffect(() => {
+    if (descriptionRef.current) {
+      descriptionRef.current.style.height = "auto";
+      descriptionRef.current.style.height = `${Math.max(72, descriptionRef.current.scrollHeight)}px`;
+    }
+  }, [description, isDescriptionLoading]);
 
   // Active Picker Popover State
   const [activePicker, setActivePicker] = useState(null);
@@ -171,31 +186,8 @@ export default function TaskDetailsModal({
 
   const showSkeleton = useDeferredSkeleton(loading && !task, 180);
 
-  const fetchTaskDetails = async () => {
-    try {
-      if (!task) setLoading(true);
-      const taskData = await api.get(`/tasks/${taskId}`);
-      setTask(taskData);
-      setTitle(taskData.title || "");
-      setDescription(taskData.description || "");
-      setSubtasks(taskData.subtasks || []);
-      setDependencies(taskData.dependencies || { blocked_by: [], blocking: [] });
-
-      const commentsData = await api.get(`/comments/task/${taskId}`);
-      setComments(Array.isArray(commentsData) ? commentsData : []);
-
-      posthog.capture("task_viewed", {
-        task_id: taskId,
-        project_id: taskData.project_id,
-      });
-    } catch (error) {
-      console.error("fetchTaskDetails error:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
+    let isCancelled = false;
     if (isOpen && taskId) {
       const directCache = api.getCached(`/tasks/${taskId}`);
       const listCache = api.getCached("/tasks");
@@ -203,18 +195,65 @@ export default function TaskDetailsModal({
       if (found) {
         setTask(found);
         setTitle(found.title || "");
-        setDescription(found.description || "");
+        if (found.description !== undefined && found.description !== null) {
+          setDescription(found.description);
+          setIsDescriptionLoading(false);
+        } else {
+          setIsDescriptionLoading(true);
+        }
         if (found.subtasks) setSubtasks(found.subtasks);
         if (found.dependencies) setDependencies(found.dependencies);
+      } else {
+        setTask(null);
+        setLoading(true);
+        setIsDescriptionLoading(true);
       }
+
+      const fetchTaskDetails = async () => {
+        try {
+          const [taskData, commentsData] = await Promise.all([
+            api.get(`/tasks/${taskId}`, { noCache: true }),
+            api.get(`/comments/task/${taskId}`).catch(() => []),
+          ]);
+          if (isCancelled) return;
+          setTask(taskData);
+          setTitle(taskData.title || "");
+          setDescription(taskData.description || "");
+          setIsDescriptionLoading(false);
+          setSubtasks(taskData.subtasks || []);
+          setDependencies(taskData.dependencies || { blocked_by: [], blocking: [] });
+          setComments(Array.isArray(commentsData) ? commentsData : []);
+          api.setCached(`/tasks/${taskId}`, taskData);
+
+          posthog.capture("task_viewed", {
+            task_id: taskId,
+            project_id: taskData.project_id,
+          });
+        } catch (error) {
+          if (!isCancelled) {
+            console.error("fetchTaskDetails error:", error);
+          }
+        } finally {
+          if (!isCancelled) {
+            setLoading(false);
+            setIsDescriptionLoading(false);
+          }
+        }
+      };
+
       fetchTaskDetails();
     } else if (!isOpen) {
       setTask(null);
       setTitle("");
       setDescription("");
+      setIsDescriptionLoading(false);
       setComments([]);
       setLoading(true);
     }
+
+    return () => {
+      isCancelled = true;
+    };
   }, [isOpen, taskId]);
 
   // Save Title
@@ -287,18 +326,23 @@ export default function TaskDetailsModal({
   const handleSelectAssignee = async (selectedMember) => {
     setActivePicker(null);
     const newAssigneeId = selectedMember?.id || null;
+    const patch = {
+      assignee_id: newAssigneeId,
+      assignee_name: selectedMember?.name || null,
+      assignee_username: selectedMember?.username || null,
+      assignee_email: selectedMember?.email || null,
+      assignee_clerk_user_id: selectedMember?.clerk_user_id || null,
+      assignee_avatar_url: selectedMember?.avatar_url || null,
+    };
     try {
-      const updated = await api.put(`/tasks/${taskId}`, {
-        ...task,
-        assignee_id: newAssigneeId,
-      });
-      setTask({
-        ...updated,
-        assignee_name: selectedMember?.name || null,
-        assignee_avatar_url: selectedMember?.avatar_url || null,
-      });
+      const updated = await api.put(`/tasks/${taskId}`, patch);
+      setTask((prev) => ({
+        ...prev,
+        ...patch,
+        ...(updated || {}),
+      }));
       playUiSound("toggle");
-      if (onTaskUpdated) onTaskUpdated(updated);
+      if (onTaskUpdated) onTaskUpdated(updated || { ...task, ...patch });
     } catch (err) {
       console.error("Failed to update assignee:", err);
     }
@@ -405,57 +449,96 @@ export default function TaskDetailsModal({
     }
   };
 
-  // Dependencies
-  const fetchWorkspaceTasks = async () => {
-    try {
-      const res = await api.get("/tasks?limit=200");
-      setAllWorkspaceTasks(Array.isArray(res) ? res : []);
-    } catch (err) {
-      console.error("fetchWorkspaceTasks error:", err);
+  // Dependencies management (optimistic via dataStore)
+  const handleAddBlocker = async (blockerTaskId) => {
+    if (!blockerTaskId) return;
+    const newDep = await dataStore.addDependency(taskId, blockerTaskId, "blocks");
+
+    setDependencies((prev) => {
+      const blockedBy = Array.isArray(prev.blocked_by) ? prev.blocked_by : [];
+      const alreadyHas = blockedBy.some(
+        (d) => String(d.id || d.dependency_id) === String(newDep?.id || blockerTaskId)
+      );
+      return alreadyHas
+        ? prev
+        : {
+            ...prev,
+            blocked_by: [
+              ...blockedBy,
+              newDep || {
+                id: blockerTaskId,
+                title: "Blocked Task",
+                status: "Todo",
+              },
+            ],
+          };
+    });
+
+    if (onTaskUpdated && task) {
+      onTaskUpdated({
+        ...task,
+        blocked_by_count: (task.blocked_by_count || 0) + 1,
+      });
     }
   };
 
-  const handleAddBlocker = async () => {
-    if (!selectedBlockerId) return;
-    setDepError("");
+  const handleRemoveDependency = async (depId, listType = "blocked_by") => {
     try {
-      const newDep = await api.post(`/tasks/${taskId}/dependencies`, {
-        depends_on_task_id: parseInt(selectedBlockerId, 10),
-      });
-      setDependencies({
-        ...dependencies,
-        blocked_by: [...dependencies.blocked_by, newDep],
-      });
-      setSelectedBlockerId("");
-      setIsAddingBlocker(false);
-      playUiSound("chime");
-    } catch (err) {
-      setDepError(err.message || "Failed to add blocker");
-    }
-  };
-
-  const handleRemoveDependency = async (depId) => {
-    try {
-      await api.delete(`/tasks/${taskId}/dependencies/${depId}`);
-      setDependencies({
-        ...dependencies,
-        blocked_by: dependencies.blocked_by.filter(
-          (d) => (d.dependency_id || d.id) !== depId,
-        ),
-      });
       playUiSound("toggle");
+      await dataStore.removeDependency(taskId, depId);
+
+      setDependencies((prev) => ({
+        blocked_by: (prev.blocked_by || []).filter(
+          (d) =>
+            String(d.dependency_id || d.id) !== String(depId) &&
+            String(d.depends_on_task_id) !== String(depId)
+        ),
+        blocking: (prev.blocking || []).filter(
+          (d) =>
+            String(d.dependency_id || d.id) !== String(depId) &&
+            String(d.task_id) !== String(depId)
+        ),
+      }));
+
+      if (onTaskUpdated && task && listType === "blocked_by") {
+        onTaskUpdated({
+          ...task,
+          blocked_by_count: Math.max(0, (task.blocked_by_count || 1) - 1),
+        });
+      }
     } catch (err) {
       console.error("Failed to remove dependency:", err);
     }
   };
 
-  const availableBlockers = useMemo(() => {
-    const existingBlockerIds = new Set(
-      dependencies.blocked_by.map((d) => d.id || d.depends_on_task_id),
-    );
-    existingBlockerIds.add(parseInt(taskId, 10));
-    return allWorkspaceTasks.filter((t) => !existingBlockerIds.has(t.id));
-  }, [allWorkspaceTasks, dependencies.blocked_by, taskId]);
+  const handleNavigateToTask = (targetTaskId) => {
+    if (!targetTaskId || String(targetTaskId) === String(taskId)) return;
+    playUiSound("toggle");
+    startTransition(() => {
+      if (onNavigateTask) {
+        onNavigateTask(targetTaskId);
+      } else {
+        navigate(`/tasks?task=${targetTaskId}&modal=true`, { replace: true });
+      }
+    });
+  };
+
+  const existingBlockerIds = useMemo(() => {
+    const ids = new Set();
+    ids.add(Number(taskId));
+    ids.add(String(taskId));
+    (dependencies.blocked_by || []).forEach((d) => {
+      if (d.id) {
+        ids.add(d.id);
+        ids.add(String(d.id));
+      }
+      if (d.depends_on_task_id) {
+        ids.add(d.depends_on_task_id);
+        ids.add(String(d.depends_on_task_id));
+      }
+    });
+    return ids;
+  }, [dependencies.blocked_by, taskId]);
 
   if (!isOpen) return null;
 
@@ -545,14 +628,29 @@ export default function TaskDetailsModal({
 
               {/* Seamless Description Textarea */}
               <div className="mb-4">
-                <textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  onBlur={handleSaveDescription}
-                  placeholder="Add description..."
-                  rows={3}
-                  className="w-full bg-transparent border-none text-[14px] text-zinc-700 dark:text-[#d1d2d5] focus:outline-none placeholder:text-zinc-500 dark:placeholder:text-[#6e737d] leading-relaxed resize-none"
-                />
+                {isDescriptionLoading ? (
+                  <div className="space-y-2 py-2 animate-pulse" data-testid="modal-description-skeleton">
+                    <div className="h-3.5 bg-zinc-200/80 dark:bg-zinc-800/80 rounded w-3/4" />
+                    <div className="h-3.5 bg-zinc-200/60 dark:bg-zinc-800/60 rounded w-5/6" />
+                    <div className="h-3.5 bg-zinc-200/40 dark:bg-zinc-800/40 rounded w-1/2" />
+                  </div>
+                ) : (
+                  <textarea
+                    ref={descriptionRef}
+                    value={description}
+                    onChange={(e) => {
+                      setDescription(e.target.value);
+                      if (descriptionRef.current) {
+                        descriptionRef.current.style.height = "auto";
+                        descriptionRef.current.style.height = `${Math.max(72, descriptionRef.current.scrollHeight)}px`;
+                      }
+                    }}
+                    onBlur={handleSaveDescription}
+                    placeholder="Add description..."
+                    rows={3}
+                    className="w-full bg-transparent border-none text-[14px] text-zinc-700 dark:text-[#d1d2d5] focus:outline-none placeholder:text-zinc-500 dark:placeholder:text-[#6e737d] leading-relaxed resize-none overflow-hidden"
+                  />
+                )}
               </div>
 
               {/* Subtasks Section (Matching Linear Image 2) */}
@@ -687,30 +785,146 @@ export default function TaskDetailsModal({
               </div>
 
               {/* Dependencies Section */}
-              {dependencies.blocked_by.length > 0 && (
-                <div className="mb-6 rounded-xl border border-black/[0.08] dark:border-white/[0.08] bg-black/[0.02] dark:bg-white/[0.02] p-3.5">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <Link2 size={14} className="text-accent" />
-                      <h4 className="text-xs font-semibold text-foreground">Dependencies</h4>
-                    </div>
+              <div className="mb-6 rounded-xl border border-black/[0.08] dark:border-white/[0.08] bg-black/[0.02] dark:bg-white/[0.02] p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Link2 size={14} className="text-accent" />
+                    <h4 className="text-xs font-semibold text-zinc-900 dark:text-white uppercase tracking-wider">
+                      Dependencies
+                    </h4>
                   </div>
-                  <div className="space-y-1">
-                    {dependencies.blocked_by.map((dep) => (
-                      <div
-                        key={dep.dependency_id || dep.id}
-                        className="flex items-center justify-between p-2 rounded-lg bg-surface border border-border-subtle text-[12px]"
-                      >
-                        <span className="truncate text-foreground font-mono text-[11px]">
-                          {dep.project_identifier ? `${dep.project_identifier}-${dep.id}` : `#${dep.id}`}
-                          <span className="font-sans ml-2 text-text-muted">{dep.title}</span>
-                        </span>
-                        <span className="text-[10px] text-text-muted">{dep.status}</span>
-                      </div>
-                    ))}
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setIsAddingBlocker((prev) => !prev)}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11.5px] font-medium bg-black/[0.04] dark:bg-white/[0.06] hover:bg-black/[0.08] dark:hover:bg-white/[0.1] text-zinc-700 dark:text-[#d1d2d5] hover:text-zinc-900 dark:hover:text-white transition-colors cursor-pointer"
+                      data-testid="add-dependency-button"
+                    >
+                      <Plus size={12} />
+                      <span>Add blocker</span>
+                    </button>
+
+                    <DependencyPicker
+                      isOpen={isAddingBlocker}
+                      onClose={() => setIsAddingBlocker(false)}
+                      currentTaskId={taskId}
+                      existingDependencyIds={existingBlockerIds}
+                      onAddDependency={handleAddBlocker}
+                      align="right"
+                      title="Add blocker (must complete before this)"
+                    />
                   </div>
                 </div>
-              )}
+
+                {/* 1. Blocked By List */}
+                <div className="mb-3">
+                  <div className="text-[11px] font-medium text-zinc-400 dark:text-[#8a8f98] mb-1.5 flex items-center justify-between">
+                    <span>Blocked by ({dependencies.blocked_by.length})</span>
+                    {dependencies.blocked_by.length === 0 && (
+                      <span className="text-[10px] text-zinc-400 dark:text-[#6e737d] italic">No blockers</span>
+                    )}
+                  </div>
+                  {dependencies.blocked_by.length > 0 && (
+                    <div className="space-y-1">
+                      {dependencies.blocked_by.map((dep) => {
+                        const depId = dep.id || dep.depends_on_task_id;
+                        const fullIdent = dep.project_identifier
+                          ? `${dep.project_identifier}-${depId}`
+                          : `#${depId}`;
+                        return (
+                          <div
+                            key={`blocked_by-${dep.dependency_id || depId}`}
+                            onClick={() => handleNavigateToTask(depId)}
+                            className="group flex items-center justify-between p-2 rounded-lg bg-surface border border-border-subtle text-[12px] hover:bg-black/[0.03] dark:hover:bg-white/[0.05] transition-colors cursor-pointer"
+                            data-testid={`dependency-item-${depId}`}
+                          >
+                            <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
+                              <span className="shrink-0">{getStatusIcon(dep.status)}</span>
+                              <span className="font-mono text-[11px] text-zinc-400 dark:text-[#8a8f98] shrink-0">
+                                {fullIdent}
+                              </span>
+                              <span className="truncate font-medium text-zinc-900 dark:text-[#e8e8e8] group-hover:text-accent transition-colors">
+                                {dep.title}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-black/[0.04] dark:bg-white/[0.06] text-zinc-500 dark:text-[#8a8f98]">
+                                {dep.status || "Todo"}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRemoveDependency(dep.dependency_id || depId, "blocked_by");
+                                }}
+                                className="p-1 rounded text-zinc-400 hover:text-rose-500 hover:bg-rose-500/10 transition-colors cursor-pointer"
+                                title="Remove dependency"
+                                data-testid={`remove-dependency-${depId}`}
+                              >
+                                <X size={12} />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* 2. Blocking List */}
+                <div>
+                  <div className="text-[11px] font-medium text-zinc-400 dark:text-[#8a8f98] mb-1.5 flex items-center justify-between">
+                    <span>Blocking ({dependencies.blocking?.length || 0})</span>
+                    {(!dependencies.blocking || dependencies.blocking.length === 0) && (
+                      <span className="text-[10px] text-zinc-400 dark:text-[#6e737d] italic">Not blocking any tasks</span>
+                    )}
+                  </div>
+                  {dependencies.blocking && dependencies.blocking.length > 0 && (
+                    <div className="space-y-1">
+                      {dependencies.blocking.map((dep) => {
+                        const depId = dep.id || dep.task_id;
+                        const fullIdent = dep.project_identifier
+                          ? `${dep.project_identifier}-${depId}`
+                          : `#${depId}`;
+                        return (
+                          <div
+                            key={`blocking-${dep.dependency_id || depId}`}
+                            onClick={() => handleNavigateToTask(depId)}
+                            className="group flex items-center justify-between p-2 rounded-lg bg-surface border border-border-subtle text-[12px] hover:bg-black/[0.03] dark:hover:bg-white/[0.05] transition-colors cursor-pointer"
+                            data-testid={`dependency-blocking-item-${depId}`}
+                          >
+                            <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
+                              <span className="shrink-0">{getStatusIcon(dep.status)}</span>
+                              <span className="font-mono text-[11px] text-zinc-400 dark:text-[#8a8f98] shrink-0">
+                                {fullIdent}
+                              </span>
+                              <span className="truncate font-medium text-zinc-900 dark:text-[#e8e8e8] group-hover:text-accent transition-colors">
+                                {dep.title}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-black/[0.04] dark:bg-white/[0.06] text-zinc-500 dark:text-[#8a8f98]">
+                                {dep.status || "Todo"}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRemoveDependency(dep.dependency_id || depId, "blocking");
+                                }}
+                                className="p-1 rounded text-zinc-400 hover:text-rose-500 hover:bg-rose-500/10 transition-colors cursor-pointer"
+                                title="Remove dependency"
+                              >
+                                <X size={12} />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
 
               {/* Activity Section (Matches Linear Image 2) */}
               <div className="border-t border-black/[0.06] dark:border-white/[0.06] pt-6 mb-8">
@@ -865,7 +1079,17 @@ export default function TaskDetailsModal({
                     {activePicker === "assignee" && (
                       <div className="absolute top-[calc(100%+4px)] left-0 z-50">
                         <LeadPicker
-                          value={task?.assignee_id ? { id: task.assignee_id, name: task.assignee_name } : null}
+                          value={
+                            task?.assignee_id
+                              ? {
+                                  id: task.assignee_id,
+                                  name: task.assignee_name,
+                                  username: task.assignee_username,
+                                  email: task.assignee_email,
+                                  avatar_url: task.assignee_avatar_url,
+                                }
+                              : null
+                          }
                           availableMembers={availableMembers}
                           onChange={handleSelectAssignee}
                           onClose={() => setActivePicker(null)}

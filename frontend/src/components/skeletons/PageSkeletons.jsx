@@ -612,18 +612,6 @@ export function TeamSkeleton() {
         <div className="w-28 h-7 rounded-full bg-black/[0.06] dark:bg-white/[0.08]" />
       </div>
 
-      {/* AI Workload Banner Placeholder */}
-      <div className="w-full p-4 rounded-xl border border-black/[0.06] dark:border-white/[0.06] bg-black/[0.02] dark:bg-white/[0.02] mb-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-black/[0.07] dark:bg-white/[0.09]" />
-          <div className="flex flex-col gap-1.5">
-            <div className="w-36 h-3.5 rounded bg-black/[0.08] dark:bg-white/[0.1]" />
-            <div className="w-64 h-2.5 rounded bg-black/[0.04] dark:bg-white/[0.06]" />
-          </div>
-        </div>
-        <div className="w-20 h-6 rounded-md bg-black/[0.05] dark:bg-white/[0.07]" />
-      </div>
-
       {/* Filter / Subheader Row */}
       <div className="flex items-center justify-between gap-2 mb-4 min-h-[30px]">
         <div className="flex items-center gap-2">
@@ -634,7 +622,7 @@ export function TeamSkeleton() {
       </div>
 
       {/* Members Table */}
-      <div className="flex flex-col border border-border rounded-2xl bg-surface overflow-hidden shadow-xs divide-y divide-black/[0.04] dark:divide-white/[0.04]">
+      <div className="flex flex-col border border-border rounded-2xl bg-surface overflow-hidden shadow-xs divide-y divide-black/[0.04] dark:divide-white/[0.04] mb-6">
         {/* Table header */}
         <div className="px-5 py-3 flex items-center justify-between bg-black/[0.015] dark:bg-white/[0.015]">
           <div className="w-20 h-3 rounded bg-black/[0.06] dark:bg-white/[0.08]" />
@@ -665,6 +653,18 @@ export function TeamSkeleton() {
             </div>
           </div>
         ))}
+      </div>
+
+      {/* AI Workload Banner Placeholder */}
+      <div className="w-full p-4 rounded-xl border border-black/[0.06] dark:border-white/[0.06] bg-black/[0.02] dark:bg-white/[0.02] mb-6 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-black/[0.07] dark:bg-white/[0.09]" />
+          <div className="flex flex-col gap-1.5">
+            <div className="w-36 h-3.5 rounded bg-black/[0.08] dark:bg-white/[0.1]" />
+            <div className="w-64 h-2.5 rounded bg-black/[0.04] dark:bg-white/[0.06]" />
+          </div>
+        </div>
+        <div className="w-20 h-6 rounded-md bg-black/[0.05] dark:bg-white/[0.07]" />
       </div>
     </div>
   );

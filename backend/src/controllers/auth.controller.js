@@ -27,43 +27,63 @@ exports.sync = async (req, res) => {
     const avatarUrl = clerkUser.imageUrl || null;
     const username = clerkUser.username || null;
 
-    // Check if user already exists by clerk_user_id
-    const checkRes = await db.query(
-      "SELECT * FROM users WHERE clerk_user_id = $1",
-      [clerkUserId],
-    );
-    if (checkRes.rows.length > 0) {
-      // Upsert name, avatar, and username
-      const { rows } = await db.query(
-        "UPDATE users SET name = COALESCE($1, name), avatar_url = COALESCE($2, avatar_url), username = COALESCE($3, username) WHERE clerk_user_id = $4 RETURNING id, name, email, username, role, avatar_url",
-        [name, avatarUrl, username, clerkUserId],
+    let user;
+    const client = await db.pool.connect();
+    try {
+      await client.query("BEGIN");
+      await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [clerkUserId]);
+
+      // Check if user already exists by clerk_user_id
+      const checkRes = await client.query(
+        "SELECT id, name, email, username, role, avatar_url FROM users WHERE clerk_user_id = $1",
+        [clerkUserId],
       );
-      return res.json({ message: "User synced successfully", user: rows[0] });
+      if (checkRes.rows.length > 0) {
+        // Upsert name, avatar, and username
+        const { rows } = await client.query(
+          "UPDATE users SET name = COALESCE($1, name), avatar_url = COALESCE($2, avatar_url), username = COALESCE($3, username) WHERE clerk_user_id = $4 RETURNING id, name, email, username, role, avatar_url",
+          [name, avatarUrl, username, clerkUserId],
+        );
+        user = rows[0];
+      } else if (email) {
+        // Check if user exists by email (for seeded users or previous local accounts)
+        const emailRes = await client.query(
+          "SELECT id FROM users WHERE email = $1",
+          [email],
+        );
+        if (emailRes.rows.length > 0) {
+          // Link the account by updating clerk_user_id and username
+          const { rows } = await client.query(
+            "UPDATE users SET clerk_user_id = $1, name = COALESCE($2, name), avatar_url = COALESCE($3, avatar_url), username = COALESCE($4, username) WHERE email = $5 RETURNING id, name, email, username, role, avatar_url",
+            [clerkUserId, name, avatarUrl, username, email],
+          );
+          user = rows[0];
+        }
+      }
+
+      if (!user) {
+        const { rows } = await client.query(
+          `INSERT INTO users (clerk_user_id, name, email, avatar_url, username)
+           VALUES ($1, $2, $3, $4, $5)
+           ON CONFLICT (clerk_user_id) DO UPDATE SET
+             name = COALESCE(EXCLUDED.name, users.name),
+             avatar_url = COALESCE(EXCLUDED.avatar_url, users.avatar_url),
+             username = COALESCE(EXCLUDED.username, users.username)
+           RETURNING id, name, email, username, role, avatar_url`,
+          [clerkUserId, name, email, avatarUrl, username],
+        );
+        user = rows[0];
+      }
+
+      await client.query("COMMIT");
+    } catch (txErr) {
+      await client.query("ROLLBACK");
+      throw txErr;
+    } finally {
+      client.release();
     }
 
-    // Check if user exists by email (for seeded users or previous local accounts)
-    const emailRes = await db.query("SELECT * FROM users WHERE email = $1", [
-      email,
-    ]);
-    if (emailRes.rows.length > 0) {
-      // Link the account by updating clerk_user_id and username
-      const { rows } = await db.query(
-        "UPDATE users SET clerk_user_id = $1, name = COALESCE($2, name), avatar_url = COALESCE($3, avatar_url), username = COALESCE($4, username) WHERE email = $5 RETURNING id, name, email, username, role, avatar_url",
-        [clerkUserId, name, avatarUrl, username, email],
-      );
-      return res
-        .status(200)
-        .json({ message: "User linked successfully", user: rows[0] });
-    }
-
-    const { rows } = await db.query(
-      "INSERT INTO users (clerk_user_id, name, email, avatar_url, username) VALUES ($1, $2, $3, $4, $5) RETURNING id, name, email, username, role, avatar_url",
-      [clerkUserId, name, email, avatarUrl, username],
-    );
-
-    res
-      .status(201)
-      .json({ message: "User synced successfully", user: rows[0] });
+    res.json({ message: "User synced successfully", user });
   } catch (error) {
     console.error("Error syncing user:", error);
     res.status(500).json({ error: "Server error while syncing user" });

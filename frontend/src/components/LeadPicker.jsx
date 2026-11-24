@@ -75,7 +75,7 @@ export default function LeadPicker({
 
   const alignClass = align === "right" ? "right-0" : "left-0";
 
-  const isNoneSelected = !activeLead || (!activeLead.id && !activeLead.name);
+  const isNoneSelected = !activeLead || (!activeLead.id && !activeLead.name && !activeLead.email);
 
   const content = (
     <div
@@ -83,7 +83,7 @@ export default function LeadPicker({
       className={`${
         isMobile
           ? "bg-white dark:bg-[var(--surface-elevated,#1e1f21)] border border-black/10 dark:border-[var(--border,rgba(255,255,255,0.08))] rounded-2xl shadow-2xl w-[280px] max-w-[calc(100vw-32px)] text-zinc-900 dark:text-white text-[12.5px] flex flex-col p-1.5"
-          : `absolute top-full ${alignClass} mt-2 bg-white dark:bg-[var(--surface-elevated,#1e1f21)] border border-black/10 dark:border-[var(--border,rgba(255,255,255,0.08))] rounded-xl shadow-2xl w-[230px] max-h-[320px] z-50 text-zinc-900 dark:text-white text-[13px] flex flex-col p-1 custom-scrollbar`
+          : `absolute top-full ${alignClass} mt-2 bg-white dark:bg-[var(--surface-elevated,#1e1f21)] border border-black/10 dark:border-[var(--border,rgba(255,255,255,0.08))] rounded-xl shadow-2xl w-[260px] max-h-[340px] z-50 text-zinc-900 dark:text-white text-[13px] flex flex-col p-1 custom-scrollbar`
       }`}
     >
       <div className="flex items-center justify-between px-3 py-1.5 border-b border-black/[0.06] dark:border-[var(--border,rgba(255,255,255,0.08))] mb-1">
@@ -173,10 +173,16 @@ export default function LeadPicker({
           const displayName =
             member.name || member.email?.split("@")[0] || "User";
           const initial = getInitial(member.name, member.email);
-          const isSelected =
+          const isSelected = Boolean(
             activeLead &&
-            (String(activeLead.id) === String(member.id) ||
-              activeLead.name === displayName);
+              (
+                (activeLead.id != null && member.id != null && String(activeLead.id) === String(member.id)) ||
+                (!activeLead.id && activeLead.clerk_user_id && member.clerk_user_id && activeLead.clerk_user_id === member.clerk_user_id) ||
+                (!activeLead.id && !activeLead.clerk_user_id && activeLead.email && member.email && activeLead.email.toLowerCase() === member.email.toLowerCase()) ||
+                (!activeLead.id && !activeLead.clerk_user_id && !activeLead.email && activeLead.username && member.username && activeLead.username.toLowerCase() === member.username.toLowerCase()) ||
+                (!activeLead.id && !activeLead.clerk_user_id && !activeLead.email && !activeLead.username && activeLead.name && activeLead.name === displayName)
+              )
+          );
           const shortcutNum = idx + 1;
 
           return (
@@ -187,7 +193,7 @@ export default function LeadPicker({
                 isSelected ? "bg-black/[0.04] dark:bg-white/[0.04]" : ""
               }`}
             >
-              <div className="flex items-center gap-2.5 min-w-0">
+              <div className="flex items-center gap-2.5 min-w-0 pr-1">
                 {member.avatar_url ? (
                   <img
                     src={member.avatar_url}
@@ -199,9 +205,16 @@ export default function LeadPicker({
                     {initial}
                   </div>
                 )}
-                <span className="text-[13px] text-zinc-800 dark:text-[#d1d2d5] truncate">
-                  {displayName}
-                </span>
+                <div className="flex flex-col min-w-0 leading-tight">
+                  <span className="text-[13px] text-zinc-800 dark:text-[#d1d2d5] truncate font-medium">
+                    {displayName}
+                  </span>
+                  {(member.username || member.email) && (
+                    <span className="text-[10.5px] text-zinc-400 dark:text-[#8a8f98] truncate">
+                      {member.username ? `@${member.username.replace(/^@/, "")}` : member.email}
+                    </span>
+                  )}
+                </div>
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 {isSelected && (

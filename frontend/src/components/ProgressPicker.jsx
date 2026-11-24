@@ -1,6 +1,6 @@
 import { useRef, useEffect } from "react";
 
-export default function ProgressPicker({ value, onChange, onClose }) {
+export default function ProgressPicker({ value, onChange, onClose, align = "left" }) {
   const popoverRef = useRef(null);
 
   useEffect(() => {
@@ -14,11 +14,12 @@ export default function ProgressPicker({ value, onChange, onClose }) {
   }, [onClose]);
 
   const options = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
+  const alignClass = align === "right" ? "right-0" : "left-0";
 
   return (
     <div
       ref={popoverRef}
-      className="absolute top-full left-0 mt-2 bg-white dark:bg-[var(--surface-elevated,#1e1f21)] border border-black/10 dark:border-[var(--border,rgba(255,255,255,0.08))] rounded-xl shadow-2xl w-[200px] z-50 text-zinc-900 dark:text-white py-2 max-h-[300px] overflow-y-auto"
+      className={`absolute top-full ${alignClass} mt-2 bg-white dark:bg-[var(--surface-elevated,#1e1f21)] border border-black/10 dark:border-[var(--border,rgba(255,255,255,0.08))] rounded-xl shadow-2xl w-[200px] z-50 text-zinc-900 dark:text-white py-2 max-h-[300px] overflow-y-auto`}
     >
       <div className="px-3 pb-2 mb-2 border-b border-black/10 dark:border-[var(--border,rgba(255,255,255,0.08))] text-[12px] text-zinc-500 dark:text-[#8a8f98]">
         Set progress

@@ -77,6 +77,7 @@ export default function LabelPicker({
   selectedLabels = [],
   onChange,
   onClose,
+  align = "left",
 }) {
   const [search, setSearch] = useState("");
   const popoverRef = useRef(null);
@@ -175,13 +176,15 @@ export default function LabelPicker({
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  const alignClass = align === "right" ? "right-0" : "left-0";
+
   const content = (
     <div
       ref={popoverRef}
       className={`${
         isMobile
           ? "bg-white dark:bg-[var(--surface-elevated,#1e1f21)] border border-black/10 dark:border-[var(--border,rgba(255,255,255,0.08))] rounded-2xl shadow-2xl w-[320px] max-w-[calc(100vw-32px)] z-[100] text-zinc-900 dark:text-white overflow-hidden text-[12.5px] flex flex-col"
-          : "absolute top-full left-0 mt-2 bg-white dark:bg-[var(--surface-elevated,#1e1f21)] border border-black/10 dark:border-[var(--border,rgba(255,255,255,0.08))] rounded-xl shadow-2xl w-[320px] max-w-[90vw] z-50 text-zinc-900 dark:text-white overflow-hidden text-[13px] flex flex-col"
+          : `absolute top-full ${alignClass} mt-2 bg-white dark:bg-[var(--surface-elevated,#1e1f21)] border border-black/10 dark:border-[var(--border,rgba(255,255,255,0.08))] rounded-xl shadow-2xl w-[300px] max-w-[90vw] z-50 text-zinc-900 dark:text-white overflow-hidden text-[13px] flex flex-col`
       }`}
     >
       <div className="p-3 border-b border-black/10 dark:border-[var(--border,rgba(255,255,255,0.08))] flex items-center justify-between gap-2">

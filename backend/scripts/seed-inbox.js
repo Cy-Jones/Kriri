@@ -13,13 +13,21 @@ async function seedInbox() {
   }
   const cyrusClerkId = userRes.rows[0].clerk_user_id;
 
-  const wsRes = await db.query(
-    "SELECT id FROM workspaces WHERE owner_id = $1 AND name = 'Software Development' LIMIT 1",
+  let wsRes = await db.query(
+    `SELECT id FROM workspaces 
+     WHERE (owner_id = $1 OR id IN (SELECT workspace_id FROM workspace_members WHERE user_id = $1))
+       AND name = 'Software Development'`,
     [userRes.rows[0].id]
   );
-  const targetWorkspaces = wsRes.rows.length > 0
-    ? [wsRes.rows[0].id]
-    : [];
+  if (wsRes.rows.length === 0) {
+    wsRes = await db.query(
+      `SELECT id FROM workspaces 
+       WHERE (owner_id = $1 OR id IN (SELECT workspace_id FROM workspace_members WHERE user_id = $1))
+       ORDER BY id DESC LIMIT 1`,
+      [userRes.rows[0].id]
+    );
+  }
+  const targetWorkspaces = wsRes.rows.map(r => r.id);
 
   for (const wsId of targetWorkspaces) {
     // Clear existing for idempotency

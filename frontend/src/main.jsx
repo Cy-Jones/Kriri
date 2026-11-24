@@ -1,6 +1,7 @@
 import { StrictMode, useMemo, useState, useEffect } from "react";
 import { createRoot } from "react-dom/client";
 import { ClerkProvider } from "@clerk/react";
+import { ui } from "@clerk/ui";
 import "./index.css";
 import "@/registry/foundation.css";
 import App from "./App.jsx";
@@ -27,6 +28,23 @@ initPostHog();
 function ClerkWithTheme({ children }) {
   const { theme, effectiveTheme, darkFlavor, lightFlavor } = useTheme();
   const [localization, setLocalization] = useState(defaultLocalization);
+  const [accentKey, setAccentKey] = useState(() => {
+    return typeof window !== "undefined"
+      ? localStorage.getItem("kriri-accent-color") || "indigo"
+      : "indigo";
+  });
+
+  useEffect(() => {
+    const handlePrefChange = () => {
+      setAccentKey(localStorage.getItem("kriri-accent-color") || "indigo");
+    };
+    window.addEventListener("kriri-preferences-changed", handlePrefChange);
+    window.addEventListener("storage", handlePrefChange);
+    return () => {
+      window.removeEventListener("kriri-preferences-changed", handlePrefChange);
+      window.removeEventListener("storage", handlePrefChange);
+    };
+  }, []);
 
   useEffect(() => {
     return subscribeClerkLocalization((newLoc) => {
@@ -55,6 +73,10 @@ function ClerkWithTheme({ children }) {
                   ...(prevDanger.leaveOrganization || {}),
                   ...(newDanger.leaveOrganization || {}),
                 },
+                deleteOrganization: {
+                  ...(prevDanger.deleteOrganization || {}),
+                  ...(newDanger.deleteOrganization || {}),
+                },
               },
             },
           },
@@ -64,8 +86,8 @@ function ClerkWithTheme({ children }) {
   }, []);
 
   const appearance = useMemo(() => {
-    return getClerkAppearance({ theme, effectiveTheme, darkFlavor, lightFlavor });
-  }, [theme, effectiveTheme, darkFlavor, lightFlavor]);
+    return getClerkAppearance({ theme, effectiveTheme, darkFlavor, lightFlavor, accentColor: accentKey });
+  }, [theme, effectiveTheme, darkFlavor, lightFlavor, accentKey]);
 
   return (
     <ClerkProvider
@@ -73,6 +95,7 @@ function ClerkWithTheme({ children }) {
       afterSignOutUrl="/"
       appearance={appearance}
       localization={localization}
+      ui={ui}
     >
       {children}
     </ClerkProvider>

@@ -11,6 +11,7 @@ import {
   getAccessibleMutedColor as engineGetAccessibleMutedColor,
   adjustBrightness as engineAdjustBrightness,
 } from "../lib/themeEngine";
+import { applyPreferencesToDom } from "../lib/userPreferences";
 
 const ThemeContext = createContext({
   theme: "system",
@@ -289,9 +290,9 @@ export function syncDomTheme(theme, darkFlavor, lightFlavor, force = false) {
 
     // Refresh non-custom accent tint tokens from User Preferences
     if (typeof window !== "undefined") {
-      import("../lib/userPreferences").then(({ applyPreferencesToDom }) => {
+      try {
         applyPreferencesToDom();
-      }).catch(() => {});
+      } catch (e) {}
     }
   }
 }

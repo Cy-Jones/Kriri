@@ -8,6 +8,7 @@
     "dev": "nodemon src/app.js",
     "test": "node --test",
     "db:seed": "node scripts/seed.js",
+    "db:seed:dense": "node scripts/seed_test_data.js",
     "db:seed:inbox": "node scripts/seed-inbox.js",
     "db:cleanup": "node scripts/cleanup-seeds.js",
     "db:clear": "node scripts/clear-db.js"

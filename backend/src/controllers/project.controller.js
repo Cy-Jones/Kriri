@@ -21,6 +21,13 @@ exports.getAllProjects = async (req, res) => {
         JOIN ws_projects wp ON t.project_id = wp.id
         GROUP BY t.project_id
       ),
+      dependency_counts AS (
+        SELECT t.project_id, COUNT(DISTINCT td.task_id)::int as dependencies_count
+        FROM tasks t
+        JOIN task_dependencies td ON t.id = td.task_id
+        JOIN ws_projects wp ON t.project_id = wp.id
+        GROUP BY t.project_id
+      ),
       member_stats AS (
         SELECT 
           pm.project_id, 
@@ -43,10 +50,13 @@ exports.getAllProjects = async (req, res) => {
         row_to_json(u) as lead,
         COALESCE(ms.members, '[]'::json) as members,
         COALESCE(mls.milestones, '[]'::json) as milestones,
-        COALESCE(tc.issue_count, 0) as issue_count
+        COALESCE(tc.issue_count, 0) as issue_count,
+        COALESCE(dc.dependencies_count, 0) as dependencies_count,
+        COALESCE(dc.dependencies_count, 0) as blocked_tasks_count
       FROM ws_projects wp
       LEFT JOIN users u ON wp.lead_id = u.id
       LEFT JOIN task_counts tc ON wp.id = tc.project_id
+      LEFT JOIN dependency_counts dc ON wp.id = dc.project_id
       LEFT JOIN member_stats ms ON wp.id = ms.project_id
       LEFT JOIN milestone_stats mls ON wp.id = mls.project_id
       ORDER BY wp.created_at DESC
@@ -61,6 +71,8 @@ exports.getAllProjects = async (req, res) => {
       milestones: row.milestones || [],
       labels: row.labels || [],
       issue_count: parseInt(row.issue_count || 0, 10),
+      dependencies_count: parseInt(row.dependencies_count || 0, 10),
+      blocked_tasks_count: parseInt(row.blocked_tasks_count || row.dependencies_count || 0, 10),
     }));
 
     res.json(processedRows);
@@ -92,7 +104,19 @@ exports.getProjectById = async (req, res) => {
         (
           SELECT COUNT(*)::int
           FROM tasks t WHERE t.project_id = p.id
-        ) as issue_count
+        ) as issue_count,
+        (
+          SELECT COUNT(DISTINCT td.task_id)::int
+          FROM tasks t
+          JOIN task_dependencies td ON t.id = td.task_id
+          WHERE t.project_id = p.id
+        ) as dependencies_count,
+        (
+          SELECT COUNT(DISTINCT td.task_id)::int
+          FROM tasks t
+          JOIN task_dependencies td ON t.id = td.task_id
+          WHERE t.project_id = p.id
+        ) as blocked_tasks_count
       FROM projects p
       LEFT JOIN users u ON p.lead_id = u.id
       WHERE (p.id = $1 OR p.identifier = $2 OR p.slug = $2) AND p.workspace_id = $3
@@ -108,6 +132,8 @@ exports.getProjectById = async (req, res) => {
     project.milestones = project.milestones || [];
     project.labels = project.labels || [];
     project.issue_count = parseInt(project.issue_count || 0, 10);
+    project.dependencies_count = parseInt(project.dependencies_count || 0, 10);
+    project.blocked_tasks_count = parseInt(project.blocked_tasks_count || 0, 10);
 
     res.json(project);
   } catch (error) {

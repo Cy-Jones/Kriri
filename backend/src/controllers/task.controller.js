@@ -1,8 +1,39 @@
 const db = require("../config/database");
 const { handleError } = require("../utils/errorHandler");
 
-const { getIO } = require("../socket");
+const { getIO, safeGetIO } = require("../socket");
 const { taskSchema, taskUpdateSchema } = require("../validators");
+
+function emitWorkspaceEvent(workspaceId, event, payload) {
+  try {
+    const io = safeGetIO();
+    if (io && workspaceId) {
+      io.to(`workspace_${workspaceId}`).emit(event, payload);
+    }
+  } catch (err) {
+    // Non-fatal socket broadcast error
+  }
+}
+
+async function updateParentProgress(parentId) {
+  if (!parentId) return;
+  try {
+    const { rows } = await db.query(
+      "SELECT COUNT(*)::int as total, COUNT(*) FILTER (WHERE status = 'Done')::int as completed FROM tasks WHERE parent_task_id = $1",
+      [parentId],
+    );
+    if (rows.length > 0) {
+      const total = rows[0].total;
+      const progress = total > 0 ? Math.round((rows[0].completed / total) * 100) : 0;
+      await db.query(
+        "UPDATE tasks SET progress = $1, updated_at = NOW() WHERE id = $2",
+        [progress, parentId],
+      );
+    }
+  } catch (err) {
+    console.error("Error updating parent task progress:", err);
+  }
+}
 
 exports.getAllTasks = async (req, res) => {
   try {
@@ -30,6 +61,11 @@ exports.getAllTasks = async (req, res) => {
     const limitPlaceholder = `$${queryParams.length - 1}`;
     const offsetPlaceholder = `$${queryParams.length}`;
 
+    const includeDescription =
+      req.query.include_description === "true" ||
+      req.query.include_description === true;
+    const descriptionSelect = includeDescription ? ", t.description" : "";
+
     const { rows } = await db.query(
       `
       WITH subtask_stats AS (
@@ -55,12 +91,12 @@ exports.getAllTasks = async (req, res) => {
         t.id, t.project_id, t.title, t.status, t.priority, t.position, t.progress,
         t.start_date, t.due_date, t.estimated_hours, t.actual_hours,
         t.parent_task_id, t.assignee_id, t.reporter_id, t.created_at, t.updated_at, t.completed_at,
-        u.name as assignee_name, u.avatar_url as assignee_avatar_url, u.username as assignee_username, 
-        r.name as reporter_name, r.username as reporter_username,
-        p.slug as project_slug, p.identifier as project_identifier, p.name as project_name,
+        u.name as assignee_name, u.avatar_url as assignee_avatar_url, u.username as assignee_username, u.email as assignee_email, u.clerk_user_id as assignee_clerk_user_id,
+        r.name as reporter_name, r.username as reporter_username, r.email as reporter_email, r.clerk_user_id as reporter_clerk_user_id,
+        p.slug as project_slug, p.identifier as project_identifier, p.name as project_name, p.labels as labels,
         COALESCE(ss.subtask_count, 0) as subtask_count,
         COALESCE(ss.completed_subtask_count, 0) as completed_subtask_count,
-        COALESCE(bs.blocked_by_count, 0) as blocked_by_count
+        COALESCE(bs.blocked_by_count, 0) as blocked_by_count${descriptionSelect}
       FROM tasks t
       JOIN projects p ON t.project_id = p.id
       LEFT JOIN users u ON t.assignee_id = u.id
@@ -135,6 +171,11 @@ exports.createTask = async (req, res) => {
     );
     const newTask = rows[0];
 
+    // Automatically rollup progress to parent if subtask
+    if (newTask.parent_task_id) {
+      await updateParentProgress(newTask.parent_task_id);
+    }
+
     // Notification Logic
     if (assignee_id && assignee_id !== req.user.id) {
       try {
@@ -165,13 +206,31 @@ exports.createTask = async (req, res) => {
       }
     }
 
+    // Enrich with assignee, reporter, and project info
+    let completeNewTask = newTask;
     try {
-      getIO().to(`workspace_${req.workspace.id}`).emit("TASK_CREATED", newTask);
-    } catch (e) {
-      console.error("Socket error emitting TASK_CREATED:", e);
+      const enrichedRes = await db.query(
+        `SELECT t.*,
+                u.name as assignee_name, u.avatar_url as assignee_avatar_url, u.username as assignee_username, u.email as assignee_email, u.clerk_user_id as assignee_clerk_user_id,
+                r.name as reporter_name, r.username as reporter_username, r.email as reporter_email, r.clerk_user_id as reporter_clerk_user_id,
+                p.slug as project_slug, p.identifier as project_identifier, p.name as project_name
+         FROM tasks t
+         JOIN projects p ON t.project_id = p.id
+         LEFT JOIN users u ON t.assignee_id = u.id
+         LEFT JOIN users r ON t.reporter_id = r.id
+         WHERE t.id = $1`,
+        [newTask.id],
+      );
+      if (enrichedRes.rows.length > 0) {
+        completeNewTask = enrichedRes.rows[0];
+      }
+    } catch (enrichErr) {
+      console.error("Error enriching new task:", enrichErr);
     }
 
-    res.status(201).json(newTask);
+    emitWorkspaceEvent(req.workspace.id, "TASK_CREATED", completeNewTask);
+
+    res.status(201).json(completeNewTask);
   } catch (error) {
     return handleError(res, error);
   }
@@ -199,14 +258,16 @@ exports.updateTask = async (req, res) => {
 
     // Check existing task for assignee changes
     let existingAssigneeId = null;
+    let existingParentTaskId = null;
     let oldTitle = "";
     try {
       const existingRes = await db.query(
-        "SELECT assignee_id, title FROM tasks WHERE id = $1",
+        "SELECT assignee_id, title, parent_task_id FROM tasks WHERE id = $1",
         [id],
       );
       if (existingRes.rows.length > 0) {
         existingAssigneeId = existingRes.rows[0].assignee_id;
+        existingParentTaskId = existingRes.rows[0].parent_task_id;
         oldTitle = existingRes.rows[0].title;
       }
     } catch (e) {}
@@ -256,25 +317,12 @@ exports.updateTask = async (req, res) => {
 
     const updatedTask = rows[0];
 
-    // Automatic rollup of progress to parent task if this is a subtask
+    // Automatic rollup of progress to parent task if this is or was a subtask
     if (updatedTask.parent_task_id) {
-      try {
-        const { rows: subRows } = await db.query(
-          "SELECT COUNT(*)::int as total, COUNT(*) FILTER (WHERE status = 'Done')::int as completed FROM tasks WHERE parent_task_id = $1",
-          [updatedTask.parent_task_id],
-        );
-        if (subRows.length > 0 && subRows[0].total > 0) {
-          const parentProgress = Math.round(
-            (subRows[0].completed / subRows[0].total) * 100,
-          );
-          await db.query(
-            "UPDATE tasks SET progress = $1, updated_at = NOW() WHERE id = $2",
-            [parentProgress, updatedTask.parent_task_id],
-          );
-        }
-      } catch (rollupErr) {
-        console.error("Error rolling up subtask progress:", rollupErr);
-      }
+      await updateParentProgress(updatedTask.parent_task_id);
+    }
+    if (existingParentTaskId && existingParentTaskId !== updatedTask.parent_task_id) {
+      await updateParentProgress(existingParentTaskId);
     }
 
     // Notification Logic (Assignment change)
@@ -348,32 +396,66 @@ exports.updateTask = async (req, res) => {
       }
     }
 
+    // Enrich with assignee, reporter, and project info
+    let completeTask = updatedTask;
     try {
-      getIO()
-        .to(`workspace_${req.workspace.id}`)
-        .emit("TASK_UPDATED", updatedTask);
-    } catch (e) {
-      console.error("Socket error emitting TASK_UPDATED:", e);
+      const enrichedRes = await db.query(
+        `SELECT t.*,
+                u.name as assignee_name, u.avatar_url as assignee_avatar_url, u.username as assignee_username, u.email as assignee_email, u.clerk_user_id as assignee_clerk_user_id,
+                r.name as reporter_name, r.username as reporter_username, r.email as reporter_email, r.clerk_user_id as reporter_clerk_user_id,
+                p.slug as project_slug, p.identifier as project_identifier, p.name as project_name
+         FROM tasks t
+         JOIN projects p ON t.project_id = p.id
+         LEFT JOIN users u ON t.assignee_id = u.id
+         LEFT JOIN users r ON t.reporter_id = r.id
+         WHERE t.id = $1`,
+        [updatedTask.id],
+      );
+      if (enrichedRes.rows.length > 0) {
+        completeTask = enrichedRes.rows[0];
+      }
+    } catch (enrichErr) {
+      console.error("Error enriching updated task:", enrichErr);
     }
 
-    res.json(updatedTask);
+    emitWorkspaceEvent(req.workspace.id, "TASK_UPDATED", completeTask);
+
+    res.json(completeTask);
   } catch (error) {
     return handleError(res, error);
   }
 };
 
 exports.getTaskById = async (req, res) => {
-  const { id } = req.params;
+  const rawId = req.params.id;
   try {
+    let numericId = null;
+    if (/^\d+$/.test(rawId)) {
+      numericId = parseInt(rawId, 10);
+    } else {
+      const parts = String(rawId).split("-");
+      const last = parts[parts.length - 1];
+      if (/^\d+$/.test(last)) {
+        numericId = parseInt(last, 10);
+      }
+    }
+
+    if (!numericId) {
+      return res.status(400).json({ error: "Invalid task ID format" });
+    }
+
+    const currentWorkspaceId = req.workspace ? req.workspace.id : null;
+    const userId = req.user ? req.user.id : null;
+
     const { rows } = await db.query(
       `
-      SELECT t.*, u.name as assignee_name, u.avatar_url as assignee_avatar_url, u.username as assignee_username, p.slug as project_slug, p.identifier as project_identifier, p.name as project_name
+      SELECT t.*, u.name as assignee_name, u.avatar_url as assignee_avatar_url, u.username as assignee_username, u.email as assignee_email, u.clerk_user_id as assignee_clerk_user_id, p.slug as project_slug, p.identifier as project_identifier, p.name as project_name
       FROM tasks t
       LEFT JOIN users u ON t.assignee_id = u.id
       JOIN projects p ON t.project_id = p.id
-      WHERE t.id = $1 AND p.workspace_id = $2
+      WHERE t.id = $1 AND (p.workspace_id = $2 OR p.workspace_id IN (SELECT workspace_id FROM workspace_members WHERE user_id = $3))
     `,
-      [id, req.workspace.id],
+      [numericId, currentWorkspaceId, userId],
     );
     if (rows.length === 0)
       return res
@@ -384,14 +466,14 @@ exports.getTaskById = async (req, res) => {
 
     // Fetch subtasks
     const { rows: subtasks } = await db.query(
-      `SELECT t.*, u.name as assignee_name, u.avatar_url as assignee_avatar_url, u.username as assignee_username,
+      `SELECT t.*, u.name as assignee_name, u.avatar_url as assignee_avatar_url, u.username as assignee_username, u.email as assignee_email, u.clerk_user_id as assignee_clerk_user_id,
               p.identifier as project_identifier
        FROM tasks t
        JOIN projects p ON t.project_id = p.id
        LEFT JOIN users u ON t.assignee_id = u.id
-       WHERE t.parent_task_id = $1 AND p.workspace_id = $2
+       WHERE t.parent_task_id = $1
        ORDER BY t.position ASC, t.created_at ASC`,
-      [id, req.workspace.id],
+      [numericId],
     );
 
     // Fetch blocked_by (tasks that must finish before this task)
@@ -403,9 +485,9 @@ exports.getTaskById = async (req, res) => {
        JOIN tasks t ON d.depends_on_task_id = t.id
        JOIN projects p ON t.project_id = p.id
        LEFT JOIN users u ON t.assignee_id = u.id
-       WHERE d.task_id = $1 AND d.workspace_id = $2
+       WHERE d.task_id = $1
        ORDER BY d.created_at ASC`,
-      [id, req.workspace.id],
+      [numericId],
     );
 
     // Fetch blocking (tasks waiting on this task)
@@ -417,9 +499,9 @@ exports.getTaskById = async (req, res) => {
        JOIN tasks t ON d.task_id = t.id
        JOIN projects p ON t.project_id = p.id
        LEFT JOIN users u ON t.assignee_id = u.id
-       WHERE d.depends_on_task_id = $1 AND d.workspace_id = $2
+       WHERE d.depends_on_task_id = $1
        ORDER BY d.created_at ASC`,
-      [id, req.workspace.id],
+      [numericId],
     );
 
     const totalSubtasks = subtasks.length;
@@ -502,21 +584,9 @@ exports.createSubtask = async (req, res) => {
     const subtask = rows[0];
 
     // Roll up parent task progress
-    const { rows: countRows } = await db.query(
-      "SELECT COUNT(*)::int as total, COUNT(*) FILTER (WHERE status = 'Done')::int as completed FROM tasks WHERE parent_task_id = $1",
-      [parentTask.id],
-    );
-    if (countRows.length > 0 && countRows[0].total > 0) {
-      const parentProgress = Math.round((countRows[0].completed / countRows[0].total) * 100);
-      await db.query("UPDATE tasks SET progress = $1, updated_at = NOW() WHERE id = $2", [
-        parentProgress,
-        parentTask.id,
-      ]);
-    }
+    await updateParentProgress(parentTask.id);
 
-    try {
-      getIO().to(`workspace_${req.workspace.id}`).emit("TASK_CREATED", subtask);
-    } catch (e) {}
+    emitWorkspaceEvent(req.workspace.id, "TASK_CREATED", subtask);
 
     res.status(201).json(subtask);
   } catch (error) {
@@ -575,11 +645,11 @@ exports.getTaskDependencies = async (req, res) => {
 exports.addTaskDependency = async (req, res) => {
   const { id } = req.params;
   const taskId = parseInt(id, 10);
-  const dependsOnTaskId = parseInt(req.body.depends_on_task_id, 10);
+  const dependsOnTaskId = parseInt(req.body.dependsOnTaskId ?? req.body.depends_on_task_id, 10);
   const type = req.body.type || "blocks";
 
   if (!dependsOnTaskId || isNaN(dependsOnTaskId)) {
-    return res.status(400).json({ error: "Valid depends_on_task_id is required" });
+    return res.status(400).json({ error: "Valid dependsOnTaskId is required" });
   }
 
   if (taskId === dependsOnTaskId) {
@@ -601,17 +671,17 @@ exports.addTaskDependency = async (req, res) => {
       });
     }
 
-    // Cycle detection
+    // Cycle detection: CTE-based recursive check
     const { rows: cycleCheck } = await db.query(
       `WITH RECURSIVE dep_chain AS (
-         SELECT depends_on_task_id, task_id
+         SELECT depends_on_task_id, task_id, 1 AS depth
          FROM task_dependencies
          WHERE workspace_id = $1 AND task_id = $2
          UNION ALL
-         SELECT td.depends_on_task_id, td.task_id
+         SELECT td.depends_on_task_id, td.task_id, dc.depth + 1
          FROM task_dependencies td
          JOIN dep_chain dc ON td.task_id = dc.depends_on_task_id
-         WHERE td.workspace_id = $1
+         WHERE td.workspace_id = $1 AND dc.depth < 50
        )
        SELECT 1 FROM dep_chain WHERE depends_on_task_id = $3 LIMIT 1`,
       [req.workspace.id, dependsOnTaskId, taskId],
@@ -643,12 +713,11 @@ exports.addTaskDependency = async (req, res) => {
       [inserted[0].id],
     );
 
-    try {
-      getIO().to(`workspace_${req.workspace.id}`).emit("TASK_DEPENDENCY_ADDED", {
-        task_id: taskId,
-        dependency: depDetails[0],
-      });
-    } catch (e) {}
+    emitWorkspaceEvent(req.workspace.id, "TASK_DEPENDENCY_ADDED", {
+      task_id: taskId,
+      depends_on_task_id: dependsOnTaskId,
+      dependency: depDetails[0],
+    });
 
     res.status(201).json(depDetails[0]);
   } catch (error) {
@@ -658,29 +727,37 @@ exports.addTaskDependency = async (req, res) => {
 };
 
 exports.removeTaskDependency = async (req, res) => {
-  const { id, depId } = req.params;
+  const { id } = req.params;
+  const rawDepId = req.params.dependsOnTaskId || req.params.depId;
   const taskId = parseInt(id, 10);
-  const dependencyId = parseInt(depId, 10);
+  const dependencyOrTaskId = parseInt(rawDepId, 10);
+
+  if (!dependencyOrTaskId || isNaN(dependencyOrTaskId)) {
+    return res.status(400).json({ error: "Valid dependency ID or target task ID is required" });
+  }
 
   try {
     const { rows } = await db.query(
       `DELETE FROM task_dependencies
-       WHERE (id = $1 OR (task_id = $2 AND depends_on_task_id = $1)) AND workspace_id = $3
+       WHERE workspace_id = $3
+         AND (
+           id = $1
+           OR (task_id = $2 AND depends_on_task_id = $1)
+           OR (task_id = $1 AND depends_on_task_id = $2)
+         )
        RETURNING *`,
-      [dependencyId, taskId, req.workspace.id],
+      [dependencyOrTaskId, taskId, req.workspace.id],
     );
 
     if (rows.length === 0) {
       return res.status(404).json({ error: "Dependency link not found" });
     }
 
-    try {
-      getIO().to(`workspace_${req.workspace.id}`).emit("TASK_DEPENDENCY_REMOVED", {
-        id: rows[0].id,
-        task_id: rows[0].task_id,
-        depends_on_task_id: rows[0].depends_on_task_id,
-      });
-    } catch (e) {}
+    emitWorkspaceEvent(req.workspace.id, "TASK_DEPENDENCY_REMOVED", {
+      id: rows[0].id,
+      task_id: rows[0].task_id,
+      depends_on_task_id: rows[0].depends_on_task_id,
+    });
 
     res.json({ success: true, message: "Dependency removed", dependency: rows[0] });
   } catch (error) {
@@ -705,13 +782,14 @@ exports.deleteTask = async (req, res) => {
     if (rows.length === 0)
       return res.status(404).json({ error: "Task not found" });
 
-    try {
-      getIO().to(`workspace_${req.workspace.id}`).emit("TASK_DELETED", { id: rows[0].id });
-    } catch (e) {
-      console.error("Socket error emitting TASK_DELETED:", e);
+    const deletedTask = rows[0];
+    if (deletedTask.parent_task_id) {
+      await updateParentProgress(deletedTask.parent_task_id);
     }
 
-    res.json({ message: "Task deleted successfully", task: rows[0] });
+    emitWorkspaceEvent(req.workspace.id, "TASK_DELETED", { id: deletedTask.id });
+
+    res.json({ message: "Task deleted successfully", task: deletedTask });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Server error" });

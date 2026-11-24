@@ -247,6 +247,8 @@ function App() {
           <Route path="inbox" element={<Inbox />} />
           <Route path="tasks" element={<Tasks />} />
           <Route path="tasks/:id" element={<TaskDetails />} />
+          <Route path="issues" element={<Tasks />} />
+          <Route path="issues/:id" element={<TaskDetails />} />
           <Route path="kanban" element={<Navigate to="/tasks?view=board" replace />} />
           <Route path="projects" element={<Projects />} />
           <Route path="projects/:id" element={<ProjectDetails />} />

@@ -690,6 +690,14 @@ html.reduce-motion-override *::after {
   border-top: 1px solid var(--border) !important;
 }
 
+/* Clerk Modal Backdrop and Content */
+.cl-modalBackdrop {
+  opacity: 1 !important;
+  background-color: rgba(0, 0, 0, 0.65) !important;
+  backdrop-filter: blur(4px) !important;
+  -webkit-backdrop-filter: blur(4px) !important;
+}
+
 /* Clerk Modals & Cards Rounded Corners (All Modes) */
 .cl-modalContent,
 .cl-modalContent > div,
@@ -701,6 +709,7 @@ html.reduce-motion-override *::after {
 }
 
 .cl-modalContent {
+  opacity: 1 !important;
   border-radius: 20px !important;
   overflow: hidden !important;
   border: 1px solid rgba(0, 0, 0, 0.08) !important;
@@ -796,15 +805,128 @@ html:not(.dark) .cl-formFieldInput {
   border: 1px solid rgba(0, 0, 0, 0.12) !important;
 }
 
-[data-theme="light"] .cl-formButtonPrimary,
-html:not(.dark) .cl-formButtonPrimary {
-  background-color: #09090b !important;
+/* Clerk Dynamic Accent Color Enforcement (Primary buttons, Link buttons, Active tabs & Badges) */
+.cl-formButtonPrimary,
+button.cl-formButtonPrimary,
+.cl-modalContent .cl-formButtonPrimary,
+.cl-modalContent button[data-variant="solid"][data-color="primary"],
+.cl-modalContent .cl-button[data-variant="solid"][data-color="primary"],
+.cl-modalContent .cl-membersPageInviteButton,
+.cl-organizationProfile-root .cl-formButtonPrimary,
+.cl-organizationProfile-root button[data-variant="solid"][data-color="primary"],
+.cl-organizationProfile-root .cl-button[data-variant="solid"][data-color="primary"],
+.cl-organizationProfile-root .cl-membersPageInviteButton,
+.cl-userProfile-root .cl-formButtonPrimary,
+.cl-userProfile-root button[data-variant="solid"][data-color="primary"],
+.cl-userProfile-root .cl-button[data-variant="solid"][data-color="primary"],
+.cl-createOrganization-root .cl-formButtonPrimary,
+.cl-createOrganization-root button[data-variant="solid"][data-color="primary"],
+.cl-createOrganization-root .cl-button[data-variant="solid"][data-color="primary"] {
+  background-color: var(--kriri-accent, var(--primary, #5e6ad2)) !important;
   color: #ffffff !important;
+  border-color: transparent !important;
 }
 
-[data-theme="light"] .cl-formButtonPrimary:hover,
-html:not(.dark) .cl-formButtonPrimary:hover {
-  background-color: #27272a !important;
+.cl-formButtonPrimary:hover,
+button.cl-formButtonPrimary:hover,
+.cl-modalContent .cl-formButtonPrimary:hover,
+.cl-modalContent button[data-variant="solid"][data-color="primary"]:hover,
+.cl-modalContent .cl-button[data-variant="solid"][data-color="primary"]:hover,
+.cl-modalContent .cl-membersPageInviteButton:hover,
+.cl-organizationProfile-root .cl-formButtonPrimary:hover,
+.cl-organizationProfile-root button[data-variant="solid"][data-color="primary"]:hover,
+.cl-organizationProfile-root .cl-button[data-variant="solid"][data-color="primary"]:hover,
+.cl-organizationProfile-root .cl-membersPageInviteButton:hover,
+.cl-userProfile-root .cl-formButtonPrimary:hover,
+.cl-userProfile-root button[data-variant="solid"][data-color="primary"]:hover,
+.cl-userProfile-root .cl-button[data-variant="solid"][data-color="primary"]:hover,
+.cl-createOrganization-root .cl-formButtonPrimary:hover,
+.cl-createOrganization-root button[data-variant="solid"][data-color="primary"]:hover,
+.cl-createOrganization-root .cl-button[data-variant="solid"][data-color="primary"]:hover {
+  background-color: var(--kriri-accent-hover, #4f5ac0) !important;
+  color: #ffffff !important;
+  opacity: 0.95 !important;
+}
+
+/* Clerk Action Link / Ghost Buttons (e.g. "Update profile", "Add email") */
+.cl-modalContent .cl-profileSectionPrimaryButton[data-color="primary"],
+.cl-modalContent [class*="profileSectionPrimaryButton"][data-color="primary"],
+.cl-modalContent .cl-profileSectionAction__profile,
+.cl-modalContent [class*="profileSectionAction"] button:not([data-color="danger"]),
+.cl-organizationProfile-root .cl-profileSectionPrimaryButton[data-color="primary"],
+.cl-organizationProfile-root [class*="profileSectionPrimaryButton"][data-color="primary"],
+.cl-organizationProfile-root .cl-profileSectionAction__profile,
+.cl-organizationProfile-root [class*="profileSectionAction"] button:not([data-color="danger"]),
+.cl-userProfile-root .cl-profileSectionPrimaryButton[data-color="primary"],
+.cl-userProfile-root [class*="profileSectionPrimaryButton"][data-color="primary"],
+.cl-userProfile-root .cl-profileSectionAction__profile,
+.cl-userProfile-root [class*="profileSectionAction"] button:not([data-color="danger"]) {
+  color: var(--kriri-accent, var(--primary, #5e6ad2)) !important;
+  background-color: transparent !important;
+}
+
+.cl-modalContent .cl-profileSectionPrimaryButton[data-color="primary"]:hover,
+.cl-modalContent [class*="profileSectionPrimaryButton"][data-color="primary"]:hover,
+.cl-organizationProfile-root .cl-profileSectionPrimaryButton[data-color="primary"]:hover,
+.cl-organizationProfile-root [class*="profileSectionPrimaryButton"][data-color="primary"]:hover,
+.cl-userProfile-root .cl-profileSectionPrimaryButton[data-color="primary"]:hover,
+.cl-userProfile-root [class*="profileSectionPrimaryButton"][data-color="primary"]:hover {
+  color: var(--kriri-accent-hover, #4f5ac0) !important;
+}
+
+/* Clerk Danger Buttons (e.g. "Transfer Ownership", "Delete organization") */
+.cl-modalContent button[data-color="danger"],
+.cl-modalContent .cl-button[data-color="danger"],
+.cl-modalContent [class*="organizationDanger"],
+.cl-organizationProfile-root button[data-color="danger"],
+.cl-organizationProfile-root .cl-button[data-color="danger"],
+.cl-organizationProfile-root [class*="organizationDanger"] {
+  color: #ef4444 !important;
+  background-color: transparent !important;
+}
+
+.cl-modalContent button[data-color="danger"]:hover,
+.cl-modalContent .cl-button[data-color="danger"]:hover,
+.cl-modalContent [class*="organizationDanger"]:hover,
+.cl-organizationProfile-root button[data-color="danger"]:hover,
+.cl-organizationProfile-root .cl-button[data-color="danger"]:hover,
+.cl-organizationProfile-root [class*="organizationDanger"]:hover {
+  color: #dc2626 !important;
+}
+
+/* When user is the sole member/owner, hide Transfer Ownership / Leave Workspace in Clerk popups */
+[data-sole-member="true"] .cl-profileSection:has([data-localization-key*="leaveOrganization"]),
+[data-sole-member="true"] [class*="profileSection"]:has([data-localization-key*="leaveOrganization"]),
+[data-sole-member="true"] .cl-profileSectionContent:has([data-localization-key*="leaveOrganization"]),
+[data-sole-member="true"] [class*="profileSectionContent"]:has([data-localization-key*="leaveOrganization"]),
+[data-sole-member="true"] .cl-profileSection:has(button[data-localization-key*="leaveOrganization"]),
+[data-sole-member="true"] [class*="profileSection"]:has(button[data-localization-key*="leaveOrganization"]) {
+  display: none !important;
+}
+
+/* Clerk Active Tabs & Indicators */
+.cl-modalContent [role="tab"][aria-selected="true"],
+.cl-modalContent .cl-tab[aria-selected="true"],
+.cl-modalContent .cl-tab[data-active="true"],
+.cl-organizationProfile-root [role="tab"][aria-selected="true"],
+.cl-organizationProfile-root .cl-tab[aria-selected="true"],
+.cl-organizationProfile-root .cl-tab[data-active="true"],
+.cl-userProfile-root [role="tab"][aria-selected="true"],
+.cl-userProfile-root .cl-tab[aria-selected="true"],
+.cl-userProfile-root .cl-tab[data-active="true"] {
+  border-color: var(--kriri-accent, var(--primary, #5e6ad2)) !important;
+  color: var(--kriri-accent, var(--primary, #5e6ad2)) !important;
+}
+
+/* Clerk Badges and Radio/Checkbox Primary Accents */
+.cl-modalContent [role="tab"][aria-selected="true"] [class*="badge"],
+.cl-organizationProfile-root [role="tab"][aria-selected="true"] [class*="badge"],
+.cl-modalContent .cl-badge[data-color="primary"],
+.cl-organizationProfile-root .cl-badge[data-color="primary"],
+.cl-userProfile-root .cl-badge[data-color="primary"],
+.cl-badge[data-color="primary"] {
+  background-color: var(--kriri-accent, var(--primary, #5e6ad2)) !important;
+  color: #ffffff !important;
 }
 
 [data-theme="light"] .cl-footer,

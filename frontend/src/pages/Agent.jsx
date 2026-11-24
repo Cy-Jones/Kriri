@@ -796,6 +796,22 @@ export default function Agent() {
     }
   };
 
+  // Handle URL deep-linked prompt (e.g. from Command Palette or shortcuts)
+  const promptProcessedRef = useRef(false);
+  useEffect(() => {
+    const promptFromUrl = searchParams.get("prompt");
+    if (promptFromUrl && !promptProcessedRef.current) {
+      promptProcessedRef.current = true;
+      const nextParams = new URLSearchParams(searchParams);
+      nextParams.delete("prompt");
+      setSearchParams(nextParams, { replace: true });
+      const timer = setTimeout(() => {
+        handleSend(promptFromUrl);
+      }, 250);
+      return () => clearTimeout(timer);
+    }
+  }, [searchParams, setSearchParams]);
+
   const handleCardConfirm = async (msgId, card, result) => {
     // Mark card as confirmed
     setMessages((prev) =>

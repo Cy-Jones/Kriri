@@ -142,6 +142,80 @@ class ServerStateStore {
     }
   };
 
+  handleTaskDependencyAdded = (data) => {
+    if (!data) return;
+    const taskId = data.task_id;
+    if (taskId == null) return;
+    const idKey = String(taskId);
+    const existing = this.tasksMap.get(idKey);
+    if (existing) {
+      const currentCount = Number(existing.blocked_by_count ?? existing.blocked_count ?? 0);
+      const updated = {
+        ...existing,
+        blocked_by_count: currentCount + 1,
+        blocked_count: currentCount + 1,
+      };
+      this.tasksMap.set(idKey, updated);
+      this.tasks = this.tasks.map((t) => (String(t.id) === idKey ? updated : t));
+      api.setCached("/tasks", this.tasks);
+
+      if (existing.project_id) {
+        const projKey = String(existing.project_id);
+        const proj = this.projectsMap.get(projKey);
+        if (proj) {
+          const currentProjDeps = Number(proj.dependencies_count ?? proj.blocked_tasks_count ?? 0);
+          const updatedProj = {
+            ...proj,
+            dependencies_count: currentProjDeps + 1,
+            blocked_tasks_count: currentProjDeps + 1,
+          };
+          this.projectsMap.set(projKey, updatedProj);
+          this.projects = this.projects.map((p) => (String(p.id) === projKey ? updatedProj : p));
+          api.setCached("/projects", this.projects);
+        }
+      }
+
+      this.notify();
+    }
+  };
+
+  handleTaskDependencyRemoved = (data) => {
+    if (!data) return;
+    const taskId = data.task_id;
+    if (taskId == null) return;
+    const idKey = String(taskId);
+    const existing = this.tasksMap.get(idKey);
+    if (existing) {
+      const currentCount = Number(existing.blocked_by_count ?? existing.blocked_count ?? 0);
+      const updated = {
+        ...existing,
+        blocked_by_count: Math.max(0, currentCount - 1),
+        blocked_count: Math.max(0, currentCount - 1),
+      };
+      this.tasksMap.set(idKey, updated);
+      this.tasks = this.tasks.map((t) => (String(t.id) === idKey ? updated : t));
+      api.setCached("/tasks", this.tasks);
+
+      if (existing.project_id) {
+        const projKey = String(existing.project_id);
+        const proj = this.projectsMap.get(projKey);
+        if (proj) {
+          const currentProjDeps = Number(proj.dependencies_count ?? proj.blocked_tasks_count ?? 0);
+          const updatedProj = {
+            ...proj,
+            dependencies_count: Math.max(0, currentProjDeps - 1),
+            blocked_tasks_count: Math.max(0, currentProjDeps - 1),
+          };
+          this.projectsMap.set(projKey, updatedProj);
+          this.projects = this.projects.map((p) => (String(p.id) === projKey ? updatedProj : p));
+          api.setCached("/projects", this.projects);
+        }
+      }
+
+      this.notify();
+    }
+  };
+
   handleProjectCreated = (newProject) => {
     if (!newProject || newProject.id == null) return;
     const idKey = String(newProject.id);
@@ -194,6 +268,8 @@ class ServerStateStore {
     socket.on("TASK_CREATED", this.handleTaskCreated);
     socket.on("TASK_UPDATED", this.handleTaskUpdated);
     socket.on("TASK_DELETED", this.handleTaskDeleted);
+    socket.on("TASK_DEPENDENCY_ADDED", this.handleTaskDependencyAdded);
+    socket.on("TASK_DEPENDENCY_REMOVED", this.handleTaskDependencyRemoved);
     socket.on("PROJECT_CREATED", this.handleProjectCreated);
     socket.on("PROJECT_UPDATED", this.handleProjectUpdated);
     socket.on("PROJECT_DELETED", this.handleProjectDeleted);
@@ -205,10 +281,199 @@ class ServerStateStore {
     s.off("TASK_CREATED", this.handleTaskCreated);
     s.off("TASK_UPDATED", this.handleTaskUpdated);
     s.off("TASK_DELETED", this.handleTaskDeleted);
+    s.off("TASK_DEPENDENCY_ADDED", this.handleTaskDependencyAdded);
+    s.off("TASK_DEPENDENCY_REMOVED", this.handleTaskDependencyRemoved);
     s.off("PROJECT_CREATED", this.handleProjectCreated);
     s.off("PROJECT_UPDATED", this.handleProjectUpdated);
     s.off("PROJECT_DELETED", this.handleProjectDeleted);
     this.attachedSocket = null;
+  };
+
+  // Optimistic Dependency Mutation Methods (0ms immediate UI update)
+  addDependency = async (taskId, dependsOnTaskId, type = "blocks") => {
+    if (!taskId || !dependsOnTaskId) return null;
+    const idKey = String(taskId);
+    const existing = this.tasksMap.get(idKey);
+
+    // 1. Instant optimistic update on local DataStore
+    let previousCount = 0;
+    let projKey = null;
+    let previousProjDeps = 0;
+    if (existing) {
+      previousCount = Number(existing.blocked_by_count ?? existing.blocked_count ?? 0);
+      const updated = {
+        ...existing,
+        blocked_by_count: previousCount + 1,
+        blocked_count: previousCount + 1,
+      };
+      this.tasksMap.set(idKey, updated);
+      this.tasks = this.tasks.map((t) => (String(t.id) === idKey ? updated : t));
+      api.setCached("/tasks", this.tasks);
+
+      if (existing.project_id) {
+        projKey = String(existing.project_id);
+        const proj = this.projectsMap.get(projKey);
+        if (proj) {
+          previousProjDeps = Number(proj.dependencies_count ?? proj.blocked_tasks_count ?? 0);
+          const updatedProj = {
+            ...proj,
+            dependencies_count: previousProjDeps + 1,
+            blocked_tasks_count: previousProjDeps + 1,
+          };
+          this.projectsMap.set(projKey, updatedProj);
+          this.projects = this.projects.map((p) => (String(p.id) === projKey ? updatedProj : p));
+          api.setCached("/projects", this.projects);
+        }
+      }
+
+      this.notify();
+    }
+
+    // 2. Background API call
+    try {
+      const result = await api.post(`/tasks/${taskId}/dependencies`, {
+        dependsOnTaskId: parseInt(dependsOnTaskId, 10),
+        type,
+      });
+
+      // Update cached single task if present
+      const cachedDetail = api.getCached(`/tasks/${taskId}`);
+      if (cachedDetail && cachedDetail.dependencies) {
+        const blockedBy = Array.isArray(cachedDetail.dependencies.blocked_by)
+          ? cachedDetail.dependencies.blocked_by
+          : [];
+        const exists = blockedBy.some(
+          (d) => String(d.id || d.dependency_id) === String(result.id || result.dependency_id)
+        );
+        if (!exists) {
+          cachedDetail.dependencies.blocked_by = [...blockedBy, result];
+          api.setCached(`/tasks/${taskId}`, cachedDetail);
+        }
+      }
+
+      return result;
+    } catch (err) {
+      // 3. Rollback on failure
+      if (existing) {
+        const reverted = {
+          ...existing,
+          blocked_by_count: previousCount,
+          blocked_count: previousCount,
+        };
+        this.tasksMap.set(idKey, reverted);
+        this.tasks = this.tasks.map((t) => (String(t.id) === idKey ? reverted : t));
+        api.setCached("/tasks", this.tasks);
+
+        if (projKey && this.projectsMap.has(projKey)) {
+          const proj = this.projectsMap.get(projKey);
+          const revertedProj = {
+            ...proj,
+            dependencies_count: previousProjDeps,
+            blocked_tasks_count: previousProjDeps,
+          };
+          this.projectsMap.set(projKey, revertedProj);
+          this.projects = this.projects.map((p) => (String(p.id) === projKey ? revertedProj : p));
+          api.setCached("/projects", this.projects);
+        }
+
+        this.notify();
+      }
+      throw err;
+    }
+  };
+
+  removeDependency = async (taskId, dependsOnTaskId) => {
+    if (!taskId || !dependsOnTaskId) return null;
+    const idKey = String(taskId);
+    const existing = this.tasksMap.get(idKey);
+
+    // 1. Instant optimistic update on local DataStore
+    let previousCount = 0;
+    let projKey = null;
+    let previousProjDeps = 0;
+    if (existing) {
+      previousCount = Number(existing.blocked_by_count ?? existing.blocked_count ?? 0);
+      const updated = {
+        ...existing,
+        blocked_by_count: Math.max(0, previousCount - 1),
+        blocked_count: Math.max(0, previousCount - 1),
+      };
+      this.tasksMap.set(idKey, updated);
+      this.tasks = this.tasks.map((t) => (String(t.id) === idKey ? updated : t));
+      api.setCached("/tasks", this.tasks);
+
+      if (existing.project_id) {
+        projKey = String(existing.project_id);
+        const proj = this.projectsMap.get(projKey);
+        if (proj) {
+          previousProjDeps = Number(proj.dependencies_count ?? proj.blocked_tasks_count ?? 0);
+          const updatedProj = {
+            ...proj,
+            dependencies_count: Math.max(0, previousProjDeps - 1),
+            blocked_tasks_count: Math.max(0, previousProjDeps - 1),
+          };
+          this.projectsMap.set(projKey, updatedProj);
+          this.projects = this.projects.map((p) => (String(p.id) === projKey ? updatedProj : p));
+          api.setCached("/projects", this.projects);
+        }
+      }
+
+      this.notify();
+    }
+
+    // 2. Background API call
+    try {
+      const result = await api.delete(`/tasks/${taskId}/dependencies/${dependsOnTaskId}`);
+
+      // Update cached single task if present
+      const cachedDetail = api.getCached(`/tasks/${taskId}`);
+      if (cachedDetail && cachedDetail.dependencies) {
+        if (Array.isArray(cachedDetail.dependencies.blocked_by)) {
+          cachedDetail.dependencies.blocked_by = cachedDetail.dependencies.blocked_by.filter(
+            (d) =>
+              String(d.id || d.dependency_id) !== String(dependsOnTaskId) &&
+              String(d.depends_on_task_id) !== String(dependsOnTaskId)
+          );
+        }
+        if (Array.isArray(cachedDetail.dependencies.blocking)) {
+          cachedDetail.dependencies.blocking = cachedDetail.dependencies.blocking.filter(
+            (d) =>
+              String(d.id || d.dependency_id) !== String(dependsOnTaskId) &&
+              String(d.task_id) !== String(dependsOnTaskId)
+          );
+        }
+        api.setCached(`/tasks/${taskId}`, cachedDetail);
+      }
+
+      return result;
+    } catch (err) {
+      // 3. Rollback on failure
+      if (existing) {
+        const reverted = {
+          ...existing,
+          blocked_by_count: previousCount,
+          blocked_count: previousCount,
+        };
+        this.tasksMap.set(idKey, reverted);
+        this.tasks = this.tasks.map((t) => (String(t.id) === idKey ? reverted : t));
+        api.setCached("/tasks", this.tasks);
+
+        if (projKey && this.projectsMap.has(projKey)) {
+          const proj = this.projectsMap.get(projKey);
+          const revertedProj = {
+            ...proj,
+            dependencies_count: previousProjDeps,
+            blocked_tasks_count: previousProjDeps,
+          };
+          this.projectsMap.set(projKey, revertedProj);
+          this.projects = this.projects.map((p) => (String(p.id) === projKey ? revertedProj : p));
+          api.setCached("/projects", this.projects);
+        }
+
+        this.notify();
+      }
+      throw err;
+    }
   };
 
   // Asynchronous fetch coordinators
@@ -219,7 +484,7 @@ class ServerStateStore {
     }
 
     try {
-      const data = await api.get("/tasks", options);
+      const data = await api.get("/tasks?include_description=true", options);
       if (Array.isArray(data)) {
         this.setTasksInternal(data, true);
         this.tasksLoaded = true;
@@ -312,10 +577,20 @@ export function useTasksStore() {
     return dataStore.fetchTasks(scopeKey, options);
   }, []);
 
+  const addDependency = useCallback((taskId, dependsOnTaskId, type) => {
+    return dataStore.addDependency(taskId, dependsOnTaskId, type);
+  }, []);
+
+  const removeDependency = useCallback((taskId, dependsOnTaskId) => {
+    return dataStore.removeDependency(taskId, dependsOnTaskId);
+  }, []);
+
   return {
     tasks,
     setTasks,
     fetchTasks,
+    addDependency,
+    removeDependency,
     tasksLoading: dataStore.getTasksLoading(),
     tasksLoaded: dataStore.tasksLoaded,
   };

@@ -52,11 +52,7 @@ try {
 // Centralized real-time server-state synchronization (DataStore)
 dataStore.attachSocket(globalSocket);
 
-const SocketContext = createContext();
-
-export const useSocket = () => {
-  return useContext(SocketContext);
-};
+export const SocketContext = createContext();
 
 export const SocketProvider = ({ children }) => {
   const { organization } = useOrganization();

@@ -1,5 +1,10 @@
 -- schema.sql
 
+CREATE TABLE IF NOT EXISTS processed_webhooks (
+    id VARCHAR(255) PRIMARY KEY,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
     clerk_user_id VARCHAR(255) UNIQUE NOT NULL,
@@ -9,6 +14,7 @@ CREATE TABLE IF NOT EXISTS users (
     avatar_url VARCHAR(255),
     role VARCHAR(50) DEFAULT 'Member',
     status VARCHAR(50) DEFAULT 'Active',
+    last_seen_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
@@ -18,6 +24,20 @@ CREATE TABLE IF NOT EXISTS workspaces (
     clerk_org_id VARCHAR(255) UNIQUE,
     name VARCHAR(255) NOT NULL,
     slug VARCHAR(255) UNIQUE NOT NULL,
+    description TEXT,
+    logo_url TEXT,
+    default_language VARCHAR(20) DEFAULT 'en',
+    default_timezone VARCHAR(50) DEFAULT 'UTC',
+    date_format VARCHAR(20) DEFAULT 'YYYY-MM-DD',
+    time_format VARCHAR(10) DEFAULT '24h',
+    first_day_of_week VARCHAR(20) DEFAULT 'monday',
+    default_project_view VARCHAR(50) DEFAULT 'list',
+    default_task_view VARCHAR(50) DEFAULT 'board',
+    default_task_priority VARCHAR(20) DEFAULT 'Medium',
+    default_project_visibility VARCHAR(50) DEFAULT 'workspace',
+    default_member_role VARCHAR(50) DEFAULT 'Member',
+    notify_new_members BOOLEAN DEFAULT true,
+    notify_workspace_activity BOOLEAN DEFAULT true,
     owner_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP

@@ -37,6 +37,7 @@ import {
   FileText,
   ChevronRight,
   ChevronDown,
+  Link2,
 } from "lucide-react";
 import ActionTooltip from "../components/ActionTooltip";
 import StatusPicker, { getStatusIcon } from "../components/StatusPicker";
@@ -54,7 +55,7 @@ import { useDeferredSkeleton } from "../hooks/useDeferredSkeleton";
 import ViewSwitcher from "../components/ViewSwitcher";
 import { Cabinet as Abacus } from "@lucasmarkes/hairline/react";
 import { useUser, useOrganization } from "@clerk/react";
-import { useSocket } from "../contexts/SocketContext";
+import { useSocket } from "../contexts/useSocket";
 import { useTheme } from "../contexts/ThemeContext";
 
 // Arc Components
@@ -117,11 +118,13 @@ function getTaskProgressDetails(task) {
 const DEFAULT_VISIBLE_PROPERTIES = {
   id: true,
   status: true,
-  assignee: true,
   priority: true,
-  project: true,
+  assignee: true,
   dueDate: true,
+  project: true,
   subtasks: true,
+  progress: false,
+  summary: true,
 };
 
 const areTaskPropsEqual = (prevProps, nextProps) => {
@@ -139,6 +142,12 @@ const areTaskPropsEqual = (prevProps, nextProps) => {
     if (p.subtask_count !== n.subtask_count) return false;
     if (p.completed_subtask_count !== n.completed_subtask_count) return false;
     if (p.blocked_count !== n.blocked_count) return false;
+    if (p.blocked_by_count !== n.blocked_by_count) return false;
+    if (p.description !== n.description) return false;
+    if (p.start_date !== n.start_date) return false;
+    if (p.created_at !== n.created_at) return false;
+    if (p.progress !== n.progress) return false;
+    if (p.labels !== n.labels) return false;
     if (p.project_identifier !== n.project_identifier) return false;
     if (p.project_name !== n.project_name) return false;
   }
@@ -198,6 +207,14 @@ const SortableTaskItem = memo(function SortableTaskItem({
 
   const assigneeAvatarUrl = task.assignee_avatar_url || task.assignee_avatar;
 
+  const cardHeightClass = visibleProperties?.summary
+    ? visibleProperties?.progress
+      ? "min-h-[220px] h-[220px] max-h-[220px]"
+      : "min-h-[205px] h-[205px] max-h-[205px]"
+    : visibleProperties?.progress
+      ? "min-h-[165px] h-[165px] max-h-[165px]"
+      : "min-h-[150px] h-[150px] max-h-[150px]";
+
   return (
     <article
       ref={setNodeRef}
@@ -206,7 +223,7 @@ const SortableTaskItem = memo(function SortableTaskItem({
       {...attributes}
       {...listeners}
       onClick={onClick || (() => onTaskClick?.(task.id))}
-      className={`group rounded-xl p-3.5 flex flex-col gap-3 select-none ${
+      className={`group rounded-xl p-3.5 sm:p-4 flex flex-col gap-3 select-none w-full ${cardHeightClass} relative overflow-hidden ${
         isDragging
           ? "!transition-none opacity-30 border-2 border-dashed border-black/20 dark:border-white/20 bg-transparent scale-[0.98]"
           : isHighlighted
@@ -216,8 +233,8 @@ const SortableTaskItem = memo(function SortableTaskItem({
               : "bg-white dark:bg-[#18191c] hover:bg-zinc-50 dark:hover:bg-[#1c1d21] border border-black/[0.08] dark:border-white/[0.05] shadow-xs hover:shadow-md cursor-grab active:cursor-grabbing text-zinc-900 dark:text-zinc-100 transition-colors"
       }`}
     >
-      {/* Top Header: Identifier, Interactive Priority, Options (No duplicate avatar, No text) */}
-      <div className="flex items-center justify-between gap-2">
+      {/* Top Header: Identifier, Status, Priority, Options */}
+      <div className="flex items-center justify-between gap-2 shrink-0">
         {visibleProperties?.id !== false ? (
           <div
             className="font-mono text-[11px] text-zinc-400 dark:text-[#8a8f98] font-medium tracking-wider pt-0.5 whitespace-nowrap shrink-0 rounded px-1 -ml-1 hover:text-zinc-900 dark:hover:text-white hover:bg-black/[0.04] dark:hover:bg-white/[0.04] transition-colors cursor-pointer"
@@ -333,9 +350,9 @@ const SortableTaskItem = memo(function SortableTaskItem({
       </div>
 
       {/* Title */}
-      <div>
+      <div className="shrink-0 -mt-0.5">
         <h3
-          className={`text-[14px] font-medium leading-snug line-clamp-2 cursor-pointer hover:text-blue-500 dark:hover:text-blue-400 transition-colors ${
+          className={`text-[14px] font-medium leading-snug truncate cursor-pointer hover:text-blue-500 dark:hover:text-blue-400 transition-colors ${
             isDone
               ? "text-zinc-400 dark:text-[#8a8f98] line-through"
               : "text-zinc-900 dark:text-[#e8e8e8]"
@@ -346,137 +363,118 @@ const SortableTaskItem = memo(function SortableTaskItem({
         </h3>
       </div>
 
-      {/* Description if present */}
-      {task.description && (
-        <div className="text-[13px] text-zinc-500 dark:text-[#8a8f98] leading-relaxed line-clamp-2">
-          {task.description}
+      {/* Description: 2-line clamped snippet */}
+      {visibleProperties?.summary && (
+        <div className="text-[13px] text-zinc-500 dark:text-[#8a8f98] leading-relaxed line-clamp-2 h-[38px] min-h-[38px] max-h-[38px] overflow-hidden pr-2">
+          {task.description ? (
+            task.description.split("\n\n")[0].replace(/[#*`_]/g, "")
+          ) : (
+            <span className="text-zinc-400/40 dark:text-zinc-600/50 italic">No description provided.</span>
+          )}
         </div>
       )}
 
-      {/* Status-colored Progress Meter */}
-      <div
-        className="w-full h-1.5 rounded-full bg-black/[0.06] dark:bg-white/[0.06] overflow-hidden"
-        aria-hidden="true"
-      >
+      {/* Status-colored Progress Meter - ONLY when visibleProperties.progress is true */}
+      {visibleProperties?.progress && (
         <div
-          className={`h-full rounded-full transition-all duration-300 ${progressColor}`}
-          style={{ width: `${progressPct}%` }}
-        />
-      </div>
+          className="w-full h-1.5 rounded-full bg-black/[0.06] dark:bg-white/[0.06] overflow-hidden shrink-0"
+          aria-hidden="true"
+        >
+          <div
+            className={`h-full rounded-full transition-all duration-300 ${progressColor}`}
+            style={{ width: `${progressPct}%` }}
+          />
+        </div>
+      )}
 
-      {/* Dates, Subtask count, Project badge, and Blocked indicators */}
-      <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-[12px] text-zinc-600 dark:text-[#8a8f98]">
-        {visibleProperties?.dueDate !== false && (
-          <PickerWrapper
-            open={activePickerType === "dueDate"}
-            onOpenChange={(open) => {
-              if (open) {
-                setActivePicker({ type: "dueDate", taskId: task.id });
-              } else {
-                setActivePicker({ type: null, taskId: null });
-              }
-            }}
-            trigger={
-              <span>
-                <ActionTooltip label={isOverdue ? "Overdue - click to reschedule" : "Change due date"} shortcut="D">
-                  <span
-                    className={`inline-flex items-center gap-1.5 font-medium rounded px-1.5 py-0.5 -ml-1 cursor-pointer hover:bg-black/[0.06] dark:hover:bg-white/[0.08] hover:text-zinc-900 dark:hover:text-white active:scale-95 transition-all ${
-                      isOverdue
-                        ? "text-rose-600 dark:text-rose-400 font-semibold"
-                        : "text-zinc-500 dark:text-[#8a8f98]"
-                    }`}
-                    onPointerDown={(e) => e.stopPropagation()}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setActivePicker({ type: "dueDate", taskId: task.id });
-                    }}
-                  >
-                    <Clock
-                      size={12}
-                      className={isOverdue ? "text-rose-500 shrink-0" : "text-[#5e636e] shrink-0"}
-                    />
-                    <span>{isOverdue ? `${formattedDue} (Overdue)` : formattedDue}</span>
-                  </span>
-                </ActionTooltip>
-              </span>
-            }
-          >
-            <DatePicker
-              value={task.due_date}
-              onChange={(date) => {
-                onUpdateTaskProperty?.(
-                  task.id,
-                  "due_date",
-                  date ? (date instanceof Date ? date.toISOString() : date) : null
-                );
-                setActivePicker({ type: null, taskId: null });
-              }}
-              onClose={() => setActivePicker({ type: null, taskId: null })}
-              placeholder="Due date"
-            />
-          </PickerWrapper>
-        )}
-
-        {visibleProperties?.project !== false && (task.project_name || task.project_identifier) && (
-          <ActionTooltip label={`Project: ${task.project_name || task.project_identifier}`}>
-            <span
-              className="inline-flex items-center gap-1 text-[11px] text-zinc-500 dark:text-[#8a8f98] hover:text-zinc-900 dark:hover:text-white rounded px-1.5 py-0.5 -ml-1 cursor-pointer hover:bg-black/[0.06] dark:hover:bg-white/[0.08] transition-colors truncate max-w-[150px]"
-              onPointerDown={(e) => e.stopPropagation()}
-              onClick={(e) => {
-                if (task.project_id) {
-                  e.stopPropagation();
-                  navigate(`/projects/${task.project_id}`);
+      {/* Dates, Project badge, and Blocked indicators */}
+      {(visibleProperties?.dueDate !== false || (visibleProperties?.project !== false && (task.project_name || task.project_identifier)) || (task.blocked_by_count > 0 && !isDone)) && (
+        <div className="flex items-center gap-x-3 text-[12px] text-zinc-600 dark:text-[#8a8f98] overflow-hidden whitespace-nowrap h-[20px] shrink-0">
+          {visibleProperties?.dueDate !== false && (
+            <PickerWrapper
+              open={activePickerType === "dueDate"}
+              onOpenChange={(open) => {
+                if (open) {
+                  setActivePicker({ type: "dueDate", taskId: task.id });
+                } else {
+                  setActivePicker({ type: null, taskId: null });
                 }
               }}
+              trigger={
+                <span>
+                  <ActionTooltip label={isOverdue ? "Overdue - click to reschedule" : "Change due date"} shortcut="D">
+                    <span
+                      className={`inline-flex items-center gap-1.5 font-medium rounded px-1.5 py-0.5 -ml-1 cursor-pointer hover:bg-black/[0.06] dark:hover:bg-white/[0.08] hover:text-zinc-900 dark:hover:text-white active:scale-95 transition-all ${
+                        isOverdue
+                          ? "text-rose-600 dark:text-rose-400 font-semibold"
+                          : "text-zinc-500 dark:text-[#8a8f98]"
+                      }`}
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActivePicker({ type: "dueDate", taskId: task.id });
+                      }}
+                    >
+                      <Clock
+                        size={12}
+                        className={isOverdue ? "text-rose-500 shrink-0" : "text-[#5e636e] shrink-0"}
+                      />
+                      <span>{isOverdue ? `${formattedDue} (Overdue)` : formattedDue}</span>
+                    </span>
+                  </ActionTooltip>
+                </span>
+              }
             >
-              <FileText size={11} className="text-zinc-400 dark:text-[#6e737d] shrink-0" />
-              <span className="truncate">{task.project_name || task.project_identifier}</span>
-            </span>
-          </ActionTooltip>
-        )}
+              <DatePicker
+                value={task.due_date}
+                onChange={(date) => {
+                  onUpdateTaskProperty?.(
+                    task.id,
+                    "due_date",
+                    date ? (date instanceof Date ? date.toISOString() : date) : null
+                  );
+                  setActivePicker({ type: null, taskId: null });
+                }}
+                onClose={() => setActivePicker({ type: null, taskId: null })}
+                placeholder="Due date"
+              />
+            </PickerWrapper>
+          )}
 
-        {task.created_at && (
-          <ActionTooltip label="Created date">
-            <span className="inline-flex items-center gap-1.5 text-zinc-500 dark:text-[#8a8f98] hover:text-zinc-900 dark:hover:text-white rounded px-1.5 py-0.5 hover:bg-black/[0.04] dark:hover:bg-white/[0.04] transition-colors cursor-default">
-              <Calendar size={12} className="text-[#5e636e] shrink-0" />
-              <span>
-                {new Date(task.created_at).toLocaleDateString("en-US", {
-                  month: "short",
-                  day: "numeric",
-                })}
+          {visibleProperties?.project !== false && (task.project_name || task.project_identifier) && (
+            <ActionTooltip label={`Project: ${task.project_name || task.project_identifier}`}>
+              <span
+                className="inline-flex items-center gap-1.5 text-[11.5px] text-zinc-500 dark:text-[#8a8f98] hover:text-zinc-900 dark:hover:text-white rounded px-1.5 py-0.5 -ml-1 cursor-pointer hover:bg-black/[0.06] dark:hover:bg-white/[0.08] transition-colors truncate max-w-[150px]"
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  if (task.project_id) {
+                    e.stopPropagation();
+                    navigate(`/projects/${task.project_id}`);
+                  }
+                }}
+              >
+                <FileText size={12} className="text-zinc-400 dark:text-[#6e737d] shrink-0" />
+                <span className="truncate">{task.project_name || task.project_identifier}</span>
               </span>
-            </span>
-          </ActionTooltip>
-        )}
+            </ActionTooltip>
+          )}
 
-        {visibleProperties?.subtasks !== false && task.subtask_count > 0 && (
-          <ActionTooltip label={`${task.completed_subtask_count || 0} of ${task.subtask_count} subtasks completed`}>
-            <span
-              className="inline-flex items-center gap-1 text-[10.5px] font-mono text-zinc-500 dark:text-[#8a8f98] hover:text-zinc-900 dark:hover:text-white bg-black/[0.03] dark:bg-white/[0.04] hover:bg-black/[0.08] dark:hover:bg-white/[0.1] px-1.5 py-0.5 rounded border border-black/[0.06] dark:border-white/[0.06] transition-colors cursor-pointer"
-            >
-              <CheckSquare size={10} className="shrink-0" />
-              <span>
-                {task.completed_subtask_count || 0}/{task.subtask_count}
+          {task.blocked_by_count > 0 && !isDone && (
+            <ActionTooltip label={`Blocked by ${task.blocked_by_count} incomplete task(s)`}>
+              <span
+                className="inline-flex items-center gap-1.5 h-5 px-2 rounded-full text-[11px] font-medium leading-none text-amber-700 dark:text-amber-400 bg-amber-500/10 dark:bg-amber-400/[0.1] border border-amber-500/25 dark:border-amber-400/25 hover:bg-amber-500/20 dark:hover:bg-amber-400/[0.18] transition-all cursor-pointer shrink-0 select-none"
+              >
+                <AlertCircle size={11} strokeWidth={2.2} className="shrink-0 text-amber-600 dark:text-amber-400" />
+                <span>Blocked</span>
               </span>
-            </span>
-          </ActionTooltip>
-        )}
+            </ActionTooltip>
+          )}
+        </div>
+      )}
 
-        {task.blocked_by_count > 0 && !isDone && (
-          <ActionTooltip label={`Blocked by ${task.blocked_by_count} incomplete task(s)`}>
-            <span
-              className="inline-flex items-center gap-1 text-[10px] font-medium text-amber-500 bg-amber-500/10 hover:bg-amber-500/20 px-1.5 py-0.5 rounded border border-amber-500/20 transition-colors cursor-pointer"
-            >
-              <AlertCircle size={10} className="shrink-0" />
-              <span>Blocked</span>
-            </span>
-          </ActionTooltip>
-        )}
-      </div>
-
-      {/* Footer: Assignee with Name on Left, Subtasks (if any) on Right - No "0 issues" */}
-      {(visibleProperties?.assignee !== false || (visibleProperties?.subtasks !== false && task.subtask_count > 0)) && (
-        <div className="flex items-center justify-between pt-1 border-t border-black/[0.06] dark:border-white/[0.04] text-[12.5px] text-zinc-600 dark:text-[#8a8f98]">
+      {/* Footer: Assignee with Name on Left, Subtasks on Right */}
+      {(visibleProperties?.assignee !== false || visibleProperties?.subtasks !== false) && (
+        <div className="flex items-center justify-between pt-2.5 border-t border-black/[0.06] dark:border-white/[0.04] text-[12.5px] text-zinc-600 dark:text-[#8a8f98] min-w-0 mt-auto shrink-0">
           {visibleProperties?.assignee !== false ? (
             <div className="relative min-w-0">
               <PickerWrapper
@@ -492,7 +490,7 @@ const SortableTaskItem = memo(function SortableTaskItem({
                   <div>
                     <ActionTooltip label={task.assignee_name ? `Assigned to ${task.assignee_name}` : "Assign task"} shortcut="A">
                       <div
-                        className="flex items-center gap-2 px-1.5 py-0.5 -ml-1 rounded-md transition-all w-fit cursor-pointer hover:bg-black/[0.06] dark:hover:bg-white/[0.08] hover:text-zinc-900 dark:hover:text-[#e8e8e8] active:scale-95"
+                        className="flex items-center gap-2 px-1 py-0.5 -ml-1 rounded-md transition-all w-fit cursor-pointer hover:bg-black/[0.06] dark:hover:bg-white/[0.08] hover:text-zinc-900 dark:hover:text-[#e8e8e8] active:scale-95"
                         onPointerDown={(e) => e.stopPropagation()}
                         onClick={(e) => {
                           e.stopPropagation();
@@ -506,9 +504,9 @@ const SortableTaskItem = memo(function SortableTaskItem({
                             >
                               {assigneeAvatarUrl ? (
                                 <img
-                                  src={assigneeAvatarUrl}
-                                  alt={task.assignee_name}
-                                  className="w-full h-full object-cover"
+                                 src={assigneeAvatarUrl}
+                                 alt={task.assignee_name}
+                                 className="w-full h-full object-cover"
                                 />
                               ) : (
                                 getInitial(task.assignee_name, task.assignee_email)
@@ -520,7 +518,7 @@ const SortableTaskItem = memo(function SortableTaskItem({
                           </>
                         ) : (
                           <div className="flex items-center gap-1.5 text-zinc-400 dark:text-[#8a8f98]">
-                            <div className="flex items-center justify-center w-4 h-4 rounded-[4px] border border-zinc-400 dark:border-white/20 bg-transparent">
+                            <div className="flex items-center justify-center w-[18px] h-[18px] rounded-[4px] border border-zinc-400/60 dark:border-white/20 bg-transparent">
                               <User size={10} />
                             </div>
                             <span className="text-[12px]">Unassigned</span>
@@ -538,6 +536,7 @@ const SortableTaskItem = memo(function SortableTaskItem({
                           id: task.assignee_id,
                           name: task.assignee_name,
                           email: task.assignee_email,
+                          username: task.assignee_username,
                           avatar_url: assigneeAvatarUrl,
                         }
                       : null
@@ -555,9 +554,9 @@ const SortableTaskItem = memo(function SortableTaskItem({
             <div />
           )}
 
-          {visibleProperties?.subtasks !== false && task.subtask_count > 0 && (
+          {visibleProperties?.subtasks !== false && (
             <div className="text-[12.5px] text-zinc-500 dark:text-[#8a8f98] shrink-0 font-normal">
-              {task.subtask_count} subtask{task.subtask_count === 1 ? "" : "s"}
+              {task.subtask_count || 0} subtask{(task.subtask_count || 0) === 1 ? "" : "s"}
             </div>
           )}
         </div>
@@ -585,13 +584,21 @@ function TaskCardPreview({ task, visibleProperties = DEFAULT_VISIBLE_PROPERTIES 
 
   const assigneeAvatarUrl = task.assignee_avatar_url || task.assignee_avatar;
 
+  const cardHeightClass = visibleProperties?.summary
+    ? visibleProperties?.progress
+      ? "min-h-[220px] h-[220px] max-h-[220px]"
+      : "min-h-[205px] h-[205px] max-h-[205px]"
+    : visibleProperties?.progress
+      ? "min-h-[165px] h-[165px] max-h-[165px]"
+      : "min-h-[150px] h-[150px] max-h-[150px]";
+
   return (
     <article
       style={{ willChange: "transform" }}
-      className="group rounded-xl p-3.5 flex flex-col gap-3 select-none pointer-events-none rotate-1 scale-[1.02] w-[320px] bg-white dark:bg-[#18191c] border border-black/[0.08] dark:border-white/[0.08] shadow-[0_20px_45px_rgba(0,0,0,0.18)] dark:shadow-[0_20px_45px_rgba(0,0,0,0.7)] text-zinc-900 dark:text-zinc-100 !transition-none"
+      className={`group rounded-xl p-3.5 sm:p-4 flex flex-col gap-3 select-none pointer-events-none rotate-1 scale-[1.02] w-[320px] ${cardHeightClass} bg-white dark:bg-[#18191c] border border-black/[0.08] dark:border-white/[0.08] shadow-[0_20px_45px_rgba(0,0,0,0.18)] dark:shadow-[0_20px_45px_rgba(0,0,0,0.7)] text-zinc-900 dark:text-zinc-100 !transition-none relative overflow-hidden`}
     >
-      {/* Top Header: Identifier, Priority Icon, Options (No duplicate avatar, No text) */}
-      <div className="flex items-center justify-between gap-2">
+      {/* Top Header: Identifier, Priority Icon, Options */}
+      <div className="flex items-center justify-between gap-2 shrink-0">
         {visibleProperties?.id !== false ? (
           <div className="font-mono text-[11px] text-zinc-400 dark:text-[#8a8f98] font-medium tracking-wider pt-0.5 whitespace-nowrap shrink-0">
             {taskIdentifier}
@@ -620,9 +627,9 @@ function TaskCardPreview({ task, visibleProperties = DEFAULT_VISIBLE_PROPERTIES 
       </div>
 
       {/* Title */}
-      <div>
+      <div className="shrink-0 -mt-0.5">
         <h4
-          className={`text-[14px] font-medium leading-snug line-clamp-2 ${
+          className={`text-[14px] font-medium leading-snug truncate ${
             isDone
               ? "text-zinc-400 dark:text-[#8a8f98] line-through"
               : "text-zinc-900 dark:text-[#e8e8e8]"
@@ -632,76 +639,63 @@ function TaskCardPreview({ task, visibleProperties = DEFAULT_VISIBLE_PROPERTIES 
         </h4>
       </div>
 
-      {/* Description if present */}
-      {task.description && (
-        <div className="text-[13px] text-zinc-500 dark:text-[#8a8f98] leading-relaxed line-clamp-2">
-          {task.description}
+      {/* Description */}
+      {visibleProperties?.summary && (
+        <div className="text-[13px] text-zinc-500 dark:text-[#8a8f98] leading-relaxed line-clamp-2 h-[38px] min-h-[38px] max-h-[38px] overflow-hidden pr-2">
+          {task.description ? (
+            task.description.split("\n\n")[0].replace(/[#*`_]/g, "")
+          ) : (
+            <span className="text-zinc-400/40 dark:text-zinc-600/50 italic">No description provided.</span>
+          )}
         </div>
       )}
 
-      {/* Status-colored Progress Meter */}
-      <div
-        className="w-full h-1.5 rounded-full bg-black/[0.06] dark:bg-white/[0.08] overflow-hidden"
-        aria-hidden="true"
-      >
+      {/* Status-colored Progress Meter - ONLY when visibleProperties.progress is true */}
+      {visibleProperties?.progress && (
         <div
-          className={`h-full rounded-full ${progressColor}`}
-          style={{ width: `${progressPct}%` }}
-        />
-      </div>
+          className="w-full h-1.5 rounded-full bg-black/[0.06] dark:bg-white/[0.08] overflow-hidden shrink-0"
+          aria-hidden="true"
+        >
+          <div
+            className={`h-full rounded-full ${progressColor}`}
+            style={{ width: `${progressPct}%` }}
+          />
+        </div>
+      )}
 
-      {/* Dates, Subtask count, Project badge, and Blocked indicators */}
-      <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-[12px] text-zinc-600 dark:text-[#8a8f98]">
-        {visibleProperties?.dueDate !== false && (
-          <span
-            className={`inline-flex items-center gap-1.5 font-medium ${
-              isOverdue ? "text-rose-600 dark:text-rose-400 font-semibold" : "text-zinc-500 dark:text-[#8a8f98]"
-            }`}
-          >
-            <Clock size={12} className={isOverdue ? "text-rose-500 shrink-0" : "text-[#5e636e] shrink-0"} />
-            <span>{isOverdue ? `${formattedDue} (Overdue)` : formattedDue}</span>
-          </span>
-        )}
-
-        {visibleProperties?.project !== false && (task.project_name || task.project_identifier) && (
-          <span className="inline-flex items-center gap-1 text-[11px] text-zinc-500 dark:text-[#8a8f98] truncate max-w-[150px]">
-            <FileText size={11} className="text-zinc-400 dark:text-[#6e737d] shrink-0" />
-            <span className="truncate">{task.project_name || task.project_identifier}</span>
-          </span>
-        )}
-
-        {task.created_at && (
-          <span className="inline-flex items-center gap-1.5 text-zinc-500 dark:text-[#8a8f98]">
-            <Calendar size={12} className="text-[#5e636e] shrink-0" />
-            <span>
-              {new Date(task.created_at).toLocaleDateString("en-US", {
-                month: "short",
-                day: "numeric",
-              })}
+      {/* Dates, Project badge, and Blocked indicators */}
+      {(visibleProperties?.dueDate !== false || (visibleProperties?.project !== false && (task.project_name || task.project_identifier)) || (task.blocked_by_count > 0 && !isDone)) && (
+        <div className="flex items-center gap-x-3 text-[12px] text-zinc-500 dark:text-[#8a8f98] overflow-hidden whitespace-nowrap h-[20px] shrink-0">
+          {visibleProperties?.dueDate !== false && (
+            <span
+              className={`inline-flex items-center gap-1.5 font-medium ${
+                isOverdue ? "text-rose-600 dark:text-rose-400 font-semibold" : "text-zinc-500 dark:text-[#8a8f98]"
+              }`}
+            >
+              <Clock size={12} className={isOverdue ? "text-rose-500 shrink-0" : "text-[#5e636e] shrink-0"} />
+              <span>{isOverdue ? `${formattedDue} (Overdue)` : formattedDue}</span>
             </span>
-          </span>
-        )}
+          )}
 
-        {visibleProperties?.subtasks !== false && task.subtask_count > 0 && (
-          <span className="inline-flex items-center gap-1 text-[10.5px] font-mono text-zinc-500 dark:text-[#8a8f98] bg-black/[0.03] dark:bg-white/[0.04] px-1.5 py-0.5 rounded border border-black/[0.06] dark:border-white/[0.06]">
-            <CheckSquare size={10} className="shrink-0" />
-            <span>
-              {task.completed_subtask_count || 0}/{task.subtask_count}
+          {visibleProperties?.project !== false && (task.project_name || task.project_identifier) && (
+            <span className="inline-flex items-center gap-1.5 text-[11.5px] text-zinc-500 dark:text-[#8a8f98] truncate max-w-[150px]">
+              <FileText size={12} className="text-zinc-400 dark:text-[#6e737d] shrink-0" />
+              <span className="truncate">{task.project_name || task.project_identifier}</span>
             </span>
-          </span>
-        )}
+          )}
 
-        {task.blocked_by_count > 0 && !isDone && (
-          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">
-            <AlertCircle size={10} className="shrink-0" />
-            <span>Blocked</span>
-          </span>
-        )}
-      </div>
+          {task.blocked_by_count > 0 && !isDone && (
+            <span className="inline-flex items-center gap-1.5 h-5 px-2 rounded-full text-[11px] font-medium leading-none text-amber-700 dark:text-amber-400 bg-amber-500/10 dark:bg-amber-400/[0.1] border border-amber-500/25 dark:border-amber-400/25 select-none">
+              <AlertCircle size={11} strokeWidth={2.2} className="shrink-0 text-amber-600 dark:text-amber-400" />
+              <span>Blocked</span>
+            </span>
+          )}
+        </div>
+      )}
 
-      {/* Footer: Assignee with Name on Left, Subtasks (if any) on Right - No "0 issues" */}
-      {(visibleProperties?.assignee !== false || (visibleProperties?.subtasks !== false && task.subtask_count > 0)) && (
-        <div className="flex items-center justify-between pt-1 border-t border-black/[0.06] dark:border-white/[0.04] text-[12.5px] text-zinc-600 dark:text-[#8a8f98]">
+      {/* Footer: Assignee with Name on Left, Subtasks on Right */}
+      {(visibleProperties?.assignee !== false || visibleProperties?.subtasks !== false) && (
+        <div className="flex items-center justify-between pt-2.5 border-t border-black/[0.06] dark:border-white/[0.04] text-[12.5px] text-zinc-600 dark:text-[#8a8f98] min-w-0 mt-auto shrink-0">
           {visibleProperties?.assignee !== false ? (
             <div className="flex items-center gap-2 min-w-0">
               {task.assignee_name ? (
@@ -725,7 +719,7 @@ function TaskCardPreview({ task, visibleProperties = DEFAULT_VISIBLE_PROPERTIES 
                 </>
               ) : (
                 <div className="flex items-center gap-1.5 text-zinc-400 dark:text-[#8a8f98]">
-                  <div className="flex items-center justify-center w-4 h-4 rounded-[4px] border border-zinc-400 dark:border-white/20 bg-transparent">
+                  <div className="flex items-center justify-center w-[18px] h-[18px] rounded-[4px] border border-zinc-400/60 dark:border-white/20 bg-transparent">
                     <User size={10} />
                   </div>
                   <span className="text-[12px]">Unassigned</span>
@@ -736,9 +730,9 @@ function TaskCardPreview({ task, visibleProperties = DEFAULT_VISIBLE_PROPERTIES 
             <div />
           )}
 
-          {visibleProperties?.subtasks !== false && task.subtask_count > 0 && (
+          {visibleProperties?.subtasks !== false && (
             <div className="text-[12.5px] text-zinc-500 dark:text-[#8a8f98] shrink-0 font-normal">
-              {task.subtask_count} subtask{task.subtask_count === 1 ? "" : "s"}
+              {task.subtask_count || 0} subtask{(task.subtask_count || 0) === 1 ? "" : "s"}
             </div>
           )}
         </div>
@@ -947,10 +941,20 @@ export default memo(function Kanban({
 }) {
   const navigate = useNavigate();
   const visibleProperties = useMemo(() => {
-    if (propVisibleProperties) return propVisibleProperties;
+    if (propVisibleProperties) {
+      return {
+        ...DEFAULT_VISIBLE_PROPERTIES,
+        ...propVisibleProperties,
+      };
+    }
     try {
       const saved = localStorage.getItem("kriri_tasks_display_properties");
-      if (saved) return { ...DEFAULT_VISIBLE_PROPERTIES, ...JSON.parse(saved) };
+      if (saved) {
+        return {
+          ...DEFAULT_VISIBLE_PROPERTIES,
+          ...JSON.parse(saved),
+        };
+      }
     } catch {}
     return DEFAULT_VISIBLE_PROPERTIES;
   }, [propVisibleProperties]);
@@ -979,6 +983,20 @@ export default memo(function Kanban({
   }, [propAvailableMembers, organization?.id]);
 
   const availableMembers = propAvailableMembers || internalMembers;
+
+  const currentDbUserId = useMemo(() => {
+    if (availableMembers?.length > 0 && user) {
+      const userEmail = (user.primaryEmailAddress?.emailAddress || user.emailAddresses?.[0]?.emailAddress || "").toLowerCase();
+      const matched = availableMembers.find(
+        (m) =>
+          (user.id && (m.clerk_user_id === user.id || String(m.clerk_user_id) === String(user.id))) ||
+          (userEmail && m.email && m.email.toLowerCase() === userEmail) ||
+          (user.username && m.username && m.username.toLowerCase() === user.username.toLowerCase())
+      );
+      if (matched?.id) return matched.id;
+    }
+    return null;
+  }, [availableMembers, user]);
   const scopeKey = user?.id ? `${user.id}:${organization?.id || "personal"}` : (isAuditMock ? "mock_user:personal" : null);
   const boardCacheKey = scopeKey ? `kriri:cache:board_tasks_${scopeKey}` : null;
 
@@ -1315,27 +1333,27 @@ export default memo(function Kanban({
       );
     }
     if (currentFilter === "assigned" || currentFilter === "mine") {
-      const userEmail = user?.primaryEmailAddress?.emailAddress?.toLowerCase();
-      const userName = user?.fullName?.toLowerCase();
-      return list.filter(
-        (t) =>
-          (user?.id && (t.assignee_id === user.id || t.assignee_id === "personal")) ||
-          (t.assignee_email && t.assignee_email.toLowerCase() === userEmail) ||
-          (t.assignee_name && userName && t.assignee_name.toLowerCase() === userName),
-      );
+      const userEmail = (user?.primaryEmailAddress?.emailAddress || user?.emailAddresses?.[0]?.emailAddress || "").toLowerCase();
+      const clerkId = user?.id;
+      return list.filter((t) => {
+        if (currentDbUserId && (t.assignee_id === currentDbUserId || String(t.assignee_id) === String(currentDbUserId))) return true;
+        if (clerkId && (t.assignee_id === clerkId || t.assignee_clerk_user_id === clerkId || t.assignee_id === "personal")) return true;
+        if (userEmail && t.assignee_email && t.assignee_email.toLowerCase() === userEmail) return true;
+        return false;
+      });
     }
     if (currentFilter === "created") {
-      const userEmail = user?.primaryEmailAddress?.emailAddress?.toLowerCase();
-      const userName = user?.fullName?.toLowerCase();
-      return list.filter(
-        (t) =>
-          (user?.id && (t.reporter_id === user.id || t.reporter_id === "personal")) ||
-          (t.reporter_email && t.reporter_email.toLowerCase() === userEmail) ||
-          (t.reporter_name && userName && t.reporter_name.toLowerCase() === userName),
-      );
+      const userEmail = (user?.primaryEmailAddress?.emailAddress || user?.emailAddresses?.[0]?.emailAddress || "").toLowerCase();
+      const clerkId = user?.id;
+      return list.filter((t) => {
+        if (currentDbUserId && (t.reporter_id === currentDbUserId || String(t.reporter_id) === String(currentDbUserId))) return true;
+        if (clerkId && (t.reporter_id === clerkId || t.reporter_clerk_user_id === clerkId || t.reporter_id === "personal")) return true;
+        if (userEmail && t.reporter_email && t.reporter_email.toLowerCase() === userEmail) return true;
+        return false;
+      });
     }
     return list;
-  }, [tasks, currentFilter, currentSearch, user]);
+  }, [tasks, currentFilter, currentSearch, user, currentDbUserId]);
 
   const tasksByColumn = useMemo(() => {
     const map = {};
@@ -1400,6 +1418,8 @@ export default memo(function Kanban({
       assignee_id: member ? member.id : null,
       assignee_name: member ? member.name : null,
       assignee_username: member ? member.username : null,
+      assignee_email: member ? member.email : null,
+      assignee_clerk_user_id: member ? member.clerk_user_id : null,
       assignee_avatar_url: member ? member.avatar_url : null,
     };
     updateTasks((prev) =>

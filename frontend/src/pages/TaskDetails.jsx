@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, startTransition } from "react";
 import { useParams, useNavigate, Link, useLocation } from "react-router-dom";
 import { useUser, useOrganization } from "@clerk/react";
 import {
@@ -22,12 +22,14 @@ import {
   AtSign,
 } from "lucide-react";
 import { api } from "../lib/api";
+import { dataStore } from "../lib/dataStore";
 import posthog from "../lib/posthog";
 import { playUiSound } from "../lib/sound";
 import StatusPicker, { getStatusIcon } from "../components/StatusPicker";
 import PriorityPicker, { getPriorityIcon } from "../components/PriorityPicker";
 import LeadPicker from "../components/LeadPicker";
 import DatePicker from "../components/DatePicker";
+import DependencyPicker from "../components/DependencyPicker";
 import { TaskDetailsSkeleton } from "../components/skeletons/PageSkeletons";
 import { useDeferredSkeleton } from "../hooks/useDeferredSkeleton";
 import { formatKririDate } from "../lib/userPreferences";
@@ -50,18 +52,30 @@ export default function TaskDetails() {
 
   const [task, setTask] = useState(() => {
     if (location.state?.task) return location.state.task;
+    const direct = api.getCached(`/tasks/${id}`);
+    if (direct) return direct;
     const fromApiCache = api.getCached("/tasks");
     if (Array.isArray(fromApiCache)) {
       const found = fromApiCache.find((t) => String(t.id) === String(id));
       if (found) return found;
     }
-    return api.getCached(`/tasks/${id}`) || null;
+    return null;
   });
   const [title, setTitle] = useState(() => task?.title || "");
   const [description, setDescription] = useState(() => task?.description || "");
+  const [isDescriptionLoading, setIsDescriptionLoading] = useState(() => !task?.description);
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState("");
   const [loading, setLoading] = useState(() => !task);
+
+  const descriptionRef = useRef(null);
+
+  useEffect(() => {
+    if (descriptionRef.current) {
+      descriptionRef.current.style.height = "auto";
+      descriptionRef.current.style.height = `${Math.max(96, descriptionRef.current.scrollHeight)}px`;
+    }
+  }, [description, isDescriptionLoading]);
 
   // Active Picker Popover State
   const [activePicker, setActivePicker] = useState(null);
@@ -131,7 +145,7 @@ export default function TaskDetails() {
 
   useEffect(() => {
     if (!id) return;
-    const controller = new AbortController();
+    let isCancelled = false;
 
     // Check if the current task in state matches this id, otherwise check cache or show skeleton
     const fromApiCache = api.getCached("/tasks");
@@ -143,46 +157,51 @@ export default function TaskDetails() {
     if (cached) {
       setTask(cached);
       setTitle(cached.title || "");
-      setDescription(cached.description || "");
+      if (cached.description !== undefined && cached.description !== null) {
+        setDescription(cached.description);
+        setIsDescriptionLoading(false);
+      } else {
+        setIsDescriptionLoading(true);
+      }
       setSubtasks(cached.subtasks || []);
       setDependencies(cached.dependencies || { blocked_by: [], blocking: [] });
       setLoading(false);
     } else {
       setTask(null);
       setLoading(true);
+      setIsDescriptionLoading(true);
     }
 
     const fetchTaskDetails = async () => {
       try {
         const [taskData, commentsData] = await Promise.all([
-          api.get(`/tasks/${id}`, { signal: controller.signal }),
-          api.get(`/comments/task/${id}`, { signal: controller.signal }).catch(
-            (err) => {
-              if (err.name === "AbortError") throw err;
-              return [];
-            },
-          ),
+          api.get(`/tasks/${id}`, { noCache: true }),
+          api.get(`/comments/task/${id}`).catch(() => []),
         ]);
+        if (isCancelled) return;
         setTask(taskData);
         setTitle(taskData.title || "");
         setDescription(taskData.description || "");
+        setIsDescriptionLoading(false);
         setSubtasks(taskData.subtasks || []);
         setDependencies(
           taskData.dependencies || { blocked_by: [], blocking: [] },
         );
         setComments(Array.isArray(commentsData) ? commentsData : []);
+        api.setCached(`/tasks/${id}`, taskData);
 
         posthog.capture("task_viewed", {
           task_id: id,
           project_id: taskData.project_id,
         });
       } catch (error) {
-        if (error.name !== "AbortError") {
+        if (!isCancelled) {
           console.error("fetchTaskDetails error:", error);
         }
       } finally {
-        if (!controller.signal.aborted) {
+        if (!isCancelled) {
           setLoading(false);
+          setIsDescriptionLoading(false);
         }
       }
     };
@@ -190,7 +209,7 @@ export default function TaskDetails() {
     fetchTaskDetails();
 
     return () => {
-      controller.abort();
+      isCancelled = true;
     };
   }, [id]);
 
@@ -317,13 +336,21 @@ export default function TaskDetails() {
   // Save Assignee
   const handleSelectAssignee = async (member) => {
     setActivePicker(null);
+    const patch = {
+      assignee_id: member ? member.id : null,
+      assignee_name: member ? member.name : null,
+      assignee_username: member ? member.username : null,
+      assignee_email: member ? member.email : null,
+      assignee_clerk_user_id: member ? member.clerk_user_id : null,
+      assignee_avatar_url: member ? member.avatar_url : null,
+    };
     try {
-      const updated = await api.put(`/tasks/${id}`, {
-        ...task,
-        assignee_id: member ? member.id : null,
-        assignee_name: member ? member.name : null,
-      });
-      setTask(updated);
+      const updated = await api.put(`/tasks/${id}`, patch);
+      setTask((prev) => ({
+        ...prev,
+        ...patch,
+        ...(updated || {}),
+      }));
       playUiSound("toggle");
     } catch (err) {
       console.error("Failed to update assignee:", err);
@@ -334,9 +361,17 @@ export default function TaskDetails() {
   const handleSelectDueDate = async (date) => {
     setActivePicker(null);
     try {
+      const val = date
+        ? date instanceof Date
+          ? date.toISOString()
+          : (() => {
+              const d = new Date(date);
+              return !isNaN(d.getTime()) ? d.toISOString() : String(date);
+            })()
+        : null;
       const updated = await api.put(`/tasks/${id}`, {
         ...task,
-        due_date: date ? date.toISOString() : null,
+        due_date: val,
       });
       setTask(updated);
       playUiSound("toggle");
@@ -431,51 +466,116 @@ export default function TaskDetails() {
     setTimeout(() => setIsCopied(false), 2000);
   };
 
-  // Add Blocker Dependency
-  const handleAddDependency = async (e) => {
-    if (e) e.preventDefault();
-    if (!selectedBlockerId) return;
-    setDepError("");
+  // Dependencies management (optimistic via dataStore)
+  const handleAddBlocker = async (blockerTaskId) => {
+    if (!blockerTaskId) return;
+    const newDep = await dataStore.addDependency(id, blockerTaskId, "blocks");
 
-    try {
-      const result = await api.post(`/tasks/${id}/dependencies`, {
-        depends_on_task_id: parseInt(selectedBlockerId, 10),
-      });
-      setDependencies({
-        ...dependencies,
-        blocked_by: [...dependencies.blocked_by, result],
-      });
-      setSelectedBlockerId("");
-      setIsAddingBlocker(false);
-      playUiSound("toggle");
-    } catch (err) {
-      console.error("Failed to add dependency:", err);
-      setDepError(err.message || "Failed to add blocker. Circular dependency detected.");
+    setDependencies((prev) => {
+      const blockedBy = Array.isArray(prev.blocked_by) ? prev.blocked_by : [];
+      const alreadyHas = blockedBy.some(
+        (d) => String(d.id || d.dependency_id) === String(newDep?.id || blockerTaskId)
+      );
+      return alreadyHas
+        ? prev
+        : {
+            ...prev,
+            blocked_by: [
+              ...blockedBy,
+              newDep || {
+                id: blockerTaskId,
+                title: "Blocked Task",
+                status: "Todo",
+              },
+            ],
+          };
+    });
+
+    if (task) {
+      setTask((prev) => ({
+        ...prev,
+        blocked_by_count: (prev.blocked_by_count || 0) + 1,
+      }));
     }
+    return newDep;
   };
 
-  const handleRemoveDependency = async (depId) => {
+  const handleAddDependency = async (eOrTaskId) => {
+    if (eOrTaskId && eOrTaskId.preventDefault) {
+      eOrTaskId.preventDefault();
+      if (!selectedBlockerId) return;
+      try {
+        await handleAddBlocker(selectedBlockerId);
+        setSelectedBlockerId("");
+        setIsAddingBlocker(false);
+        setDepError("");
+      } catch (err) {
+        setDepError(err?.message || "Failed to add blocker. Circular dependency detected.");
+      }
+      return;
+    }
+    return handleAddBlocker(eOrTaskId);
+  };
+
+  const handleRemoveDependency = async (depId, listType = "blocked_by") => {
     try {
-      await api.delete(`/tasks/${id}/dependencies/${depId}`);
-      setDependencies({
-        ...dependencies,
-        blocked_by: dependencies.blocked_by.filter(
-          (d) => (d.dependency_id || d.id) !== depId
-        ),
-      });
       playUiSound("toggle");
+      await dataStore.removeDependency(id, depId);
+
+      setDependencies((prev) => ({
+        blocked_by: (prev.blocked_by || []).filter(
+          (d) =>
+            String(d.dependency_id || d.id) !== String(depId) &&
+            String(d.depends_on_task_id) !== String(depId)
+        ),
+        blocking: (prev.blocking || []).filter(
+          (d) =>
+            String(d.dependency_id || d.id) !== String(depId) &&
+            String(d.task_id) !== String(depId)
+        ),
+      }));
+
+      if (task && listType === "blocked_by") {
+        setTask((prev) => ({
+          ...prev,
+          blocked_by_count: Math.max(0, (prev.blocked_by_count || 1) - 1),
+        }));
+      }
     } catch (err) {
       console.error("Failed to remove dependency:", err);
     }
   };
 
+  const handleNavigateToTask = (targetTaskId) => {
+    if (!targetTaskId || String(targetTaskId) === String(id)) return;
+    playUiSound("toggle");
+    startTransition(() => {
+      navigate(`/tasks/${targetTaskId}`);
+    });
+  };
+
+  const existingBlockerIds = useMemo(() => {
+    const ids = new Set();
+    ids.add(Number(id));
+    ids.add(String(id));
+    (dependencies.blocked_by || []).forEach((d) => {
+      if (d.id) {
+        ids.add(d.id);
+        ids.add(String(d.id));
+      }
+      if (d.depends_on_task_id) {
+        ids.add(d.depends_on_task_id);
+        ids.add(String(d.depends_on_task_id));
+      }
+    });
+    return ids;
+  }, [dependencies.blocked_by, id]);
+
   const availableBlockers = useMemo(() => {
-    const existingBlockerIds = new Set(
-      dependencies.blocked_by.map((d) => d.id || d.depends_on_task_id)
-    );
-    existingBlockerIds.add(parseInt(id, 10));
-    return allWorkspaceTasks.filter((t) => !existingBlockerIds.has(t.id));
-  }, [allWorkspaceTasks, dependencies.blocked_by, id]);
+    const existing = new Set(existingBlockerIds);
+    const allTasks = dataStore.getTasksSnapshot();
+    return allTasks.filter((t) => !existing.has(t.id) && !existing.has(String(t.id)));
+  }, [existingBlockerIds]);
 
   const showSkeleton = useDeferredSkeleton(loading && !task, 180);
 
@@ -606,14 +706,29 @@ export default function TaskDetails() {
 
           {/* Seamless Description Textarea */}
           <div className="mb-6">
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              onBlur={handleSaveDescription}
-              placeholder="Add description..."
-              rows={4}
-              className="w-full bg-transparent border-none text-[14px] text-zinc-700 dark:text-[#d1d2d5] focus:outline-none placeholder:text-zinc-500 dark:placeholder:text-[#6e737d] leading-relaxed resize-none"
-            />
+            {isDescriptionLoading ? (
+              <div className="space-y-2.5 py-1.5 animate-pulse" data-testid="description-skeleton">
+                <div className="h-4 bg-zinc-200/80 dark:bg-zinc-800/80 rounded w-4/5" />
+                <div className="h-4 bg-zinc-200/60 dark:bg-zinc-800/60 rounded w-11/12" />
+                <div className="h-4 bg-zinc-200/40 dark:bg-zinc-800/40 rounded w-3/5" />
+              </div>
+            ) : (
+              <textarea
+                ref={descriptionRef}
+                value={description}
+                onChange={(e) => {
+                  setDescription(e.target.value);
+                  if (descriptionRef.current) {
+                    descriptionRef.current.style.height = "auto";
+                    descriptionRef.current.style.height = `${Math.max(96, descriptionRef.current.scrollHeight)}px`;
+                  }
+                }}
+                onBlur={handleSaveDescription}
+                placeholder="Add description..."
+                rows={4}
+                className="w-full bg-transparent border-none text-[14px] text-zinc-700 dark:text-[#d1d2d5] focus:outline-none placeholder:text-zinc-500 dark:placeholder:text-[#6e737d] leading-relaxed resize-none overflow-hidden"
+              />
+            )}
           </div>
 
           {/* Sub-issues Section (Linear Style matching Image 5) */}
@@ -749,40 +864,146 @@ export default function TaskDetails() {
           </div>
 
           {/* Dependencies Section */}
-          {dependencies.blocked_by.length > 0 && (
-            <div className="mb-8 rounded-xl border border-black/[0.08] dark:border-white/[0.08] bg-black/[0.02] dark:bg-white/[0.02] p-3.5 max-w-xl">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <Link2 size={14} className="text-accent" />
-                  <h4 className="text-xs font-semibold text-foreground">Dependencies</h4>
-                </div>
+          <div className="mb-8 rounded-xl border border-black/[0.08] dark:border-white/[0.08] bg-black/[0.02] dark:bg-white/[0.02] p-4 max-w-2xl">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Link2 size={14} className="text-accent" />
+                <h4 className="text-xs font-semibold text-zinc-900 dark:text-white uppercase tracking-wider">
+                  Dependencies
+                </h4>
               </div>
-              <div className="space-y-1">
-                {dependencies.blocked_by.map((dep) => (
-                  <div
-                    key={dep.dependency_id || dep.id}
-                    className="flex items-center justify-between p-2 rounded-lg bg-surface border border-border-subtle text-[12px]"
-                  >
-                    <span className="truncate text-foreground font-mono text-[11px]">
-                      {dep.project_identifier ? `${dep.project_identifier}-${dep.id}` : `#${dep.id}`}
-                      <span className="font-sans ml-2 text-text-muted">{dep.title}</span>
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] text-text-muted">{dep.status}</span>
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveDependency(dep.dependency_id || dep.id)}
-                        className="text-text-muted hover:text-rose-500 p-0.5 rounded cursor-pointer"
-                        title="Remove blocker"
-                      >
-                        <X size={12} />
-                      </button>
-                    </div>
-                  </div>
-                ))}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setIsAddingBlocker((prev) => !prev)}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11.5px] font-medium bg-black/[0.04] dark:bg-white/[0.06] hover:bg-black/[0.08] dark:hover:bg-white/[0.1] text-zinc-700 dark:text-[#d1d2d5] hover:text-zinc-900 dark:hover:text-white transition-colors cursor-pointer"
+                  data-testid="add-dependency-button"
+                >
+                  <Plus size={12} />
+                  <span>Add blocker</span>
+                </button>
+
+                <DependencyPicker
+                  isOpen={isAddingBlocker}
+                  onClose={() => setIsAddingBlocker(false)}
+                  currentTaskId={id}
+                  existingDependencyIds={existingBlockerIds}
+                  onAddDependency={handleAddBlocker}
+                  align="right"
+                  title="Add blocker (must complete before this)"
+                />
               </div>
             </div>
-          )}
+
+            {/* 1. Blocked By List */}
+            <div className="mb-3">
+              <div className="text-[11px] font-medium text-zinc-400 dark:text-[#8a8f98] mb-1.5 flex items-center justify-between">
+                <span>Blocked by ({dependencies.blocked_by.length})</span>
+                {dependencies.blocked_by.length === 0 && (
+                  <span className="text-[10px] text-zinc-400 dark:text-[#6e737d] italic">No blockers</span>
+                )}
+              </div>
+              {dependencies.blocked_by.length > 0 && (
+                <div className="space-y-1">
+                  {dependencies.blocked_by.map((dep) => {
+                    const depId = dep.id || dep.depends_on_task_id;
+                    const fullIdent = dep.project_identifier
+                      ? `${dep.project_identifier}-${depId}`
+                      : `#${depId}`;
+                    return (
+                      <div
+                        key={`blocked_by-${dep.dependency_id || depId}`}
+                        onClick={() => handleNavigateToTask(depId)}
+                        className="group flex items-center justify-between p-2 rounded-lg bg-surface border border-border-subtle text-[12px] hover:bg-black/[0.03] dark:hover:bg-white/[0.05] transition-colors cursor-pointer"
+                        data-testid={`dependency-item-${depId}`}
+                      >
+                        <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
+                          <span className="shrink-0">{getStatusIcon(dep.status)}</span>
+                          <span className="font-mono text-[11px] text-zinc-400 dark:text-[#8a8f98] shrink-0">
+                            {fullIdent}
+                          </span>
+                          <span className="truncate font-medium text-zinc-900 dark:text-[#e8e8e8] group-hover:text-accent transition-colors">
+                            {dep.title}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-black/[0.04] dark:bg-white/[0.06] text-zinc-500 dark:text-[#8a8f98]">
+                            {dep.status || "Todo"}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRemoveDependency(dep.dependency_id || depId, "blocked_by");
+                            }}
+                            className="p-1 rounded text-zinc-400 hover:text-rose-500 hover:bg-rose-500/10 transition-colors cursor-pointer"
+                            title="Remove dependency"
+                            data-testid={`remove-dependency-${depId}`}
+                          >
+                            <X size={12} />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* 2. Blocking List */}
+            <div>
+              <div className="text-[11px] font-medium text-zinc-400 dark:text-[#8a8f98] mb-1.5 flex items-center justify-between">
+                <span>Blocking ({dependencies.blocking?.length || 0})</span>
+                {(!dependencies.blocking || dependencies.blocking.length === 0) && (
+                  <span className="text-[10px] text-zinc-400 dark:text-[#6e737d] italic">Not blocking any tasks</span>
+                )}
+              </div>
+              {dependencies.blocking && dependencies.blocking.length > 0 && (
+                <div className="space-y-1">
+                  {dependencies.blocking.map((dep) => {
+                    const depId = dep.id || dep.task_id;
+                    const fullIdent = dep.project_identifier
+                      ? `${dep.project_identifier}-${depId}`
+                      : `#${depId}`;
+                    return (
+                      <div
+                        key={`blocking-${dep.dependency_id || depId}`}
+                        onClick={() => handleNavigateToTask(depId)}
+                        className="group flex items-center justify-between p-2 rounded-lg bg-surface border border-border-subtle text-[12px] hover:bg-black/[0.03] dark:hover:bg-white/[0.05] transition-colors cursor-pointer"
+                        data-testid={`dependency-blocking-item-${depId}`}
+                      >
+                        <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
+                          <span className="shrink-0">{getStatusIcon(dep.status)}</span>
+                          <span className="font-mono text-[11px] text-zinc-400 dark:text-[#8a8f98] shrink-0">
+                            {fullIdent}
+                          </span>
+                          <span className="truncate font-medium text-zinc-900 dark:text-[#e8e8e8] group-hover:text-accent transition-colors">
+                            {dep.title}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-black/[0.04] dark:bg-white/[0.06] text-zinc-500 dark:text-[#8a8f98]">
+                            {dep.status || "Todo"}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRemoveDependency(dep.dependency_id || depId, "blocking");
+                            }}
+                            className="p-1 rounded text-zinc-400 hover:text-rose-500 hover:bg-rose-500/10 transition-colors cursor-pointer"
+                            title="Remove dependency"
+                          >
+                            <X size={12} />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
 
           {/* Activity Section (Linear Image 1) */}
           <div className="border-t border-black/[0.06] dark:border-white/[0.06] pt-6 mb-8 max-w-2xl">
@@ -938,7 +1159,17 @@ export default function TaskDetails() {
                   {activePicker === "assignee" && (
                     <div className="absolute top-[calc(100%+4px)] left-0 z-50">
                       <LeadPicker
-                        value={task?.assignee_id ? { id: task.assignee_id, name: task.assignee_name } : null}
+                        value={
+                          task?.assignee_id
+                            ? {
+                                id: task.assignee_id,
+                                name: task.assignee_name,
+                                username: task.assignee_username,
+                                email: task.assignee_email,
+                                avatar_url: task.assignee_avatar_url,
+                              }
+                            : null
+                        }
                         availableMembers={availableMembers}
                         onChange={handleSelectAssignee}
                         onClose={() => setActivePicker(null)}
@@ -1005,6 +1236,7 @@ export default function TaskDetails() {
                   <div className="absolute top-[calc(100%+4px)] right-0 z-50">
                     <DatePicker
                       value={task?.due_date}
+                      placeholder="Due date"
                       onChange={handleSelectDueDate}
                       onClose={() => setActivePicker(null)}
                     />

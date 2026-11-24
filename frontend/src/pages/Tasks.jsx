@@ -28,12 +28,17 @@ import {
   Sparkles,
   GitFork,
   Type,
+  Link2,
+  Tag,
+  AlertCircle,
 } from "lucide-react";
 import StatusPicker, { getStatusIcon } from "../components/StatusPicker";
 import PriorityPicker, { getPriorityIcon } from "../components/PriorityPicker";
 import LeadPicker from "../components/LeadPicker";
 import DatePicker from "../components/DatePicker";
+import ProgressPicker from "../components/ProgressPicker";
 import ViewSwitcher from "../components/ViewSwitcher";
+import ActionTooltip from "../components/ActionTooltip";
 import { playUiSound } from "../lib/sound";
 import { getAvatarColor, getInitial } from "../lib/avatarUtils";
 import { api } from "../lib/api";
@@ -43,7 +48,7 @@ import { TasksListSkeleton, TasksBoardSkeleton } from "../components/skeletons/P
 import { useDeferredSkeleton } from "../hooks/useDeferredSkeleton";
 import Kanban from "./Kanban";
 import { useUser, useOrganization } from "@clerk/react";
-import { useSocket } from "../contexts/SocketContext";
+import { useSocket } from "../contexts/useSocket";
 import { useListShortcuts } from "../hooks/useListShortcuts";
 import { useTheme } from "../contexts/ThemeContext";
 import { formatKririDate, formatMemberDisplayName } from "../lib/userPreferences";
@@ -104,8 +109,14 @@ const areTaskRowPropsEqual = (prevProps, nextProps) => {
     if (p.subtask_count !== n.subtask_count) return false;
     if (p.completed_subtask_count !== n.completed_subtask_count) return false;
     if (p.blocked_count !== n.blocked_count) return false;
+    if (p.blocked_by_count !== n.blocked_by_count) return false;
     if (p.project_identifier !== n.project_identifier) return false;
     if (p.project_name !== n.project_name) return false;
+    if (p.start_date !== n.start_date) return false;
+    if (p.created_at !== n.created_at) return false;
+    if (p.progress !== n.progress) return false;
+    if (p.labels !== n.labels) return false;
+    if (p.description !== n.description) return false;
   }
   if (prevProps.isHighlighted !== nextProps.isHighlighted) return false;
   if (prevProps.isSelected !== nextProps.isSelected) return false;
@@ -127,6 +138,7 @@ const areTaskRowPropsEqual = (prevProps, nextProps) => {
   if (prevProps.onUpdateProperty !== nextProps.onUpdateProperty) return false;
   if (prevProps.onUpdateAssignee !== nextProps.onUpdateAssignee) return false;
   if (prevProps.getAssigneeUsername !== nextProps.getAssigneeUsername) return false;
+  if (prevProps.navigate !== nextProps.navigate) return false;
   return true;
 };
 
@@ -153,6 +165,7 @@ const TaskRow = memo(function TaskRow({
   onUpdateProperty,
   onUpdateAssignee,
   getAssigneeUsername,
+  navigate,
 }) {
   const isDone = task.status === "Done";
   const isOverdue =
@@ -167,6 +180,8 @@ const TaskRow = memo(function TaskRow({
       onMouseLeave={onMouseLeave}
       onClick={onClick || (() => onTaskClick?.(task.id))}
       className={`group relative flex items-center px-4 py-2.5 transition-colors cursor-pointer text-[13px] rounded-lg mx-1 ${
+        activePickerType ? "z-40" : "z-0"
+      } ${
         isHighlighted
           ? "bg-black/[0.05] dark:bg-white/[0.08]"
           : isChecked
@@ -175,65 +190,58 @@ const TaskRow = memo(function TaskRow({
               ? "bg-black/[0.03] dark:bg-white/[0.05]"
               : "hover:bg-black/[0.025] dark:hover:bg-white/[0.035]"
       }`}
-      style={{ contentVisibility: "auto", containIntrinsicSize: "0 40px" }}
+      style={{ contentVisibility: activePickerType ? "visible" : "auto", containIntrinsicSize: "0 40px" }}
     >
       {/* 1. Selection Checkbox */}
-      <div
-        onClick={(e) => {
-          e.stopPropagation();
-          onToggleSelection(task.id);
-        }}
-        className={`w-4 shrink-0 mr-2 flex items-center justify-start text-zinc-400 cursor-pointer transition-opacity ${
-          isChecked ? "opacity-100" : "opacity-0 group-hover:opacity-100"
-        }`}
-        title={isChecked ? "Deselect task" : "Select task"}
-      >
+      <ActionTooltip label={isChecked ? "Deselect issue" : "Select issue"} shortcut="X">
         <div
-          className={`w-3.5 h-3.5 rounded border transition-colors flex items-center justify-center ${
-            isChecked
-              ? "bg-accent border-accent text-white"
-              : "border-zinc-400/60 dark:border-zinc-600 hover:border-zinc-300"
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleSelection(task.id);
+          }}
+          className={`w-5 shrink-0 mr-3 flex items-center justify-start text-zinc-400 cursor-pointer transition-opacity ${
+            isChecked ? "opacity-100" : "opacity-0 group-hover:opacity-100"
           }`}
         >
-          {isChecked && <Check size={10} strokeWidth={3} />}
-        </div>
-      </div>
-
-      {/* 2. Priority Icon */}
-      {visibleProperties.priority && (
-        <div
-          className="kriri-row-picker relative w-5 shrink-0 mr-2.5 sm:mr-3 flex items-center justify-center"
-          onMouseEnter={() => onSetHoveredTooltip("priority")}
-          onMouseLeave={() => onSetHoveredTooltip(null)}
-        >
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onSetHoveredTooltip(null);
-              onTogglePicker("priority");
-            }}
-            className="w-5 h-5 rounded hover:bg-black/[0.06] dark:hover:bg-white/[0.08] flex items-center justify-center text-zinc-400 dark:text-[#8a8f98] hover:text-zinc-900 dark:hover:text-white transition-colors cursor-pointer"
-            title={`Priority: ${task.priority || "No priority"}`}
+          <div
+            className={`w-3.5 h-3.5 rounded border transition-colors flex items-center justify-center hover:bg-black/[0.04] dark:hover:bg-white/[0.06] ${
+              isChecked
+                ? "bg-accent border-accent text-white"
+                : "border-zinc-400/60 dark:border-zinc-600 hover:border-zinc-300"
+            }`}
           >
-            {getPriorityIcon(task.priority || "No priority")}
-          </button>
+            {isChecked && <Check size={10} strokeWidth={3} />}
+          </div>
+        </div>
+      </ActionTooltip>
 
-          {/* Hover Tooltip */}
-          {hoveredTooltipType === "priority" && activePickerType !== "priority" && (
-            <div className="absolute top-[calc(100%+6px)] left-0 z-40 bg-zinc-900/95 dark:bg-[#1a1b1e] text-white text-[11px] px-2.5 py-1 rounded-md shadow-2xl whitespace-nowrap flex items-center gap-2 pointer-events-none border border-white/10 animate-in fade-in duration-100 font-medium">
-              <span>Set priority</span>
-              <span className="font-mono text-[9px] text-zinc-400 bg-white/10 px-1.5 py-0.5 rounded border border-white/10 font-semibold">P</span>
-            </div>
-          )}
+      {/* 2. Priority Column */}
+      {visibleProperties.priority && (
+        <div className="kriri-row-picker relative w-[85px] shrink-0 mr-3 flex items-center">
+          <ActionTooltip label={`Priority: ${task.priority || "No priority"}`} shortcut="P">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onTogglePicker(task.id, "priority");
+              }}
+              className="flex items-center gap-1.5 px-2 py-1 -ml-2 rounded-full hover:bg-black/[0.04] dark:hover:bg-white/[0.04] text-zinc-600 dark:text-[#8a8f98] hover:text-zinc-900 dark:hover:text-white transition-colors cursor-pointer text-[12px] font-medium max-w-full"
+            >
+              {getPriorityIcon(task.priority || "No priority")}
+              <span className="capitalize truncate">{task.priority || "None"}</span>
+            </button>
+          </ActionTooltip>
 
           {/* Inline Priority Picker */}
           {activePickerType === "priority" && (
             <div className="absolute top-[calc(100%+4px)] left-0 z-50" onClick={(e) => e.stopPropagation()}>
               <PriorityPicker
                 value={task.priority || "No priority"}
-                onChange={(val) => onUpdateProperty(task.id, "priority", val)}
-                onClose={() => onTogglePicker(null)}
+                onChange={(val) => {
+                  onUpdateProperty(task.id, "priority", val);
+                  onTogglePicker(task.id, null);
+                }}
+                onClose={() => onTogglePicker(task.id, null)}
               />
             </div>
           )}
@@ -242,52 +250,43 @@ const TaskRow = memo(function TaskRow({
 
       {/* 3. Task Identifier */}
       {visibleProperties.id && (
-        <div className="w-[115px] shrink-0 mr-3 sm:mr-3.5 font-mono text-[11px] text-zinc-500 dark:text-[#8a8f98] group-hover:text-zinc-900 dark:group-hover:text-white transition-colors truncate">
-          {task.project_identifier
-            ? `${task.project_identifier}-${task.id}`
-            : `TASK-${task.id}`}
+        <div className="w-[110px] shrink-0 mr-3 flex items-center">
+          <ActionTooltip label={`Copy issue ID (${task.project_identifier ? `${task.project_identifier}-${task.id}` : `TASK-${task.id}`})`}>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                const text = task.project_identifier
+                  ? `${task.project_identifier}-${task.id}`
+                  : `TASK-${task.id}`;
+                navigator.clipboard?.writeText(text);
+              }}
+              className="font-mono text-[11px] text-zinc-500 dark:text-[#8a8f98] hover:text-zinc-900 dark:hover:text-white transition-colors truncate px-2 py-1 -ml-2 rounded-full hover:bg-black/[0.04] dark:hover:bg-white/[0.04] cursor-pointer"
+            >
+              {task.project_identifier
+                ? `${task.project_identifier}-${task.id}`
+                : `TASK-${task.id}`}
+            </button>
+          </ActionTooltip>
         </div>
       )}
 
-      {/* 4. Status Circle Icon */}
+      {/* 4. Status Column */}
       {visibleProperties.status && (
-        <div
-          className="kriri-row-picker relative w-5 shrink-0 mr-2.5 sm:mr-3 flex items-center justify-center"
-          onMouseEnter={() => onSetHoveredTooltip("status")}
-          onMouseLeave={() => onSetHoveredTooltip(null)}
-        >
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onSetHoveredTooltip(null);
-              onTogglePicker("status");
-            }}
-            className="w-5 h-5 rounded hover:bg-black/[0.06] dark:hover:bg-white/[0.08] flex items-center justify-center transition-colors cursor-pointer"
-            title={`Status: ${task.status}`}
-          >
-            {getStatusIcon(task.status)}
-          </button>
-
-          {/* Hover Tooltip */}
-          {hoveredTooltipType === "status" && activePickerType !== "status" && (
-            <div className="absolute top-[calc(100%+6px)] left-0 z-40 bg-zinc-900/95 dark:bg-[#1a1b1e] text-white text-[11px] p-2.5 rounded-lg shadow-2xl whitespace-nowrap flex flex-col gap-1.5 pointer-events-none border border-white/10 animate-in fade-in duration-100 min-w-[155px]">
-              <div className="text-[10px] text-zinc-400 font-medium">Time in status</div>
-              <div className="flex items-center justify-between font-medium gap-3">
-                <div className="flex items-center gap-1.5">
-                  {getStatusIcon(task.status)}
-                  <span className="text-[12px]">{task.status || "Todo"}</span>
-                </div>
-                <span className="text-zinc-400 text-[11px] font-mono">
-                  {calculateTimeInStatus(task)}
-                </span>
-              </div>
-              <div className="flex items-center justify-between pt-1.5 border-t border-white/10 text-[11px] text-zinc-400">
-                <span>Change status</span>
-                <span className="font-mono text-[9px] text-zinc-400 bg-white/10 px-1.5 py-0.5 rounded border border-white/10 font-semibold">S</span>
-              </div>
-            </div>
-          )}
+        <div className="kriri-row-picker relative w-[85px] shrink-0 mr-3 flex items-center">
+          <ActionTooltip label={`Status: ${task.status || "Todo"}`} shortcut="S">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onTogglePicker(task.id, "status");
+              }}
+              className="flex items-center gap-1.5 px-2 py-1 -ml-2 rounded-full hover:bg-black/[0.04] dark:hover:bg-white/[0.04] text-zinc-600 dark:text-[#8a8f98] hover:text-zinc-900 dark:hover:text-white transition-colors cursor-pointer text-[12px] font-medium max-w-full"
+            >
+              {getStatusIcon(task.status)}
+              <span className="truncate">{task.status || "Todo"}</span>
+            </button>
+          </ActionTooltip>
 
           {/* Inline Status Picker */}
           {activePickerType === "status" && (
@@ -295,135 +294,238 @@ const TaskRow = memo(function TaskRow({
               <StatusPicker
                 value={task.status || "Todo"}
                 options={TASK_STATUS_OPTIONS}
-                onChange={(val) => onUpdateProperty(task.id, "status", val)}
-                onClose={() => onTogglePicker(null)}
+                onChange={(val) => {
+                  onUpdateProperty(task.id, "status", val);
+                  onTogglePicker(task.id, null);
+                }}
+                onClose={() => onTogglePicker(task.id, null)}
               />
             </div>
           )}
         </div>
       )}
 
-      {/* 5. Title & Subtask badge */}
-      <div className="flex-1 min-w-0 md:flex-initial md:w-[280px] lg:w-[340px] xl:w-[400px] md:shrink-0 pr-6 lg:pr-8 flex items-center gap-2">
+      {/* 5. Title & Summary */}
+      <div className="flex-1 min-w-[200px] sm:min-w-[240px] mr-4 flex flex-col justify-center min-w-0">
         <span
-          className={`truncate font-medium transition-colors ${
+          className={`truncate font-medium text-[13px] sm:text-[13.5px] transition-colors ${
             isDone
               ? "line-through text-zinc-400 dark:text-[#8a8f98]"
               : "text-zinc-900 dark:text-[#e8e8e8] group-hover:text-zinc-900 dark:group-hover:text-white"
           }`}
+          title={task.title}
         >
           {task.title}
         </span>
-        {visibleProperties.subtasks && task.subtask_count > 0 && (
-          <span className="inline-flex items-center gap-1 text-[10.5px] font-mono text-zinc-500 dark:text-[#8a8f98] px-1.5 py-0.2 rounded bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.06] dark:border-white/[0.06] shrink-0">
-            <CheckSquare size={10} className="text-emerald-500" />
-            <span>
-              {task.completed_subtask_count || 0}/{task.subtask_count}
-            </span>
-          </span>
+
+        {visibleProperties.summary && (
+          <p className="text-[11.5px] text-zinc-400 dark:text-[#8a8f98] truncate mt-0.5 line-clamp-1 max-w-full">
+            {task.description
+              ? task.description.split("\n\n")[0].replace(/[#*`_]/g, "")
+              : "No description provided."}
+          </p>
         )}
       </div>
 
       {/* 6. Project Column */}
       {visibleProperties.project && (
-        <div className="flex-1 min-w-0 hidden md:flex items-center gap-1.5 text-[12px] text-zinc-500 dark:text-[#8a8f98] truncate pr-6 lg:pr-8">
+        <div className="w-[180px] lg:w-[220px] shrink-0 mr-4 hidden md:flex items-center text-[12px] text-zinc-500 dark:text-[#8a8f98] truncate">
           {task.project_name ? (
-            <>
-              <FileText size={12} className="shrink-0 text-zinc-400 dark:text-[#6e737d]" />
-              <span className="truncate">{task.project_name}</span>
-            </>
-          ) : null}
+            <ActionTooltip label={`Project: ${task.project_name}`}>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (task.project_id) {
+                    navigate?.(`/projects/${task.project_id}`);
+                  }
+                }}
+                className="flex items-center gap-1.5 px-2 py-1 -ml-2 rounded-full hover:bg-black/[0.04] dark:hover:bg-white/[0.04] hover:text-zinc-900 dark:hover:text-white transition-colors cursor-pointer truncate max-w-full text-left"
+              >
+                <FileText size={12} className="shrink-0 text-zinc-400 dark:text-[#6e737d]" />
+                <span className="truncate">{task.project_name}</span>
+              </button>
+            </ActionTooltip>
+          ) : (
+            <span className="text-zinc-400/40 dark:text-zinc-600/40 text-[11px] px-2 py-1 -ml-2">No project</span>
+          )}
         </div>
       )}
 
-      {/* 7. Assignee Avatar */}
-      {visibleProperties.assignee && (
-        <div
-          className="kriri-row-picker relative w-6 shrink-0 mr-4 sm:mr-5 flex items-center justify-center"
-          onMouseEnter={() => onSetHoveredAssignee(true)}
-          onMouseLeave={() => onSetHoveredAssignee(false)}
-        >
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onSetHoveredAssignee(false);
-              onTogglePicker("assignee");
-            }}
-            className="w-5 h-5 rounded-full hover:ring-2 hover:ring-accent/40 transition-all flex items-center justify-center cursor-pointer"
-          >
-            {task.assignee_name ? (
-              <div
-                className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white uppercase ${getAvatarColor(
-                  task.assignee_name
-                )}`}
-                title={task.assignee_name}
+      {/* 7. Subtasks Column */}
+      {visibleProperties.subtasks && (
+        <div className="w-[85px] shrink-0 mr-4 hidden sm:flex items-center text-[12px] text-zinc-600 dark:text-[#8a8f98]">
+          {(task.subtask_count || 0) > 0 ? (
+            <ActionTooltip label={`${task.subtask_count} subtask${task.subtask_count === 1 ? "" : "s"} (${task.completed_subtask_count || 0} completed)`}>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onTaskClick?.(task.id);
+                }}
+                className="flex items-center gap-1.5 px-2 py-1 -ml-2 rounded-full hover:bg-black/[0.04] dark:hover:bg-white/[0.04] hover:text-zinc-900 dark:hover:text-white transition-colors cursor-pointer group/sub"
               >
-                {getInitial(task.assignee_name)}
-              </div>
-            ) : (
-              <div
-                className="w-5 h-5 rounded-full border border-dashed border-zinc-400/40 dark:border-zinc-700 flex items-center justify-center text-zinc-400 dark:text-[#8a8f98] hover:border-zinc-300"
-                title="Unassigned"
-              >
-                <User size={10} />
-              </div>
-            )}
-          </button>
+                <CheckSquare
+                  size={13}
+                  strokeWidth={1.8}
+                  className={
+                    (task.completed_subtask_count || 0) === task.subtask_count
+                      ? "text-emerald-500"
+                      : (task.completed_subtask_count || 0) > 0
+                        ? "text-emerald-500"
+                        : "text-zinc-400 dark:text-[#6e737d] group-hover/sub:text-zinc-300"
+                  }
+                />
+                <span className="tabular-nums font-medium">
+                  {task.completed_subtask_count || 0}/{task.subtask_count}
+                </span>
+              </button>
+            </ActionTooltip>
+          ) : (
+            <span className="text-zinc-300 dark:text-zinc-700 select-none px-2 py-1 -ml-2">—</span>
+          )}
+        </div>
+      )}
 
-          {/* Hover Profile Card */}
-          {hoveredAssigneeTaskId && task.assignee_name && activePickerType !== "assignee" && (
-            <div className="absolute top-[calc(100%+6px)] right-0 z-50 w-[210px] bg-white dark:bg-[#1c1c1e] border border-black/10 dark:border-white/10 rounded-xl shadow-2xl p-3 animate-in fade-in zoom-in-95 duration-150 flex flex-col gap-2.5 text-zinc-900 dark:text-white pointer-events-none">
-              <div className="flex items-center gap-2.5">
+      {/* 8. Dependencies Column */}
+      {visibleProperties.dependencies && (
+        <div className="w-[100px] shrink-0 mr-4 hidden md:flex items-center text-[12px]">
+          {task.blocked_by_count > 0 && !isDone ? (
+            <ActionTooltip label={`Blocked by ${task.blocked_by_count} incomplete task${task.blocked_by_count === 1 ? "" : "s"}`}>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onTaskClick?.(task.id);
+                }}
+                className="flex items-center gap-1.5 px-2 py-1 -ml-2 rounded-full text-amber-600 dark:text-amber-400 hover:text-amber-500 hover:bg-amber-500/10 dark:hover:bg-amber-400/10 transition-colors cursor-pointer"
+                data-testid={`task-dependencies-badge-${task.id}`}
+              >
+                <AlertCircle size={13} strokeWidth={2} className="shrink-0" />
+                <span className="font-medium">Blocked</span>
+              </button>
+            </ActionTooltip>
+          ) : (
+            <span className="text-zinc-300 dark:text-zinc-700 select-none px-2 py-1 -ml-2">—</span>
+          )}
+        </div>
+      )}
+
+      {/* 9. Progress Meter with ProgressPicker */}
+      {visibleProperties.progress && (
+        <div className="kriri-row-picker relative w-[90px] shrink-0 mr-4 hidden sm:flex items-center">
+          <ActionTooltip label={`Progress: ${task.progress || 0}%`}>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onTogglePicker(task.id, "progress");
+              }}
+              className="w-full flex items-center gap-2 px-2 py-1 -ml-2 rounded-full hover:bg-black/[0.04] dark:hover:bg-white/[0.04] transition-colors cursor-pointer text-left"
+            >
+              <div className="flex-1 h-1.5 rounded-full bg-black/[0.06] dark:bg-white/[0.06] overflow-hidden">
                 <div
-                  className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white uppercase ${getAvatarColor(
-                    task.assignee_name
-                  )}`}
-                >
-                  {getInitial(task.assignee_name)}
-                </div>
-                <div className="flex flex-col min-w-0">
-                  <span className="text-[12.5px] font-semibold truncate leading-tight">
-                    {task.assignee_name}
-                  </span>
-                  <span className="text-[10.5px] text-zinc-500 dark:text-[#8a8f98] truncate">
-                    @{getAssigneeUsername ? getAssigneeUsername(task) : ""}
-                  </span>
-                </div>
+                  className={`h-full rounded-full transition-all duration-300 ${
+                    (task.progress || 0) === 100
+                      ? "bg-emerald-500"
+                      : (task.progress || 0) > 50
+                        ? "bg-blue-500"
+                        : (task.progress || 0) > 0
+                          ? "bg-amber-500"
+                          : "bg-zinc-400"
+                  }`}
+                  style={{ width: `${Math.min(100, Math.max(0, task.progress || 0))}%` }}
+                />
               </div>
-              <div className="flex flex-col gap-1.5 text-[11px] text-zinc-500 dark:text-[#8a8f98] pt-2 border-t border-black/[0.06] dark:border-white/[0.06]">
-                <div className="flex items-center gap-1.5 text-emerald-500 font-medium">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                  <span>Online</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <Clock size={11} className="shrink-0" />
-                  <span>
-                    {new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} local time
-                  </span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <Building size={11} className="shrink-0" />
-                  <span className="truncate">{organization?.name || "Workspace"}</span>
-                </div>
-                {task.project_name && (
-                  <div className="flex items-center gap-1.5">
-                    <Box size={11} className="shrink-0" />
-                    <span className="truncate">{task.project_name}</span>
-                  </div>
-                )}
-              </div>
+              <span className="text-[11px] font-mono text-zinc-400 dark:text-[#8a8f98] w-7 text-right">
+                {task.progress || 0}%
+              </span>
+            </button>
+          </ActionTooltip>
+
+          {/* Inline Progress Picker */}
+          {activePickerType === "progress" && (
+            <div className="absolute top-[calc(100%+4px)] right-0 z-50" onClick={(e) => e.stopPropagation()}>
+              <ProgressPicker
+                value={task.progress || 0}
+                onChange={(val) => {
+                  onUpdateProperty(task.id, "progress", val);
+                  onTogglePicker(task.id, null);
+                }}
+                onClose={() => onTogglePicker(task.id, null)}
+                align="right"
+              />
             </div>
           )}
+        </div>
+      )}
+
+      {/* 10. Assignee Column with Avatar AND Name */}
+      {visibleProperties.assignee && (
+        <div className="kriri-row-picker relative w-[130px] lg:w-[150px] shrink-0 mr-4 flex items-center">
+          <ActionTooltip label={task.assignee_name ? `Assigned to ${task.assignee_name}` : "Assign issue"} shortcut="A">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onTogglePicker(task.id, "assignee");
+              }}
+              className="flex items-center gap-2 px-2 py-1 -ml-2 rounded-full hover:bg-black/[0.04] dark:hover:bg-white/[0.04] transition-colors cursor-pointer w-full text-left max-w-full"
+            >
+              {task.assignee_name ? (
+                <>
+                  <div
+                    className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white uppercase shrink-0 overflow-hidden ${getAvatarColor(
+                      task.assignee_name,
+                      task.assignee_email
+                    )}`}
+                  >
+                    {task.assignee_avatar_url || task.assignee_avatar ? (
+                      <img
+                        src={task.assignee_avatar_url || task.assignee_avatar}
+                        alt={task.assignee_name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      getInitial(task.assignee_name, task.assignee_email)
+                    )}
+                  </div>
+                  <span className="text-[12.5px] text-zinc-700 dark:text-[#c0c4cc] truncate">
+                    {task.assignee_name}
+                  </span>
+                </>
+              ) : (
+                <div className="flex items-center gap-1.5 text-zinc-400 dark:text-[#8a8f98]">
+                  <div className="w-[18px] h-[18px] rounded-[4px] border border-dashed border-zinc-400/50 dark:border-zinc-700 flex items-center justify-center">
+                    <User size={10} />
+                  </div>
+                  <span className="text-[12px]">Unassigned</span>
+                </div>
+              )}
+            </button>
+          </ActionTooltip>
 
           {/* Inline Assignee Picker */}
           {activePickerType === "assignee" && (
             <div className="absolute top-[calc(100%+4px)] right-0 z-50" onClick={(e) => e.stopPropagation()}>
               <LeadPicker
-                value={task.assignee_id ? { id: task.assignee_id, name: task.assignee_name } : null}
+                value={
+                  task.assignee_id
+                    ? {
+                        id: task.assignee_id,
+                        name: task.assignee_name,
+                        username: task.assignee_username,
+                        email: task.assignee_email,
+                        avatar_url: task.assignee_avatar_url,
+                      }
+                    : null
+                }
                 availableMembers={availableMembers}
-                onChange={(member) => onUpdateAssignee(task.id, member)}
-                onClose={() => onTogglePicker(null)}
+                onChange={(member) => {
+                  onUpdateAssignee(task.id, member);
+                  onTogglePicker(task.id, null);
+                }}
+                onClose={() => onTogglePicker(task.id, null)}
                 align="right"
                 title="Assign to..."
                 emptyLabel="No assignee"
@@ -434,45 +536,56 @@ const TaskRow = memo(function TaskRow({
         </div>
       )}
 
-      {/* 8. Due Date */}
+      {/* 11. Due Date */}
       {visibleProperties.dueDate && (
-        <div className="kriri-row-picker relative w-[115px] shrink-0 flex items-center justify-start">
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onTogglePicker("due_date");
-            }}
-            className={`w-full flex items-center justify-start gap-1.5 text-[11.5px] font-medium whitespace-nowrap cursor-pointer py-0.5 px-1 rounded hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors text-left ${
-              isOverdue
-                ? "text-rose-500 font-semibold"
-                : "text-zinc-500 dark:text-[#8a8f98] hover:text-zinc-900 dark:hover:text-white"
-            }`}
-            title={task.due_date ? `Due: ${formatKririDate(task.due_date)}` : "Set due date"}
-          >
-            <Calendar
-              size={12}
-              strokeWidth={1.75}
-              className={`shrink-0 ${
+        <div className="kriri-row-picker relative w-[110px] shrink-0 flex items-center justify-start text-[12px]">
+          <ActionTooltip label={task.due_date ? `Due: ${formatKririDate(task.due_date)}` : "Set due date"} shortcut="D">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onTogglePicker(task.id, "due_date");
+              }}
+              className={`flex items-center justify-start gap-1.5 text-[11.5px] font-medium whitespace-nowrap cursor-pointer py-1 px-2 -ml-2 rounded-full hover:bg-black/[0.04] dark:hover:bg-white/[0.04] transition-colors text-left ${
                 isOverdue
-                  ? "text-rose-500"
-                  : "text-zinc-400 dark:text-[#6e737d] group-hover:text-zinc-600 dark:group-hover:text-zinc-400"
+                  ? "text-rose-500 font-semibold"
+                  : "text-zinc-500 dark:text-[#8a8f98] hover:text-zinc-900 dark:hover:text-white"
               }`}
-            />
-            <span className="whitespace-nowrap">
-              {task.due_date ? formatKririDate(task.due_date) : "---"}
-            </span>
-          </button>
+            >
+              <Calendar
+                size={12}
+                strokeWidth={1.75}
+                className={`shrink-0 ${
+                  isOverdue
+                    ? "text-rose-500"
+                    : "text-zinc-400 dark:text-[#6e737d] group-hover:text-zinc-600 dark:group-hover:text-zinc-400"
+                }`}
+              />
+              <span className="whitespace-nowrap">
+                {task.due_date ? formatKririDate(task.due_date) : "---"}
+              </span>
+            </button>
+          </ActionTooltip>
 
           {/* Inline Date Picker */}
           {activePickerType === "due_date" && (
             <div className="absolute top-[calc(100%+4px)] right-0 z-50" onClick={(e) => e.stopPropagation()}>
               <DatePicker
                 value={task.due_date}
-                onChange={(date) =>
-                  onUpdateProperty(task.id, "due_date", date ? date.toISOString() : null)
-                }
-                onClose={() => onTogglePicker(null)}
+                placeholder="Due date"
+                onChange={(date) => {
+                  const val = date
+                    ? date instanceof Date
+                      ? date.toISOString()
+                      : (() => {
+                          const d = new Date(date);
+                          return !isNaN(d.getTime()) ? d.toISOString() : String(date);
+                        })()
+                    : null;
+                  onUpdateProperty(task.id, "due_date", val);
+                  onTogglePicker(task.id, null);
+                }}
+                onClose={() => onTogglePicker(task.id, null)}
                 align="right"
               />
             </div>
@@ -550,7 +663,7 @@ const TaskGroupSection = memo(function TaskGroupSection({
 
   const handleTogglePicker = useCallback((taskId, type) => {
     setActivePicker((prev) =>
-      prev.type === type && prev.taskId === taskId
+      !type || (prev.type === type && prev.taskId === taskId)
         ? { type: null, taskId: null }
         : { type, taskId }
     );
@@ -624,6 +737,7 @@ const TaskGroupSection = memo(function TaskGroupSection({
               onUpdateProperty={handleUpdateTaskProperty}
               onUpdateAssignee={handleUpdateTaskAssignee}
               getAssigneeUsername={getAssigneeUsername}
+              navigate={navigate}
             />
           ))}
 
@@ -800,8 +914,13 @@ export default memo(function Tasks({ isActive = true }) {
 
   useLayoutEffect(() => {
     const saved = viewStateStore.getTasksView();
-    if (listScrollContainerRef.current && saved.scrollTop > 0) {
-      listScrollContainerRef.current.scrollTop = saved.scrollTop;
+    if (listScrollContainerRef.current) {
+      if (saved.scrollTop > 0) {
+        listScrollContainerRef.current.scrollTop = saved.scrollTop;
+      }
+      if (saved.scrollLeft > 0) {
+        listScrollContainerRef.current.scrollLeft = saved.scrollLeft;
+      }
     }
   }, [activeView]);
 
@@ -940,25 +1059,90 @@ export default memo(function Tasks({ isActive = true }) {
   const [isDisplayOptionsOpen, setIsDisplayOptionsOpen] = useState(false);
   const [currentUserDb, setCurrentUserDb] = useState(null);
 
-  const DEFAULT_VISIBLE_PROPERTIES = {
+  const DEFAULT_VISIBLE_PROPERTIES = useMemo(() => ({
     id: true,
     status: true,
-    assignee: true,
     priority: true,
-    project: true,
+    assignee: true,
     dueDate: true,
+    project: true,
     subtasks: true,
-  };
+    dependencies: true,
+    progress: false,
+    summary: true,
+  }), []);
 
   const [visibleProperties, setVisibleProperties] = useState(() => {
     const savedViewState = viewStateStore.getTasksView();
-    if (savedViewState.visibleProperties) return savedViewState.visibleProperties;
+    if (savedViewState.visibleProperties) {
+      return {
+        id: true,
+        status: true,
+        priority: true,
+        assignee: true,
+        dueDate: true,
+        project: true,
+        subtasks: true,
+        dependencies: true,
+        progress: false,
+        summary: true,
+        ...savedViewState.visibleProperties,
+      };
+    }
     try {
       const saved = localStorage.getItem("kriri_tasks_display_properties");
-      if (saved) return { ...DEFAULT_VISIBLE_PROPERTIES, ...JSON.parse(saved) };
+      if (saved) {
+        return {
+          id: true,
+          status: true,
+          priority: true,
+          assignee: true,
+          dueDate: true,
+          project: true,
+          subtasks: true,
+          dependencies: true,
+          progress: false,
+          summary: true,
+          ...JSON.parse(saved),
+        };
+      }
     } catch {}
-    return DEFAULT_VISIBLE_PROPERTIES;
+    return {
+      id: true,
+      status: true,
+      priority: true,
+      assignee: true,
+      dueDate: true,
+      project: true,
+      subtasks: true,
+      dependencies: true,
+      progress: false,
+      summary: true,
+    };
   });
+
+  const isNonDefaultDisplay = useMemo(() => {
+    return Object.keys(DEFAULT_VISIBLE_PROPERTIES).some(
+      (key) => Boolean(visibleProperties[key]) !== Boolean(DEFAULT_VISIBLE_PROPERTIES[key])
+    );
+  }, [visibleProperties, DEFAULT_VISIBLE_PROPERTIES]);
+
+  const handleResetToDefaults = () => {
+    playUiSound("toggle");
+    setVisibleProperties(DEFAULT_VISIBLE_PROPERTIES);
+    viewStateStore.setTasksView({ visibleProperties: DEFAULT_VISIBLE_PROPERTIES });
+    try {
+      localStorage.removeItem("kriri_tasks_display_properties");
+    } catch {}
+  };
+
+  const handleSetDefaultProperties = () => {
+    playUiSound("success");
+    try {
+      localStorage.setItem("kriri_tasks_display_properties", JSON.stringify(visibleProperties));
+      localStorage.setItem("kriri_tasks_workspace_default_properties", JSON.stringify(visibleProperties));
+    } catch {}
+  };
 
   const toggleVisibleProperty = (propKey) => {
     playUiSound("toggle");
@@ -1061,11 +1245,12 @@ export default memo(function Tasks({ isActive = true }) {
   const currentDbUserId = useMemo(() => {
     if (currentUserDb?.id) return currentUserDb.id;
     if (availableMembers.length > 0 && user) {
-      const userEmail = user.primaryEmailAddress?.emailAddress || user.emailAddresses?.[0]?.emailAddress;
+      const userEmail = (user.primaryEmailAddress?.emailAddress || user.emailAddresses?.[0]?.emailAddress || "").toLowerCase();
       const matched = availableMembers.find(
         (m) =>
-          (userEmail && m.email && m.email.toLowerCase() === userEmail.toLowerCase()) ||
-          (user.fullName && m.name && m.name.toLowerCase() === user.fullName.toLowerCase())
+          (user.id && (m.clerk_user_id === user.id || String(m.clerk_user_id) === String(user.id))) ||
+          (userEmail && m.email && m.email.toLowerCase() === userEmail) ||
+          (user.username && m.username && m.username.toLowerCase() === user.username.toLowerCase())
       );
       if (matched?.id) return matched.id;
     }
@@ -1114,27 +1299,27 @@ export default memo(function Tasks({ isActive = true }) {
         return task.assignee_username.replace(/^@/, "");
       }
 
-      // 2. Check in availableMembers by matching id or name
+      // 2. Check in availableMembers by matching unique id or email
       if (availableMembers && availableMembers.length > 0) {
         const member = availableMembers.find(
           (m) =>
-            (task.assignee_id && (m.id === task.assignee_id || String(m.id) === String(task.assignee_id))) ||
-            (task.assignee_name && m.name && m.name.toLowerCase() === task.assignee_name.toLowerCase())
+            (task.assignee_id != null && String(m.id) === String(task.assignee_id)) ||
+            (task.assignee_clerk_user_id && m.clerk_user_id === task.assignee_clerk_user_id) ||
+            (task.assignee_email && m.email && m.email.toLowerCase() === task.assignee_email.toLowerCase())
         );
         if (member?.username) {
           return member.username.replace(/^@/, "");
         }
+        if (member?.email) {
+          return member.email.split("@")[0].toLowerCase().replace(/[^a-z0-9_.-]/g, "");
+        }
       }
 
-      // 3. Check if assignee matches current logged-in user
+      // 3. Check if assignee matches current logged-in user by strict ID or email
+      const userEmail = (user?.primaryEmailAddress?.emailAddress || user?.emailAddresses?.[0]?.emailAddress || "").toLowerCase();
       const isCurrentUser =
-        (user && task.assignee_id && (task.assignee_id === user.id || task.assignee_id === "personal")) ||
-        (user &&
-          task.assignee_name &&
-          (task.assignee_name === user.fullName ||
-            task.assignee_name.toLowerCase() === (user.fullName || "").toLowerCase() ||
-            task.assignee_name.toLowerCase() ===
-              `${user.firstName || ""} ${user.lastName || ""}`.trim().toLowerCase()));
+        (user && task.assignee_id && (String(task.assignee_id) === String(currentDbUserId) || task.assignee_id === user.id)) ||
+        (userEmail && task.assignee_email && task.assignee_email.toLowerCase() === userEmail);
 
       if (isCurrentUser) {
         const savedUsername =
@@ -1146,26 +1331,8 @@ export default memo(function Tasks({ isActive = true }) {
         }
       }
 
-      // Check if current user's email matches the assignee member
-      if (user && availableMembers && availableMembers.length > 0) {
-        const member = availableMembers.find(
-          (m) =>
-            (task.assignee_id && (m.id === task.assignee_id || String(m.id) === String(task.assignee_id))) ||
-            (task.assignee_name && m.name && m.name.toLowerCase() === task.assignee_name.toLowerCase())
-        );
-        const userEmail = user.primaryEmailAddress?.emailAddress || user.emailAddresses?.[0]?.emailAddress;
-        if (member && userEmail && member.email && member.email.toLowerCase() === userEmail.toLowerCase()) {
-          const savedUsername =
-            (typeof window !== "undefined" && localStorage.getItem("kriri-user-username")) ||
-            user?.username ||
-            user?.unsafeMetadata?.username;
-          if (savedUsername) {
-            return savedUsername.replace(/^@/, "");
-          }
-        }
-        if (member?.email) {
-          return member.email.split("@")[0].toLowerCase().replace(/[^a-z0-9_.-]/g, "");
-        }
+      if (task.assignee_email) {
+        return task.assignee_email.split("@")[0].toLowerCase().replace(/[^a-z0-9_.-]/g, "");
       }
 
       // 4. Fallback to clean name handle
@@ -1175,7 +1342,7 @@ export default memo(function Tasks({ isActive = true }) {
 
       return "user";
     },
-    [availableMembers, user]
+    [availableMembers, user, currentDbUserId]
   );
 
   const handleUpdateTaskProperty = async (taskId, property, value) => {
@@ -1211,6 +1378,8 @@ export default memo(function Tasks({ isActive = true }) {
       assignee_id: member ? member.id : null,
       assignee_name: member ? member.name : null,
       assignee_username: member ? member.username : null,
+      assignee_email: member ? member.email : null,
+      assignee_clerk_user_id: member ? member.clerk_user_id : null,
       assignee_avatar_url: member ? member.avatar_url : null,
     };
 
@@ -1400,9 +1569,8 @@ export default memo(function Tasks({ isActive = true }) {
       // assignee
       if (!t.assignee_id && !t.assignee_name) {
         counts.assignee["unassigned"] = (counts.assignee["unassigned"] || 0) + 1;
-      } else {
-        if (t.assignee_id) counts.assignee[t.assignee_id] = (counts.assignee[t.assignee_id] || 0) + 1;
-        if (t.assignee_name) counts.assignee[t.assignee_name] = (counts.assignee[t.assignee_name] || 0) + 1;
+      } else if (t.assignee_id) {
+        counts.assignee[t.assignee_id] = (counts.assignee[t.assignee_id] || 0) + 1;
       }
 
       // creator
@@ -1479,12 +1647,15 @@ export default memo(function Tasks({ isActive = true }) {
             icon: User,
             items: [
               { value: "unassigned", label: "Unassigned", isUnassigned: true },
-              ...availableMembers.map((m) => ({
-                value: m.id,
-                label: m.name || m.username || "Member",
-                name: m.name,
-                avatar: m.avatar_url,
-              })),
+              ...availableMembers.map((m) => {
+                const subtext = m.username ? `@${m.username.replace(/^@/, "")}` : m.email;
+                return {
+                  value: m.id,
+                  label: m.name ? (subtext ? `${m.name} (${subtext})` : m.name) : (m.username || m.email || "Member"),
+                  name: m.name,
+                  avatar: m.avatar_url,
+                };
+              }),
             ],
           },
           {
@@ -1614,23 +1785,21 @@ export default memo(function Tasks({ isActive = true }) {
 
     // Ownership Scope filtering
     if (activeFilter === "assigned" || activeFilter === "mine") {
-      const userEmail = user?.primaryEmailAddress?.emailAddress?.toLowerCase();
-      const userName = user?.fullName?.toLowerCase();
+      const userEmail = (user?.primaryEmailAddress?.emailAddress || user?.emailAddresses?.[0]?.emailAddress || "").toLowerCase();
+      const clerkId = user?.id;
       list = list.filter((t) => {
         if (currentDbUserId && (t.assignee_id === currentDbUserId || String(t.assignee_id) === String(currentDbUserId))) return true;
-        if (user?.id && (t.assignee_id === user.id || t.assignee_id === "personal")) return true;
-        if (t.assignee_email && t.assignee_email.toLowerCase() === userEmail) return true;
-        if (t.assignee_name && userName && t.assignee_name.toLowerCase() === userName) return true;
+        if (clerkId && (t.assignee_id === clerkId || t.assignee_clerk_user_id === clerkId || t.assignee_id === "personal")) return true;
+        if (userEmail && t.assignee_email && t.assignee_email.toLowerCase() === userEmail) return true;
         return false;
       });
     } else if (activeFilter === "created") {
-      const userEmail = user?.primaryEmailAddress?.emailAddress?.toLowerCase();
-      const userName = user?.fullName?.toLowerCase();
+      const userEmail = (user?.primaryEmailAddress?.emailAddress || user?.emailAddresses?.[0]?.emailAddress || "").toLowerCase();
+      const clerkId = user?.id;
       list = list.filter((t) => {
         if (currentDbUserId && (t.reporter_id === currentDbUserId || String(t.reporter_id) === String(currentDbUserId))) return true;
-        if (user?.id && (t.reporter_id === user.id || t.reporter_id === "personal")) return true;
-        if (t.reporter_email && t.reporter_email.toLowerCase() === userEmail) return true;
-        if (t.reporter_name && userName && t.reporter_name.toLowerCase() === userName) return true;
+        if (clerkId && (t.reporter_id === clerkId || t.reporter_clerk_user_id === clerkId || t.reporter_id === "personal")) return true;
+        if (userEmail && t.reporter_email && t.reporter_email.toLowerCase() === userEmail) return true;
         return false;
       });
     }
@@ -1657,9 +1826,9 @@ export default memo(function Tasks({ isActive = true }) {
         }
         return filterState.assignee.some((val) => {
           return (
-            t.assignee_id === val ||
-            String(t.assignee_id) === String(val) ||
-            (t.assignee_name && t.assignee_name.toLowerCase() === String(val).toLowerCase())
+            (t.assignee_id != null && String(t.assignee_id) === String(val)) ||
+            (t.assignee_clerk_user_id && t.assignee_clerk_user_id === val) ||
+            (t.assignee_email && t.assignee_email.toLowerCase() === String(val).toLowerCase())
           );
         });
       });
@@ -1670,9 +1839,9 @@ export default memo(function Tasks({ isActive = true }) {
       list = list.filter((t) => {
         return filterState.creator.some((val) => {
           return (
-            t.reporter_id === val ||
-            String(t.reporter_id) === String(val) ||
-            (t.reporter_name && t.reporter_name.toLowerCase() === String(val).toLowerCase())
+            (t.reporter_id != null && String(t.reporter_id) === String(val)) ||
+            (t.reporter_clerk_user_id && t.reporter_clerk_user_id === val) ||
+            (t.reporter_email && t.reporter_email.toLowerCase() === String(val).toLowerCase())
           );
         });
       });
@@ -1963,19 +2132,21 @@ export default memo(function Tasks({ isActive = true }) {
             <Menu size={18} strokeWidth={1.75} />
           </button>
           <h1 className="text-base font-semibold tracking-tight text-zinc-900 dark:text-white truncate">
-            Tasks
+            Issues
           </h1>
         </div>
 
-        <button
-          onClick={() => {
-            setCreateInitialStatus("Todo");
-            setIsCreateModalOpen(true);
-          }}
-          className="kriri-primary-btn h-[26px] sm:h-[28px] px-3 transition-all duration-300 text-[11.5px] sm:text-[12px] font-medium rounded-full shadow-[0_1px_2px_rgba(0,0,0,0.08)] active:scale-[0.98] shrink-0 flex items-center gap-1.5 cursor-pointer"
-        >
-          <Plus size={13} strokeWidth={2.2} /> New Task
-        </button>
+        <ActionTooltip label="Create new issue" shortcut="C">
+          <button
+            onClick={() => {
+              setCreateInitialStatus("Todo");
+              setIsCreateModalOpen(true);
+            }}
+            className="kriri-primary-btn h-[26px] sm:h-[28px] px-3 transition-all duration-300 text-[11.5px] sm:text-[12px] font-medium rounded-full shadow-[0_1px_2px_rgba(0,0,0,0.08)] active:scale-[0.98] shrink-0 flex items-center gap-1.5 cursor-pointer"
+          >
+            <Plus size={13} strokeWidth={2.2} /> New Issue
+          </button>
+        </ActionTooltip>
       </div>
 
       <div className="h-px bg-black/[0.06] dark:bg-white/[0.06] w-full my-3 shrink-0" />
@@ -2016,38 +2187,39 @@ export default memo(function Tasks({ isActive = true }) {
         <div className="flex items-center gap-1.5 sm:gap-2 relative shrink-0">
           {/* Filter Popover Button (Linear ListFilter) */}
           <div className="relative">
-            <button
-              type="button"
-              onClick={() => {
-                setIsDisplayOptionsOpen(false);
-                setIsFilterOpen((prev) => {
-                  const next = !prev;
-                  if (next) {
-                    if (availableProjects.length === 0) {
-                      dataStore.fetchProjects().catch(() => {});
+            <ActionTooltip label="Filter issues" shortcut="F">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsDisplayOptionsOpen(false);
+                  setIsFilterOpen((prev) => {
+                    const next = !prev;
+                    if (next) {
+                      if (availableProjects.length === 0) {
+                        dataStore.fetchProjects().catch(() => {});
+                      }
+                      setTimeout(() => filterSearchInputRef.current?.focus(), 50);
+                    } else {
+                      setActiveFilterCategory(null);
+                      setFilterSearchTerm("");
                     }
-                    setTimeout(() => filterSearchInputRef.current?.focus(), 50);
-                  } else {
-                    setActiveFilterCategory(null);
-                    setFilterSearchTerm("");
-                  }
-                  return next;
-                });
-              }}
-              className={`w-[28px] h-[28px] rounded-full flex items-center justify-center transition-colors cursor-pointer relative ${
-                isFilterOpen || activeFiltersCount > 0 || !!searchQuery
-                  ? "bg-zinc-200 text-zinc-900 dark:bg-white/[0.12] dark:text-white"
-                  : "bg-black/[0.04] dark:bg-white/[0.04] text-zinc-600 dark:text-[#8a8f98] hover:text-zinc-900 dark:hover:text-white"
-              }`}
-              title="Filter (F)"
-            >
-              <Filter size={13} />
-              {(activeFiltersCount > 0 || !!searchQuery) && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-accent text-white text-[9.5px] font-bold flex items-center justify-center shadow-xs">
-                  {activeFiltersCount + (searchQuery ? 1 : 0)}
-                </span>
-              )}
-            </button>
+                    return next;
+                  });
+                }}
+                className={`w-[28px] h-[28px] rounded-full flex items-center justify-center transition-colors cursor-pointer relative ${
+                  isFilterOpen || activeFiltersCount > 0 || !!searchQuery
+                    ? "bg-zinc-200 text-zinc-900 dark:bg-white/[0.12] dark:text-white"
+                    : "bg-black/[0.04] dark:bg-white/[0.04] text-zinc-600 dark:text-[#8a8f98] hover:text-zinc-900 dark:hover:text-white"
+                }`}
+              >
+                <Filter size={13} />
+                {(activeFiltersCount > 0 || !!searchQuery) && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-accent text-white text-[9.5px] font-bold flex items-center justify-center shadow-xs">
+                    {activeFiltersCount + (searchQuery ? 1 : 0)}
+                  </span>
+                )}
+              </button>
+            </ActionTooltip>
 
             {/* Filter Popover (Linear Image 2) */}
             {isFilterOpen && (
@@ -2417,21 +2589,22 @@ export default memo(function Tasks({ isActive = true }) {
 
           {/* Display Options Popover Button (Linear style with view switcher inside) */}
           <div className="relative">
-            <button
-              type="button"
-              onClick={() => {
-                setIsFilterOpen(false);
-                setIsDisplayOptionsOpen(!isDisplayOptionsOpen);
-              }}
-              className={`w-[28px] h-[28px] rounded-full flex items-center justify-center transition-colors cursor-pointer relative ${
-                isDisplayOptionsOpen
-                  ? "bg-zinc-200 text-zinc-900 dark:bg-white/[0.12] dark:text-white"
-                  : "bg-black/[0.04] dark:bg-white/[0.04] text-zinc-600 dark:text-[#8a8f98] hover:text-zinc-900 dark:hover:text-white"
-              }`}
-              title="Display options"
-            >
-              <SlidersHorizontal size={13} strokeWidth={2} />
-            </button>
+            <ActionTooltip label="Display options" shortcut="V">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsFilterOpen(false);
+                  setIsDisplayOptionsOpen(!isDisplayOptionsOpen);
+                }}
+                className={`w-[28px] h-[28px] rounded-full flex items-center justify-center transition-colors cursor-pointer relative ${
+                  isDisplayOptionsOpen
+                    ? "bg-zinc-200 text-zinc-900 dark:bg-white/[0.12] dark:text-white"
+                    : "bg-black/[0.04] dark:bg-white/[0.04] text-zinc-600 dark:text-[#8a8f98] hover:text-zinc-900 dark:hover:text-white"
+                }`}
+              >
+                <SlidersHorizontal size={13} strokeWidth={2} />
+              </button>
+            </ActionTooltip>
 
             {/* Display Options Popover (Linear Image 3) */}
             {isDisplayOptionsOpen && (
@@ -2587,11 +2760,14 @@ export default memo(function Tasks({ isActive = true }) {
                     {[
                       { key: "id", label: "ID" },
                       { key: "status", label: "Status" },
-                      { key: "assignee", label: "Assignee" },
                       { key: "priority", label: "Priority" },
-                      { key: "project", label: "Project" },
+                      { key: "assignee", label: "Assignee" },
                       { key: "dueDate", label: "Due date" },
+                      { key: "project", label: "Project" },
                       { key: "subtasks", label: "Subtasks" },
+                      { key: "dependencies", label: "Dependencies" },
+                      { key: "progress", label: "Progress" },
+                      { key: "summary", label: "Summary" },
                     ].map((prop) => {
                       const isVisible = visibleProperties[prop.key];
                       return (
@@ -2610,6 +2786,25 @@ export default memo(function Tasks({ isActive = true }) {
                       );
                     })}
                   </div>
+
+                  {isNonDefaultDisplay && (
+                    <div className="flex items-center justify-between pt-2.5 mt-2.5 border-t border-black/[0.06] dark:border-white/5">
+                      <button
+                        type="button"
+                        onClick={handleResetToDefaults}
+                        className="text-[12px] font-medium text-zinc-500 dark:text-[#8a8f98] hover:text-zinc-900 dark:hover:text-[#e8e8e8] px-1 cursor-pointer transition-colors"
+                      >
+                        Reset
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleSetDefaultProperties}
+                        className="text-[12px] font-medium text-[#6e8eeb] hover:text-[#84a1f5] px-1 cursor-pointer transition-colors"
+                      >
+                        Set default for everyone
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -2726,10 +2921,10 @@ export default memo(function Tasks({ isActive = true }) {
 
           <div className="flex flex-col gap-2">
             <h2 className="text-lg font-semibold text-zinc-900 dark:text-white tracking-tight">
-              Create your first task
+              Create your first issue
             </h2>
             <p className="text-[14px] text-zinc-500 dark:text-[#8a8f98] leading-relaxed">
-              Tasks are used to track work, bugs, and feature requests. Get
+              Issues are used to track work, bugs, and feature requests. Get
               started by organizing your work.
             </p>
           </div>
@@ -2740,7 +2935,7 @@ export default memo(function Tasks({ isActive = true }) {
               className="kriri-primary-btn h-8 px-4 rounded-full font-medium text-[13px] transition-all duration-300 shadow-[0_1px_2px_rgba(0,0,0,0.08)] active:scale-[0.98] flex items-center gap-2 cursor-pointer"
             >
               <Plus size={14} strokeWidth={2.2} />
-              New Task
+              New Issue
             </button>
           </div>
         </div>
@@ -2749,40 +2944,61 @@ export default memo(function Tasks({ isActive = true }) {
         <div
           ref={listScrollContainerRef}
           onScroll={handleListScroll}
-          className="flex-1 overflow-y-auto custom-scrollbar flex flex-col pb-16 min-h-0"
+          className="flex-1 overflow-auto custom-scrollbar flex flex-col pb-16 min-h-0"
         >
-          {Object.entries(groupedTasks).map(([groupTitle, groupTasks]) => (
-            <TaskGroupSection
-              key={groupTitle}
-              groupTitle={groupTitle}
-              groupTasks={groupTasks}
-              isCollapsed={collapsedGroups[groupTitle]}
-              grouping={grouping}
-              toggleGroupCollapse={toggleGroupCollapse}
-              setCreateInitialStatus={setCreateInitialStatus}
-              setIsCreateModalOpen={setIsCreateModalOpen}
-              highlightedTaskId={highlightedTaskId}
-              selectedTaskId={selectedTaskId}
-              activeIndex={activeIndex}
-              selectedTaskIds={selectedTaskIds}
-              visibleProperties={visibleProperties}
-              hoveredTaskId={hoveredTaskId}
-              setHoveredTaskId={setHoveredTaskId}
-              hoveredTooltip={hoveredTooltip}
-              setHoveredTooltip={setHoveredTooltip}
-              activePicker={activePicker}
-              setActivePicker={setActivePicker}
-              hoveredAssignee={hoveredAssignee}
-              setHoveredAssignee={setHoveredAssignee}
-              handleUpdateTaskProperty={handleUpdateTaskProperty}
-              handleUpdateTaskAssignee={handleUpdateTaskAssignee}
-              toggleTaskSelection={toggleTaskSelection}
-              navigate={navigate}
-              availableMembers={availableMembers}
-              organization={organization}
-              getAssigneeUsername={getAssigneeUsername}
-            />
-          ))}
+          <div className="min-w-max flex flex-col min-h-full pr-4">
+            {/* Sticky Table Column Header */}
+            <div className="flex items-center px-4 py-2 text-[11.5px] font-medium text-zinc-400 dark:text-[#8a8f98] select-none sticky top-0 bg-background z-20 shrink-0 mx-1">
+              <div className="w-5 shrink-0 mr-3" />
+              {visibleProperties.priority && (
+                <div className="w-[85px] shrink-0 mr-3">Priority</div>
+              )}
+              {visibleProperties.id && <div className="w-[110px] shrink-0 mr-3">ID</div>}
+              {visibleProperties.status && (
+                <div className="w-[85px] shrink-0 mr-3">Status</div>
+              )}
+              <div className="flex-1 min-w-[200px] sm:min-w-[240px] mr-4">Title</div>
+              {visibleProperties.project && <div className="w-[180px] lg:w-[220px] shrink-0 mr-4 hidden md:block">Project</div>}
+              {visibleProperties.subtasks && <div className="w-[85px] shrink-0 mr-4 hidden sm:block">Subtasks</div>}
+              {visibleProperties.dependencies && <div className="w-[100px] shrink-0 mr-4 hidden md:block">Dependencies</div>}
+              {visibleProperties.progress && <div className="w-[90px] shrink-0 mr-4 hidden sm:block">Progress</div>}
+              {visibleProperties.assignee && <div className="w-[130px] lg:w-[150px] shrink-0 mr-4">Assignee</div>}
+              {visibleProperties.dueDate && <div className="w-[110px] shrink-0 text-left">Due Date</div>}
+            </div>
+
+            {Object.entries(groupedTasks).map(([groupTitle, groupTasks]) => (
+              <TaskGroupSection
+                key={groupTitle}
+                groupTitle={groupTitle}
+                groupTasks={groupTasks}
+                isCollapsed={collapsedGroups[groupTitle]}
+                grouping={grouping}
+                toggleGroupCollapse={toggleGroupCollapse}
+                setCreateInitialStatus={setCreateInitialStatus}
+                setIsCreateModalOpen={setIsCreateModalOpen}
+                highlightedTaskId={highlightedTaskId}
+                selectedTaskId={selectedTaskId}
+                activeIndex={activeIndex}
+                selectedTaskIds={selectedTaskIds}
+                visibleProperties={visibleProperties}
+                hoveredTaskId={hoveredTaskId}
+                setHoveredTaskId={setHoveredTaskId}
+                hoveredTooltip={hoveredTooltip}
+                setHoveredTooltip={setHoveredTooltip}
+                activePicker={activePicker}
+                setActivePicker={setActivePicker}
+                hoveredAssignee={hoveredAssignee}
+                setHoveredAssignee={setHoveredAssignee}
+                handleUpdateTaskProperty={handleUpdateTaskProperty}
+                handleUpdateTaskAssignee={handleUpdateTaskAssignee}
+                toggleTaskSelection={toggleTaskSelection}
+                navigate={navigate}
+                availableMembers={availableMembers}
+                organization={organization}
+                getAssigneeUsername={getAssigneeUsername}
+              />
+            ))}
+          </div>
         </div>
           )}
         </div>
@@ -2798,6 +3014,19 @@ export default memo(function Tasks({ isActive = true }) {
           }
         }}
         taskId={selectedTaskId}
+        onNavigateTask={(nextId) => {
+          startTransition(() => {
+            setSelectedTaskId(nextId);
+            setSearchParams(
+              (prev) => {
+                const next = new URLSearchParams(prev);
+                next.set("task", nextId);
+                return next;
+              },
+              { replace: true }
+            );
+          });
+        }}
         onTaskUpdated={(updatedTask) => {
           setTasks((prev) =>
             prev.map((t) =>

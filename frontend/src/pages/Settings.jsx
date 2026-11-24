@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef, lazy, Suspense } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { useOrganization, useUser, useClerk, useReverification, UserProfile, OrganizationProfile } from "@clerk/react";
 import { isReverificationCancelledError } from "@clerk/react/errors";
@@ -60,8 +60,8 @@ import { SleekSlider } from "../components/ui/SleekSlider";
 import { SettingsSkeleton } from "../components/skeletons/PageSkeletons";
 import ConfirmModal from "../components/ConfirmModal";
 import AISettingsView from "../components/ai/AISettingsView";
-import AIAssistantModal from "../components/ai/AIAssistantModal";
-import ChatHistoryPopover from "../components/ai/ChatHistoryPopover";
+const AIAssistantModal = lazy(() => import("../components/ai/AIAssistantModal"));
+const ChatHistoryPopover = lazy(() => import("../components/ai/ChatHistoryPopover"));
 import { KririAgentIcon } from "../components/ai/KririAgentIcon";
 import { useTheme, applyCustomThemeToRoot, syncDomTheme } from "../contexts/ThemeContext";
 import { copyTextToClipboard } from "@/lib/use-copy-feedback";
@@ -3994,27 +3994,33 @@ export default function Settings() {
         </div>
       </div>
 
-      <ChatHistoryPopover
-        isOpen={isHistoryOpen}
-        onClose={() => setIsHistoryOpen(false)}
-        onSelectConversation={(convId) => {
-          setSelectedConversationId(convId);
-          setIsAIAssistantOpen(true);
-        }}
-        onNewChat={() => {
-          setSelectedConversationId(null);
-          setIsAIAssistantOpen(true);
-        }}
-      />
+      <Suspense fallback={null}>
+        {isHistoryOpen && (
+          <ChatHistoryPopover
+            isOpen={isHistoryOpen}
+            onClose={() => setIsHistoryOpen(false)}
+            onSelectConversation={(convId) => {
+              setSelectedConversationId(convId);
+              setIsAIAssistantOpen(true);
+            }}
+            onNewChat={() => {
+              setSelectedConversationId(null);
+              setIsAIAssistantOpen(true);
+            }}
+          />
+        )}
 
-      <AIAssistantModal
-        isOpen={isAIAssistantOpen}
-        onClose={() => {
-          setIsAIAssistantOpen(false);
-          setSelectedConversationId(null);
-        }}
-        selectedConversationId={selectedConversationId}
-      />
+        {isAIAssistantOpen && (
+          <AIAssistantModal
+            isOpen={isAIAssistantOpen}
+            onClose={() => {
+              setIsAIAssistantOpen(false);
+              setSelectedConversationId(null);
+            }}
+            selectedConversationId={selectedConversationId}
+          />
+        )}
+      </Suspense>
 
       {/* Confirmation Modals */}
       <ConfirmModal

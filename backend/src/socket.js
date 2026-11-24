@@ -3,6 +3,7 @@ const { verifyToken } = require("@clerk/express");
 const db = require("./config/database");
 
 let io;
+const onlineClerkUsers = new Map(); // socketId -> clerkUserId
 
 module.exports = {
   init: (httpServer, corsOrigin) => {
@@ -94,15 +95,20 @@ module.exports = {
 
           // Check membership in workspace_members or active Clerk org
           const isOrgMatch = Boolean(ws.clerk_org_id && socket.orgId === ws.clerk_org_id);
-          const memberRes = await db.query(
-            `SELECT wm.role 
-             FROM workspace_members wm 
-             JOIN users u ON wm.user_id = u.id 
-             WHERE wm.workspace_id = $1 AND u.clerk_user_id = $2`,
-            [ws.id, clerkUserId],
-          );
+          let isAuthorized = isOrgMatch;
 
-          if (memberRes.rows.length === 0 && !isOrgMatch) {
+          if (!isAuthorized) {
+            const memberRes = await db.query(
+              `SELECT wm.role 
+               FROM workspace_members wm 
+               JOIN users u ON wm.user_id = u.id 
+               WHERE wm.workspace_id = $1 AND u.clerk_user_id = $2`,
+              [ws.id, clerkUserId],
+            );
+            isAuthorized = memberRes.rows.length > 0;
+          }
+
+          if (!isAuthorized) {
             console.warn(`Socket ${socket.id} (user ${clerkUserId}) unauthorized for workspace ${ws.id}`);
             socket.emit("workspace_join_rejected", {
               workspaceId: ws.id,
@@ -116,7 +122,10 @@ module.exports = {
           if (ws.clerk_org_id) {
             socket.join(`workspace_${ws.clerk_org_id}`);
           }
+          onlineClerkUsers.set(socket.id, clerkUserId);
+          db.query("UPDATE users SET last_seen_at = NOW() WHERE clerk_user_id = $1", [clerkUserId]).catch(() => {});
           socket.emit("workspace_joined", { workspaceId: ws.id });
+          socket.to(`workspace_${ws.id}`).emit("member_presence", { clerkUserId, isOnline: true });
           console.log(`Socket ${socket.id} (user ${clerkUserId}) securely joined workspace_${ws.id}`);
         } catch (err) {
           console.error("Socket join_workspace error:", err);
@@ -145,6 +154,12 @@ module.exports = {
       });
 
       socket.on("disconnect", () => {
+        const clerkUserId = onlineClerkUsers.get(socket.id);
+        onlineClerkUsers.delete(socket.id);
+        if (clerkUserId) {
+          db.query("UPDATE users SET last_seen_at = NOW() WHERE clerk_user_id = $1", [clerkUserId]).catch(() => {});
+          io.emit("member_presence", { clerkUserId, isOnline: false, lastSeenAt: new Date().toISOString() });
+        }
         console.log("Client disconnected:", socket.id);
       });
     });
@@ -156,5 +171,15 @@ module.exports = {
       throw new Error("Socket.io not initialized!");
     }
     return io;
+  },
+  safeGetIO: () => {
+    return io || null;
+  },
+  isClerkUserOnline: (clerkUserId) => {
+    if (!clerkUserId) return false;
+    for (const uid of onlineClerkUsers.values()) {
+      if (uid === clerkUserId) return true;
+    }
+    return false;
   },
 };

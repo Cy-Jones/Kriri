@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Sparkles, AlertTriangle, CheckCircle2, TrendingUp, RefreshCw, ChevronRight } from "lucide-react";
 import { api } from "../../lib/api";
+import FormattedAIMessage from "./FormattedAIMessage";
 
 export default function ProjectHealthCard({ projectId, onOpenAssistant }) {
   const [data, setData] = useState(null);
@@ -111,8 +112,8 @@ export default function ProjectHealthCard({ projectId, onOpenAssistant }) {
 
       {/* AI Narrative Explanation */}
       {data.explanation && (
-        <div className="text-[12.5px] leading-relaxed text-zinc-600 dark:text-[#a1a1aa] bg-black/[0.015] dark:bg-white/[0.015] p-3 rounded-xl border border-black/[0.04] dark:border-white/[0.04] whitespace-pre-line">
-          {data.explanation}
+        <div className="bg-black/[0.015] dark:bg-white/[0.015] p-3.5 rounded-xl border border-black/[0.04] dark:border-white/[0.04]">
+          <FormattedAIMessage content={data.explanation} className="text-zinc-600 dark:text-[#a1a1aa]" />
         </div>
       )}
 

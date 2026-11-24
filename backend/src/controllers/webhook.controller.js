@@ -41,6 +41,20 @@ exports.handleClerkWebhook = async (req, res) => {
     return res.status(400).json({ error: "Error verifying webhook" });
   }
 
+  // Deduplication / Replay Protection via svix_id
+  try {
+    const dedupRes = await db.query(
+      "INSERT INTO processed_webhooks (id) VALUES ($1) ON CONFLICT (id) DO NOTHING RETURNING id",
+      [svix_id],
+    );
+    if (dedupRes.rows.length === 0) {
+      console.log(`Webhook with svix_id ${svix_id} already processed, skipping`);
+      return res.status(200).json({ message: "Webhook already processed" });
+    }
+  } catch (dedupErr) {
+    console.error("Error checking webhook deduplication:", dedupErr);
+  }
+
   const { id } = evt.data || {};
   const eventType = evt.type;
 
@@ -75,6 +89,16 @@ exports.handleClerkWebhook = async (req, res) => {
           "INSERT INTO workspaces (clerk_org_id, name, slug, owner_id) VALUES ($1, $2, $3, $4)",
           [clerkOrgId, name, finalSlug, ownerId],
         );
+      }
+
+      // Automatically enable admin deletion on Clerk organization
+      if (clerkOrgId) {
+        try {
+          const { clerkClient } = require("@clerk/express");
+          clerkClient.organizations
+            .updateOrganization(clerkOrgId, { adminDeleteEnabled: true })
+            .catch(() => {});
+        } catch (e) {}
       }
     } else if (eventType === "organization.updated") {
       const { id: clerkOrgId, name, slug } = evt.data;

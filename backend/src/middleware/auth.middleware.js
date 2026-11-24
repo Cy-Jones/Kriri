@@ -115,6 +115,7 @@ exports.verifyToken = async (req, res, next) => {
       }
 
       req.user = userRes.rows[0];
+      db.query("UPDATE users SET last_seen_at = NOW() WHERE id = $1", [req.user.id]).catch(() => {});
 
       // 2. Resolve Active Organization / Workspace
       const requestedWsId = req.headers["x-workspace-id"];

@@ -21,7 +21,7 @@ router.post("/:id/subtasks", requireMinimumRole("Member"), taskController.create
 // Dependencies (Module 16)
 router.get("/:id/dependencies", requireMinimumRole("Viewer"), taskController.getTaskDependencies);
 router.post("/:id/dependencies", requireMinimumRole("Member"), taskController.addTaskDependency);
-router.delete("/:id/dependencies/:depId", requireMinimumRole("Member"), taskController.removeTaskDependency);
+router.delete("/:id/dependencies/:dependsOnTaskId", requireMinimumRole("Member"), taskController.removeTaskDependency);
 
 // Members can update task status (per rule 4.4)
 router.put("/:id", requireMinimumRole("Member"), taskController.updateTask);

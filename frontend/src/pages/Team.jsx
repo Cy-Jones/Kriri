@@ -3,27 +3,50 @@ import { Search, Plus, MoreHorizontal, X, Menu } from "lucide-react";
 import {
   useUser,
   useOrganization,
-  OrganizationProfile,
+  useClerk,
 } from "@clerk/react";
 import { api } from "../lib/api";
+import { useSocket } from "../contexts/useSocket";
 import ConfirmModal from "../components/ConfirmModal";
 import { TeamSkeleton } from "../components/skeletons/PageSkeletons";
 import TeamWorkloadCard from "../components/ai/TeamWorkloadCard";
 import { useDeferredSkeleton } from "../hooks/useDeferredSkeleton";
+import RoleDropdown from "../components/RoleDropdown";
+
+function formatLastSeen(dateStr) {
+  if (!dateStr) return "Never";
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return "Recently";
+  const diffMs = Date.now() - d.getTime();
+  if (diffMs < 0 || diffMs < 60 * 1000) return "Just now";
+  const diffMins = Math.floor(diffMs / (60 * 1000));
+  if (diffMins < 60) return `${diffMins}m ago`;
+  const diffHours = Math.floor(diffMins / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays === 1) return "Yesterday";
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return d.toLocaleDateString("en-US", { month: "short", year: "numeric" });
+}
 
 export default function Team() {
   const { user } = useUser();
   const { organization } = useOrganization();
+  const { openOrganizationProfile } = useClerk();
+  const socket = useSocket();
   const [members, setMembers] = useState(() => {
     if (!organization?.id) {
       if (user) {
         return [
           {
             id: user.id || "personal",
+            clerk_user_id: user.id,
             name: user.fullName || "User",
             email: user.primaryEmailAddress?.emailAddress || "",
             avatar_url: user.imageUrl,
             role: "Owner",
+            is_online: true,
+            last_seen_at: new Date().toISOString(),
             joined_at: new Date().toISOString(),
           },
         ];
@@ -43,7 +66,6 @@ export default function Team() {
   const [loading, setLoading] = useState(() => members.length === 0);
   const [error, setError] = useState(null);
   const [actionError, setActionError] = useState(null);
-  const [showInviteModal, setShowInviteModal] = useState(false);
   const [activeActionMenu, setActiveActionMenu] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -66,10 +88,13 @@ export default function Team() {
       setMembers([
         {
           id: user?.id || "personal",
+          clerk_user_id: user?.id,
           name: user?.fullName || "User",
           email: user?.primaryEmailAddress?.emailAddress || "",
           avatar_url: user?.imageUrl,
           role: "Owner",
+          is_online: true,
+          last_seen_at: new Date().toISOString(),
           joined_at: new Date().toISOString(),
         },
       ]);
@@ -98,6 +123,33 @@ export default function Team() {
   useEffect(() => {
     fetchMembers();
   }, [fetchMembers]);
+
+  // Real-time member presence listener
+  useEffect(() => {
+    if (!socket) return;
+    const handlePresence = (payload) => {
+      if (!payload?.clerkUserId) return;
+      setMembers((prev) =>
+        prev.map((m) => {
+          if (m.clerk_user_id === payload.clerkUserId) {
+            return {
+              ...m,
+              is_online: Boolean(payload.isOnline),
+              last_seen_at:
+                payload.lastSeenAt ||
+                (payload.isOnline ? new Date().toISOString() : m.last_seen_at),
+            };
+          }
+          return m;
+        }),
+      );
+    };
+
+    socket.on?.("member_presence", handlePresence);
+    return () => {
+      socket.off?.("member_presence", handlePresence);
+    };
+  }, [socket]);
 
   const updateRole = async (userId, newRole) => {
     setActionError(null);
@@ -219,7 +271,11 @@ export default function Team() {
 
         {canManageRoles && (
           <button
-            onClick={() => setShowInviteModal(true)}
+            onClick={() => {
+              if (typeof openOrganizationProfile === "function") {
+                openOrganizationProfile();
+              }
+            }}
             disabled={!organization} // Cannot invite to personal workspace
             className={`h-[26px] sm:h-[28px] px-3 rounded-full text-[11px] sm:text-[12px] font-medium transition-all duration-300 flex items-center gap-1.5 shrink-0 active:scale-[0.98] ${
               organization
@@ -237,9 +293,6 @@ export default function Team() {
           </button>
         )}
       </div>
-
-      {/* AI Team Workload & Allocation Intelligence */}
-      <TeamWorkloadCard />
 
       {/* Underneath: Tag (members count & tagline) on left, Search icon on right */}
       <div className="flex items-center justify-between gap-2 mb-4 sm:mb-5 min-h-[30px]">
@@ -337,7 +390,7 @@ export default function Team() {
         </div>
       )}
 
-      <div className="flex flex-col border border-border rounded-2xl bg-surface overflow-x-auto shadow-xs">
+      <div className="flex flex-col border border-border rounded-2xl bg-surface overflow-x-auto sm:overflow-visible shadow-xs mb-6">
         {error ? (
           <div className="p-8 text-center text-danger text-[13px]">{error}</div>
         ) : members.length === 0 ? (
@@ -415,23 +468,41 @@ export default function Team() {
                   </div>
 
                   <div className="flex items-center justify-between text-[12px] pt-2 border-t border-black/[0.05] dark:border-white/[0.04]">
-                    <span className="text-zinc-500 dark:text-text-muted">
-                      Joined {member.joined_at ? new Date(member.joined_at).toLocaleDateString() : "-"}
-                    </span>
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-zinc-500 dark:text-text-muted">
+                        Joined {member.joined_at ? new Date(member.joined_at).toLocaleDateString() : "-"}
+                      </span>
+                      <div className="flex items-center gap-1.5 text-[11.5px]">
+                        {Boolean(
+                          member.is_online ||
+                          (currentUserEmail && member.email === currentUserEmail) ||
+                          (user?.id && (String(member.id) === String(user.id) || member.clerk_user_id === user.id))
+                        ) ? (
+                          <>
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#22c55e] shrink-0" />
+                            <span className="text-zinc-900 dark:text-zinc-200 font-medium">Online</span>
+                          </>
+                        ) : (
+                          <span className="text-zinc-400 dark:text-text-muted">
+                            Last seen {formatLastSeen(member.last_seen_at || member.joined_at)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
                     <div>
                       {canManageRoles && member.role !== "Owner" ? (
-                        <select
+                        <RoleDropdown
                           value={member.role}
-                          onChange={(e) => updateRole(member.id, e.target.value)}
+                          onChange={(newRole) => updateRole(member.id, newRole)}
                           disabled={member.email === currentUserEmail}
-                          className="bg-white dark:bg-[#18191b] border border-black/10 dark:border-white/[0.1] rounded px-2 py-1 text-[12px] text-zinc-900 dark:text-white focus:outline-none focus:border-black/20 dark:focus:border-white/20 cursor-pointer disabled:opacity-50"
-                        >
-                          {ASSIGNABLE_ROLES.map((r) => (
-                            <option key={r} value={r} className="bg-white dark:bg-[#18191b] text-zinc-900 dark:text-white">
-                              {r}
-                            </option>
-                          ))}
-                        </select>
+                          disabledTitle={
+                            member.email === currentUserEmail
+                              ? "You cannot change your own role"
+                              : ""
+                          }
+                          dataTestId={`role-dropdown-btn-mobile-${member.id}`}
+                          options={ASSIGNABLE_ROLES}
+                        />
                       ) : (
                         <span className="text-zinc-900 dark:text-[#e8e8e8] font-medium">{member.role}</span>
                       )}
@@ -453,6 +524,9 @@ export default function Team() {
                 </th>
                 <th className="font-normal text-text-muted text-[13px] px-4 py-2.5">
                   Role
+                </th>
+                <th className="font-normal text-text-muted text-[13px] px-4 py-2.5">
+                  Last seen
                 </th>
                 <th className="font-normal text-text-muted text-[13px] px-4 py-2.5">
                   Actions
@@ -505,29 +579,36 @@ export default function Team() {
                   </td>
                   <td className="px-4 py-2.5 text-[13px] text-foreground">
                     {canManageRoles && member.role !== "Owner" ? (
-                      <select
+                      <RoleDropdown
                         value={member.role}
-                        onChange={(e) => updateRole(member.id, e.target.value)}
+                        onChange={(newRole) => updateRole(member.id, newRole)}
                         disabled={member.email === currentUserEmail}
-                        className="bg-surface-elevated border border-border rounded px-2 py-1 text-[13px] text-foreground focus:outline-none focus:border-border-strong cursor-pointer disabled:opacity-50"
-                        title={
+                        disabledTitle={
                           member.email === currentUserEmail
                             ? "You cannot change your own role"
                             : ""
                         }
-                      >
-                        {ASSIGNABLE_ROLES.map((r) => (
-                          <option
-                            key={r}
-                            value={r}
-                            className="bg-surface-elevated text-foreground"
-                          >
-                            {r}
-                          </option>
-                        ))}
-                      </select>
+                        dataTestId={`role-dropdown-btn-desktop-${member.id}`}
+                        options={ASSIGNABLE_ROLES}
+                      />
                     ) : (
                       <span>{member.role}</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-2.5 text-[13px]">
+                    {Boolean(
+                      member.is_online ||
+                      (currentUserEmail && member.email === currentUserEmail) ||
+                      (user?.id && (String(member.id) === String(user.id) || member.clerk_user_id === user.id))
+                    ) ? (
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-[#22c55e] shrink-0" />
+                        <span className="text-zinc-900 dark:text-zinc-200">Online</span>
+                      </div>
+                    ) : (
+                      <span className="text-zinc-500 dark:text-text-muted">
+                        {formatLastSeen(member.last_seen_at || member.joined_at)}
+                      </span>
                     )}
                   </td>
                   <td className="px-4 py-2.5 text-[13px] text-text-muted">
@@ -572,29 +653,9 @@ export default function Team() {
         )}
       </div>
 
-      {showInviteModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-xl">
-            <button
-              onClick={() => {
-                setShowInviteModal(false);
-                fetchMembers(); // refresh in case someone was added
-              }}
-              className="absolute top-4 right-4 z-10 p-2 rounded-sm text-zinc-500 hover:text-zinc-900 hover:bg-black/10 dark:text-white/50 dark:hover:bg-white/10 dark:hover:text-white transition-colors flex items-center justify-center"
-            >
-              <X size={16} strokeWidth={2} />
-            </button>
-            <OrganizationProfile
-              appearance={{
-                elements: {
-                  rootBox: "w-full shadow-none",
-                  card: "w-full shadow-none rounded-xl",
-                },
-              }}
-            />
-          </div>
-        </div>
-      )}
+      {/* AI Team Workload & Allocation Intelligence */}
+      <TeamWorkloadCard workspaceMembers={members} />
+
       {/* Confirm Modal */}
       <ConfirmModal
         isOpen={confirmModal.isOpen}

@@ -1,11 +1,31 @@
 import { dark } from "@clerk/themes";
 import { generateThemePalette } from "./themeEngine";
 
+const PRESET_ACCENTS = {
+  indigo: "#5e6ad2",
+  blue: "#3b82f6",
+  emerald: "#10b981",
+  violet: "#8b5cf6",
+  amber: "#f59e0b",
+  rose: "#f43f5e",
+  zinc: "#71717a",
+};
+
+export function getActiveAccentHex() {
+  if (typeof window === "undefined") return "#5e6ad2";
+  const stored = localStorage.getItem("kriri-accent-color") || "indigo";
+  if (stored.startsWith("#")) return stored;
+  if (stored === "custom") {
+    return localStorage.getItem("kriri-custom-accent-hex") || "#5e6ad2";
+  }
+  return PRESET_ACCENTS[stored] || "#5e6ad2";
+}
+
 /**
  * Generates dynamic Clerk appearance configuration synchronized with KRIRI's theme.
  * Seamlessly supports Default Light, Default Dark, and all Custom themes.
  */
-export function getClerkAppearance({ theme, effectiveTheme, darkFlavor, lightFlavor }) {
+export function getClerkAppearance({ theme, effectiveTheme, darkFlavor, lightFlavor, accentColor }) {
   const isCustom = theme === "custom";
   const customBg =
     typeof window !== "undefined"
@@ -45,6 +65,10 @@ export function getClerkAppearance({ theme, effectiveTheme, darkFlavor, lightFla
     (typeof window !== "undefined" ? localStorage.getItem("kriri-light-flavor") : null) ||
     "shaded";
 
+  const resolvedAccent = accentColor && accentColor.startsWith("#")
+    ? accentColor
+    : (PRESET_ACCENTS[accentColor] || getActiveAccentHex());
+
   const palette = generateThemePalette(
     isCustom
       ? {
@@ -61,10 +85,7 @@ export function getClerkAppearance({ theme, effectiveTheme, darkFlavor, lightFla
           themeMode: effectiveTheme === "light" ? "light" : "dark",
           darkFlavor: currentDarkFlavor,
           lightFlavor: currentLightFlavor,
-          accent:
-            typeof window !== "undefined"
-              ? localStorage.getItem("kriri-accent-color") || "#5e6ad2"
-              : "#5e6ad2",
+          accent: resolvedAccent,
         }
   );
 
@@ -77,7 +98,7 @@ export function getClerkAppearance({ theme, effectiveTheme, darkFlavor, lightFla
   const popoverBorder = tokens["--border"] || (isDark ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.08)");
   const popoverHover = tokens["--surface-hover"] || (isDark ? "rgba(255, 255, 255, 0.06)" : "rgba(0, 0, 0, 0.04)");
   const surfaceBg = tokens["--surface"] || (isDark ? "#131416" : "#ffffff");
-  const primaryBg = tokens["--primary"] || tokens["--kriri-accent"] || "#5e6ad2";
+  const primaryBg = resolvedAccent || tokens["--primary"] || tokens["--kriri-accent"] || "#5e6ad2";
   const primaryFg = tokens["--primary-foreground"] || "#ffffff";
   const sidebarFg = tokens["--sidebar-foreground"] || (isDark ? "#f4f4f5" : "#09090b");
 
@@ -183,11 +204,37 @@ export function getClerkAppearance({ theme, effectiveTheme, darkFlavor, lightFla
         borderTop: `1px solid ${popoverBorder}`,
       },
       formButtonPrimary: {
-        backgroundColor: primaryBg,
-        color: primaryFg,
+        backgroundColor: `${primaryBg} !important`,
+        color: `${primaryFg} !important`,
         "&:hover": {
-          backgroundColor: tokens["--primary-hover"] || primaryBg,
-          opacity: "0.95",
+          backgroundColor: `${primaryBg} !important`,
+          opacity: "0.92",
+        },
+      },
+      membersPageInviteButton: {
+        backgroundColor: `${primaryBg} !important`,
+        color: `${primaryFg} !important`,
+        "&:hover": {
+          backgroundColor: `${primaryBg} !important`,
+          opacity: "0.92",
+        },
+      },
+      profileSectionPrimaryButton: {
+        "&[data-color='primary']": {
+          color: `${primaryBg} !important`,
+          backgroundColor: "transparent !important",
+        },
+      },
+      profileSectionAction__profile: {
+        color: `${primaryBg} !important`,
+      },
+      profileSectionAction: {
+        color: `${primaryBg} !important`,
+      },
+      badge: {
+        "&[data-color='primary']": {
+          backgroundColor: `${primaryBg} !important`,
+          color: "#ffffff !important",
         },
       },
       navbar: {

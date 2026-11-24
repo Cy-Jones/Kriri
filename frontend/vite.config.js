@@ -37,18 +37,33 @@ export default defineConfig({
     allowedHosts: true,
     cors: true,
     proxy: {
-      '/api': 'http://localhost:5001',
+      '/api': {
+        target: 'http://127.0.0.1:5001',
+        changeOrigin: true,
+        configure: (proxy) => {
+          proxy.on('error', (err, _req, res) => {
+            if (err.code === 'ECONNRESET' || err.code === 'ECONNREFUSED' || err.code === 'ETIMEDOUT') {
+              if (res && !res.headersSent && typeof res.writeHead === 'function') {
+                res.writeHead(503, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Backend server is starting up, please retry.', code: err.code }));
+              }
+              return;
+            }
+            console.error('[vite] http proxy error:', err.message);
+          });
+        },
+      },
       '/socket.io': {
-        target: 'http://localhost:5001',
+        target: 'http://127.0.0.1:5001',
         ws: true,
         configure: (proxy) => {
           proxy.on('error', (err) => {
-            if (err.code === 'ECONNRESET' || err.code === 'ECONNREFUSED') return;
+            if (err.code === 'ECONNRESET' || err.code === 'ECONNREFUSED' || err.code === 'ETIMEDOUT') return;
             console.error('[vite] ws proxy error:', err.message);
           });
           proxy.on('proxyReqWs', (_proxyReq, _req, socket) => {
             socket.on('error', (err) => {
-              if (err.code === 'ECONNRESET' || err.code === 'ECONNREFUSED') return;
+              if (err.code === 'ECONNRESET' || err.code === 'ECONNREFUSED' || err.code === 'ETIMEDOUT') return;
               console.error('[vite] ws socket error:', err.message);
             });
           });

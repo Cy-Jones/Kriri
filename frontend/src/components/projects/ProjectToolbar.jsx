@@ -31,6 +31,7 @@ import {
 import { Button } from "@/registry/components/button/button";
 import SegmentedControl from "@/registry/components/segmented-control/segmented-control";
 import ViewSwitcher from "../ViewSwitcher";
+import ActionTooltip from "../ActionTooltip";
 import { motion } from "motion/react";
 
 export default function ProjectToolbar({
@@ -92,18 +93,30 @@ export default function ProjectToolbar({
         "#f97316",
         "#06b6d4",
       ];
-      const leads = Array.from(uniqueLeadsMap.values()).map((u, i) => ({
-        label: u.name,
-        user: { ...u, color: u.color || userColors[i % userColors.length] },
-      }));
-      const members = Array.from(uniqueMembersMap.values()).map((u, i) => ({
-        label: u.name,
-        user: { ...u, color: u.color || userColors[i % userColors.length] },
-      }));
-      const creators = Array.from(uniqueCreatorsMap.values()).map((u, i) => ({
-        label: u.name,
-        user: { ...u, color: u.color || userColors[i % userColors.length] },
-      }));
+      const leads = Array.from(uniqueLeadsMap.values()).map((u, i) => {
+        const sub = u.username ? `@${u.username.replace(/^@/, "")}` : u.email;
+        return {
+          label: u.name ? (sub ? `${u.name} (${sub})` : u.name) : (u.username || u.email || "Lead"),
+          actualValue: String(u.id),
+          user: { ...u, color: u.color || userColors[i % userColors.length] },
+        };
+      });
+      const members = Array.from(uniqueMembersMap.values()).map((u, i) => {
+        const sub = u.username ? `@${u.username.replace(/^@/, "")}` : u.email;
+        return {
+          label: u.name ? (sub ? `${u.name} (${sub})` : u.name) : (u.username || u.email || "Member"),
+          actualValue: String(u.id),
+          user: { ...u, color: u.color || userColors[i % userColors.length] },
+        };
+      });
+      const creators = Array.from(uniqueCreatorsMap.values()).map((u, i) => {
+        const sub = u.username ? `@${u.username.replace(/^@/, "")}` : u.email;
+        return {
+          label: u.name ? (sub ? `${u.name} (${sub})` : u.name) : (u.username || u.email || "Creator"),
+          actualValue: String(u.id),
+          user: { ...u, color: u.color || userColors[i % userColors.length] },
+        };
+      });
 
       const filtered = Array.from(uniqueLabelsSet).filter((l) =>
         l.toLowerCase().includes(labelSearchTerm.toLowerCase()),
@@ -155,7 +168,7 @@ export default function ProjectToolbar({
   }, [isMobile, activeView, setActiveView]);
 
   return (
-    <div className="flex flex-col gap-3 mb-6 z-30 flex-shrink-0 px-2">
+    <div className="flex flex-col gap-3 mb-6 relative z-50 flex-shrink-0 px-2">
       {/* ROW 1: Title & New Project */}
       <div className="flex items-center justify-between gap-3 min-h-[38px]">
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
@@ -172,12 +185,14 @@ export default function ProjectToolbar({
           </h1>
         </div>
         {canManageProjects && projects.length > 0 && (
-          <button
-            onClick={() => setIsCreateModalOpen(true)}
-            className="kriri-primary-btn h-[26px] sm:h-[28px] px-3 transition-all duration-300 text-[11.5px] sm:text-[12px] font-medium rounded-full shadow-sm active:scale-[0.98] shrink-0 flex items-center gap-1.5"
-          >
-            <Plus size={13} strokeWidth={2.2} /> New Project
-          </button>
+          <ActionTooltip label="Create new project" shortcut="C">
+            <button
+              onClick={() => setIsCreateModalOpen(true)}
+              className="kriri-primary-btn h-[26px] sm:h-[28px] px-3 transition-all duration-300 text-[11.5px] sm:text-[12px] font-medium rounded-full shadow-sm active:scale-[0.98] shrink-0 flex items-center gap-1.5"
+            >
+              <Plus size={13} strokeWidth={2.2} /> New Project
+            </button>
+          </ActionTooltip>
         )}
       </div>
 
@@ -187,63 +202,69 @@ export default function ProjectToolbar({
       <div className="flex items-center justify-between">
         {/* Workspace Scope Selector */}
         <div className="relative">
-          <Button
-            size="sm"
-            variant="secondary"
-            className="text-[12.5px] rounded-full h-[28px] px-3 bg-black/[0.04] hover:bg-black/[0.08] dark:bg-white/[0.04] dark:hover:bg-white/[0.08] text-zinc-800 dark:text-zinc-200 shadow-sm border-0"
-          >
-            <span>All projects</span>
-            <Layers size={13} className="text-zinc-500 dark:text-[#8a8f98]" />
-          </Button>
+          <ActionTooltip label="Filter by project scope">
+            <Button
+              size="sm"
+              variant="secondary"
+              className="text-[12.5px] rounded-full h-[28px] px-3 bg-black/[0.04] hover:bg-black/[0.08] dark:bg-white/[0.04] dark:hover:bg-white/[0.08] text-zinc-800 dark:text-zinc-200 shadow-sm border-0"
+            >
+              <span>All projects</span>
+              <Layers size={13} className="text-zinc-500 dark:text-[#8a8f98]" />
+            </Button>
+          </ActionTooltip>
         </div>
 
         {/* Right Controls */}
         <div className="flex items-center gap-3">
           <div className="relative flex items-center gap-1.5">
-            <Button
-              variant={isFilterOpen ? "secondary" : "ghost"}
-              size="sm"
-              onClick={() => {
-                setIsDisplayOptionsOpen(false);
-                setIsFilterOpen(!isFilterOpen);
-                if (isFilterOpen) {
+            <ActionTooltip label="Filter projects" shortcut="F">
+              <Button
+                variant={isFilterOpen ? "secondary" : "ghost"}
+                size="sm"
+                onClick={() => {
+                  setIsDisplayOptionsOpen(false);
+                  setIsFilterOpen(!isFilterOpen);
+                  if (isFilterOpen) {
+                    setActiveFilterMenu(null);
+                    setActiveNestedFilterMenu(null);
+                    setFilterSearchTerm("");
+                    setLabelSearchTerm("");
+                  }
+                }}
+                className={`flex-shrink-0 w-[28px] h-[28px] rounded-full p-0 flex items-center justify-center ${
+                  isFilterOpen
+                    ? "bg-zinc-200 text-zinc-900 dark:bg-white/[0.1] dark:text-white"
+                    : "bg-black/[0.04] dark:bg-white/[0.04] text-zinc-600 dark:text-[#8a8f98] hover:text-zinc-900 dark:hover:text-[#e8e8e8]"
+                }`}
+              >
+                <Filter size={13} />
+              </Button>
+            </ActionTooltip>
+
+            <ActionTooltip label="Display options" shortcut="V">
+              <Button
+                variant={isDisplayOptionsOpen ? "secondary" : "ghost"}
+                size="sm"
+                onClick={() => {
+                  setIsFilterOpen(false);
                   setActiveFilterMenu(null);
                   setActiveNestedFilterMenu(null);
                   setFilterSearchTerm("");
                   setLabelSearchTerm("");
-                }
-              }}
-              className={`flex-shrink-0 w-[28px] h-[28px] rounded-full p-0 flex items-center justify-center ${
-                isFilterOpen
-                  ? "bg-zinc-200 text-zinc-900 dark:bg-white/[0.1] dark:text-white"
-                  : "bg-black/[0.04] dark:bg-white/[0.04] text-zinc-600 dark:text-[#8a8f98] hover:text-zinc-900 dark:hover:text-[#e8e8e8]"
-              }`}
-            >
-              <Filter size={13} />
-            </Button>
-
-            <Button
-              variant={isDisplayOptionsOpen ? "secondary" : "ghost"}
-              size="sm"
-              onClick={() => {
-                setIsFilterOpen(false);
-                setActiveFilterMenu(null);
-                setActiveNestedFilterMenu(null);
-                setFilterSearchTerm("");
-                setLabelSearchTerm("");
-                setIsDisplayOptionsOpen(!isDisplayOptionsOpen);
-              }}
-              className={`flex-shrink-0 relative w-[28px] h-[28px] rounded-full p-0 flex items-center justify-center ${
-                isDisplayOptionsOpen
-                  ? "bg-zinc-200 text-zinc-900 dark:bg-white/[0.1] dark:text-white"
-                  : "bg-black/[0.04] dark:bg-white/[0.04] text-zinc-600 dark:text-[#8a8f98] hover:text-zinc-900 dark:hover:text-[#e8e8e8]"
-              }`}
-            >
-              <Settings2 size={13} />
-              {isNonDefaultDisplay && (
-                <div className="absolute top-[3px] right-[3px] w-[5px] h-[5px] bg-[#3b82f6] rounded-full ring-[2px] ring-white dark:ring-[#1a1b1e]" />
-              )}
-            </Button>
+                  setIsDisplayOptionsOpen(!isDisplayOptionsOpen);
+                }}
+                className={`flex-shrink-0 relative w-[28px] h-[28px] rounded-full p-0 flex items-center justify-center ${
+                  isDisplayOptionsOpen
+                    ? "bg-zinc-200 text-zinc-900 dark:bg-white/[0.1] dark:text-white"
+                    : "bg-black/[0.04] dark:bg-white/[0.04] text-zinc-600 dark:text-[#8a8f98] hover:text-zinc-900 dark:hover:text-[#e8e8e8]"
+                }`}
+              >
+                <Settings2 size={13} />
+                {isNonDefaultDisplay && (
+                  <div className="absolute top-[3px] right-[3px] w-[5px] h-[5px] bg-[#3b82f6] rounded-full ring-[2px] ring-white dark:ring-[#1a1b1e]" />
+                )}
+              </Button>
+            </ActionTooltip>
 
             {/* Filter Menu Dropdown */}
             {isFilterOpen && (

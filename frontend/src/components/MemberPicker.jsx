@@ -5,6 +5,7 @@ export default function MemberPicker({
   onSelect,
   currentMembers = [],
   availableMembers = [],
+  align = "left",
 }) {
   const popoverRef = useRef(null);
 
@@ -19,9 +20,15 @@ export default function MemberPicker({
   }, [onClose]);
 
   const toggleMember = (user) => {
-    const isSelected = currentMembers.some((m) => m.id === user.id);
+    const isSelected = currentMembers.some((m) =>
+      (m.id != null && user.id != null && String(m.id) === String(user.id)) ||
+      (!m.id && m.email && user.email && m.email.toLowerCase() === user.email.toLowerCase())
+    );
     if (isSelected) {
-      onSelect(currentMembers.filter((m) => m.id !== user.id));
+      onSelect(currentMembers.filter((m) =>
+        !((m.id != null && user.id != null && String(m.id) === String(user.id)) ||
+          (!m.id && m.email && user.email && m.email.toLowerCase() === user.email.toLowerCase()))
+      ));
     } else {
       onSelect([...currentMembers, user]);
     }
@@ -43,13 +50,15 @@ export default function MemberPicker({
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  const alignClass = align === "right" ? "right-0" : "left-0";
+
   const content = (
     <div
       ref={popoverRef}
       className={`${
         isMobile
           ? "bg-white dark:bg-[var(--surface-elevated,#1e1f21)] border border-black/10 dark:border-[var(--border,rgba(255,255,255,0.08))] rounded-2xl shadow-2xl w-[280px] max-w-[calc(100vw-32px)] text-zinc-900 dark:text-white text-[12.5px] flex flex-col p-2"
-          : "absolute top-full left-0 mt-2 bg-white dark:bg-[var(--surface-elevated,#1e1f21)] border border-black/10 dark:border-[var(--border,rgba(255,255,255,0.08))] rounded-xl shadow-2xl w-[260px] max-h-[300px] overflow-y-auto z-50 text-zinc-900 dark:text-white text-[13px] flex flex-col p-1.5 custom-scrollbar"
+          : `absolute top-full ${alignClass} mt-2 bg-white dark:bg-[var(--surface-elevated,#1e1f21)] border border-black/10 dark:border-[var(--border,rgba(255,255,255,0.08))] rounded-xl shadow-2xl w-[280px] max-h-[320px] overflow-y-auto z-50 text-zinc-900 dark:text-white text-[13px] flex flex-col p-1.5 custom-scrollbar`
       }`}
     >
       <div className="flex items-center justify-between px-2 py-1.5 border-b border-black/10 dark:border-[var(--border,rgba(255,255,255,0.08))] mb-1.5">
@@ -84,7 +93,10 @@ export default function MemberPicker({
           </div>
         )}
         {availableMembers.map((member) => {
-          const isSelected = currentMembers.some((m) => m.id === member.id);
+          const isSelected = currentMembers.some((m) =>
+            (m.id != null && member.id != null && String(m.id) === String(member.id)) ||
+            (!m.id && m.email && member.email && m.email.toLowerCase() === member.email.toLowerCase())
+          );
           const displayName =
             member.name || member.email?.split("@")[0] || "User";
           const initial = getInitial(member.name, member.email);
@@ -122,7 +134,14 @@ export default function MemberPicker({
                   {initial}
                 </div>
               )}
-              <span className="text-zinc-800 dark:text-[#d1d2d5] truncate text-[12.5px]">{displayName}</span>
+              <div className="flex flex-col min-w-0 leading-tight">
+                <span className="text-zinc-800 dark:text-[#d1d2d5] truncate text-[12.5px] font-medium">{displayName}</span>
+                {(member.username || member.email) && (
+                  <span className="text-[10px] text-zinc-400 dark:text-[#8a8f98] truncate">
+                    {member.username ? `@${member.username.replace(/^@/, "")}` : member.email}
+                  </span>
+                )}
+              </div>
             </div>
           );
         })}

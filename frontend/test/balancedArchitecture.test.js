@@ -86,6 +86,31 @@ describe("Balanced Architecture: DataStore & ViewStateStore Tests", () => {
     unsubscribe();
   });
 
+  it("DataStore manages task dependencies with optimistic updates and real-time socket events", () => {
+    let notifyCount = 0;
+    const unsubscribe = dataStore.subscribe(() => {
+      notifyCount++;
+    });
+
+    dataStore.setTasks([
+      { id: "100", title: "Task 100", blocked_by_count: 0 },
+      { id: "200", title: "Task 200", blocked_by_count: 1 },
+    ]);
+    assert.strictEqual(notifyCount, 1);
+
+    // Real-time socket event: TASK_DEPENDENCY_ADDED
+    dataStore.handleTaskDependencyAdded({ task_id: "100", depends_on_task_id: "200" });
+    assert.strictEqual(dataStore.getTasksSnapshot()[0].blocked_by_count, 1);
+    assert.strictEqual(notifyCount, 2);
+
+    // Real-time socket event: TASK_DEPENDENCY_REMOVED
+    dataStore.handleTaskDependencyRemoved({ task_id: "100", depends_on_task_id: "200" });
+    assert.strictEqual(dataStore.getTasksSnapshot()[0].blocked_by_count, 0);
+    assert.strictEqual(notifyCount, 3);
+
+    unsubscribe();
+  });
+
   it("ViewStateStore preserves navigation state, filters, and scroll position outside DOM", () => {
     // 1. Simulate user interaction on Tasks view
     viewStateStore.setTasksView({

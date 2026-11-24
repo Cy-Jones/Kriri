@@ -113,6 +113,17 @@ exports.getCurrentWorkspace = async (req, res) => {
     }
 
     const ws = rows[0];
+
+    // Ensure Clerk organization has adminDeleteEnabled: true so owner can delete
+    if (ws.clerk_org_id) {
+      try {
+        const { clerkClient } = require("@clerk/express");
+        clerkClient.organizations
+          .updateOrganization(ws.clerk_org_id, { adminDeleteEnabled: true })
+          .catch(() => {});
+      } catch (e) {}
+    }
+
     res.json({
       ...ws,
       role: req.workspaceRole,
@@ -1089,10 +1100,12 @@ exports.getWorkspaceMembers = async (req, res) => {
       `
         SELECT 
           u.id, 
+          u.clerk_user_id,
           u.name, 
           u.email, 
           u.username,
           u.avatar_url, 
+          u.last_seen_at,
           wm.role, 
           wm.created_at as joined_at,
           (
@@ -1114,7 +1127,23 @@ exports.getWorkspaceMembers = async (req, res) => {
       `,
       [req.workspace.id],
     );
-    res.json(rows);
+
+    const { isClerkUserOnline } = require("../socket");
+    const now = Date.now();
+    const enrichedRows = rows.map((m) => {
+      const isSelf = Boolean(
+        (req.user && (String(m.id) === String(req.user.id) || m.clerk_user_id === req.user.clerk_user_id)) ||
+        (req.clerkAuth && m.clerk_user_id === req.clerkAuth.userId)
+      );
+      const lastSeenMs = m.last_seen_at ? new Date(m.last_seen_at).getTime() : 0;
+      const isRecentlyActive = now - lastSeenMs < 3 * 60 * 1000;
+      const isOnline = isSelf || isRecentlyActive || (typeof isClerkUserOnline === "function" && isClerkUserOnline(m.clerk_user_id));
+      return {
+        ...m,
+        is_online: Boolean(isOnline),
+      };
+    });
+    res.json(enrichedRows);
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Server error" });

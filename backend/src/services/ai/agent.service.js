@@ -1,8 +1,23 @@
 const db = require("../../config/database");
 const analyticsEngine = require("./analytics.engine");
 const { taskSchema, milestoneSchema } = require("../../validators");
-const { getIO } = require("../../socket");
+const { getIO, safeGetIO } = require("../../socket");
 const { generateProjectSlug, generateProjectIdentifier } = require("../../utils/slug");
+
+function safeEmit(event, data, room) {
+  try {
+    const io = typeof safeGetIO === "function" ? safeGetIO() : null;
+    if (io) {
+      if (room) {
+        io.to(room).emit(event, data);
+      } else {
+        io.emit(event, data);
+      }
+    }
+  } catch (err) {
+    // Non-fatal socket broadcast error
+  }
+}
 
 /**
  * Agentic Tool Execution Service with Human-in-the-Loop Security Architecture
@@ -34,13 +49,13 @@ class AgentService {
         type: "function",
         function: {
           name: "get_project_overview",
-          description: "Get the current health, status, dates, and metrics for a project.",
+          description: "Get the current health, status, dates, and metrics for a project (or active project if project_id is omitted).",
           parameters: {
             type: "object",
             properties: {
-              project_id: { type: "number", description: "The ID of the project" },
+              project_id: { type: "number", description: "The ID of the project (optional)" },
+              project_name: { type: "string", description: "Optional name of the project" },
             },
-            required: ["project_id"],
           },
         },
       },
@@ -269,7 +284,25 @@ class AgentService {
       // 3. Dispatch tool execution
       switch (toolName) {
         case "get_project_overview": {
-          const health = await analyticsEngine.computeProjectHealth(args.project_id, workspaceId);
+          let targetProjectId = args.project_id;
+          if (!targetProjectId && args.project_name) {
+            const pMatch = await db.query(
+              `SELECT id FROM projects WHERE workspace_id = $1 AND (name ILIKE $2 OR slug ILIKE $2) LIMIT 1`,
+              [workspaceId, `%${args.project_name}%`]
+            );
+            if (pMatch.rows.length > 0) targetProjectId = pMatch.rows[0].id;
+          }
+          if (!targetProjectId) {
+            const pRecent = await db.query(
+              `SELECT id FROM projects WHERE workspace_id = $1 ORDER BY updated_at DESC, created_at DESC LIMIT 1`,
+              [workspaceId]
+            );
+            if (pRecent.rows.length > 0) targetProjectId = pRecent.rows[0].id;
+          }
+          if (!targetProjectId) {
+            throw new Error("No projects found in active workspace to inspect.");
+          }
+          const health = await analyticsEngine.computeProjectHealth(targetProjectId, workspaceId);
           result = health;
           break;
         }
@@ -351,10 +384,8 @@ class AgentService {
             await client.query("COMMIT");
             const createdProj = pRes.rows[0];
 
-            const io = getIO();
-            if (io) {
-              io.emit("PROJECT_CREATED", createdProj);
-            }
+            safeEmit("PROJECT_CREATED", createdProj);
+            safeEmit("PROJECT_CREATED", createdProj, `workspace_${workspaceId}`);
 
             result = { success: true, created_project: createdProj };
           } catch (e) {
@@ -431,10 +462,8 @@ class AgentService {
           const createdTask = insRes.rows[0];
 
           // Broadcast real-time socket event
-          const io = getIO();
-          if (io) {
-            io.emit("TASK_CREATED", createdTask);
-          }
+          safeEmit("TASK_CREATED", createdTask);
+          safeEmit("TASK_CREATED", createdTask, `workspace_${workspaceId}`);
 
           result = { success: true, created_task: createdTask };
           break;
@@ -496,10 +525,8 @@ class AgentService {
           const updatedTask = upRes.rows[0];
 
           // Broadcast real-time update
-          const io = getIO();
-          if (io) {
-            io.emit("TASK_UPDATED", updatedTask);
-          }
+          safeEmit("TASK_UPDATED", updatedTask);
+          safeEmit("TASK_UPDATED", updatedTask, `workspace_${workspaceId}`);
 
           result = { success: true, updated_task: updatedTask };
           break;
@@ -519,21 +546,34 @@ class AgentService {
           let targetUserId = args.assignee_id;
           let assigneeName = args.assignee_name;
           if (!targetUserId && assigneeName) {
-            const uRes = await db.query(
+            const clean = assigneeName.replace(/^@/, "").trim();
+            // 1. Try exact username or email match first
+            let uRes = await db.query(
               `SELECT u.id, u.name FROM workspace_members wm
                JOIN users u ON wm.user_id = u.id
-               WHERE wm.workspace_id = $1 AND (u.name ILIKE $2 OR u.email ILIKE $2)
+               WHERE wm.workspace_id = $1 AND (u.username ILIKE $2 OR u.email ILIKE $2)
                LIMIT 1`,
-              [workspaceId, `%${assigneeName}%`]
+              [workspaceId, clean]
             );
+            // 2. Try contains match on username/email or name
+            if (uRes.rows.length === 0) {
+              uRes = await db.query(
+                `SELECT u.id, u.name FROM workspace_members wm
+                 JOIN users u ON wm.user_id = u.id
+                 WHERE wm.workspace_id = $1 AND (u.username ILIKE $2 OR u.email ILIKE $2 OR u.name ILIKE $2)
+                 ORDER BY (CASE WHEN u.username ILIKE $2 OR u.email ILIKE $2 THEN 0 ELSE 1 END) ASC
+                 LIMIT 1`,
+                [workspaceId, `%${clean}%`]
+              );
+            }
             if (uRes.rows.length > 0) {
               targetUserId = uRes.rows[0].id;
               assigneeName = uRes.rows[0].name;
             } else {
               // Direct lookup in users table
               const directUser = await db.query(
-                `SELECT id, name FROM users WHERE name ILIKE $1 OR email ILIKE $1 LIMIT 1`,
-                [`%${assigneeName}%`]
+                `SELECT id, name FROM users WHERE username ILIKE $1 OR email ILIKE $1 OR name ILIKE $1 ORDER BY (CASE WHEN username ILIKE $1 OR email ILIKE $1 THEN 0 ELSE 1 END) ASC LIMIT 1`,
+                [`%${clean}%`]
               );
               if (directUser.rows.length > 0) {
                 targetUserId = directUser.rows[0].id;
@@ -556,10 +596,8 @@ class AgentService {
             updatedTask.project_name = pLookup.rows[0].name;
           }
 
-          const io = getIO();
-          if (io) {
-            io.emit("TASK_UPDATED", updatedTask);
-          }
+          safeEmit("TASK_UPDATED", updatedTask);
+          safeEmit("TASK_UPDATED", updatedTask, `workspace_${workspaceId}`);
 
           result = { success: true, updated_task: updatedTask, assigned_to: assigneeName || `User #${targetUserId}` };
           break;
@@ -637,13 +675,8 @@ class AgentService {
           }
 
           const deletedTask = delRes.rows[0];
-          const io = getIO();
-          if (io) {
-            io.emit("TASK_DELETED", targetTaskId);
-            try {
-              io.to(`workspace_${workspaceId}`).emit("TASK_DELETED", targetTaskId);
-            } catch {}
-          }
+          safeEmit("TASK_DELETED", targetTaskId);
+          safeEmit("TASK_DELETED", targetTaskId, `workspace_${workspaceId}`);
 
           result = { success: true, deleted_task: deletedTask };
           break;
@@ -678,13 +711,8 @@ class AgentService {
           }
 
           const deletedProject = delProj.rows[0];
-          const io = getIO();
-          if (io) {
-            io.emit("PROJECT_DELETED", targetProjectId);
-            try {
-              io.to(`workspace_${workspaceId}`).emit("PROJECT_DELETED", targetProjectId);
-            } catch {}
-          }
+          safeEmit("PROJECT_DELETED", targetProjectId);
+          safeEmit("PROJECT_DELETED", targetProjectId, `workspace_${workspaceId}`);
 
           result = { success: true, deleted_project: deletedProject };
           break;

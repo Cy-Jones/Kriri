@@ -7,6 +7,7 @@ import {
   Kanban,
   CheckCircle2,
   FolderKanban,
+  Folder,
   Settings2,
   LogOut,
   Plus,
@@ -15,6 +16,8 @@ import {
   Bug,
   Users,
   BarChart2,
+  Sparkles,
+  Activity,
 } from "lucide-react";
 import { KririAgentIcon } from "./ai/KririAgentIcon";
 import { useClerk, useOrganization } from "@clerk/react";
@@ -129,6 +132,77 @@ export default function CommandPalette({ openCreateTask, openHelp }) {
 
   const items = useMemo(() => {
     const list = [
+      // AI Intelligence
+      {
+        id: "ai-ask-assistant",
+        label: "Ask Kriri AI",
+        description: "Open floating autonomous assistant modal",
+        group: "AI Intelligence",
+        icon: <KririAgentIcon size={16} className="text-foreground" />,
+        shortcut: "⌘ J",
+        keywords: ["ai", "assistant", "ask", "prompt", "chat", "modal", "kriri"],
+        onSelect: () => {
+          setOpen(false);
+          window.dispatchEvent(new CustomEvent("open-ai-assistant"));
+        },
+      },
+      {
+        id: "ai-audit-health",
+        label: "Audit Project Health & Risks",
+        description: "Deterministic health scoring, blocker detection, and risks",
+        group: "AI Intelligence",
+        icon: <Activity className="w-4 h-4 text-emerald-500" />,
+        keywords: ["health", "audit", "risk", "risks", "blockers", "milestones"],
+        onSelect: () => {
+          setOpen(false);
+          navigate(
+            "/agent?prompt=" +
+              encodeURIComponent(
+                "Audit project health across our active milestones and identify critical blockers.",
+              ),
+            { state: { loadingTitle: "Agent" } },
+          );
+        },
+      },
+      {
+        id: "ai-analyze-workload",
+        label: "Analyze Team Workload",
+        description: "Inspect member allocation, capacity, and overdue tasks",
+        group: "AI Intelligence",
+        icon: <Users className="w-4 h-4 text-sky-500" />,
+        keywords: ["workload", "team", "capacity", "members", "allocation"],
+        onSelect: () => {
+          setOpen(false);
+          navigate(
+            "/agent?prompt=" +
+              encodeURIComponent(
+                "Analyze current team workload across workspace members and highlight capacity imbalances.",
+              ),
+            { state: { loadingTitle: "Agent" } },
+          );
+        },
+      },
+      {
+        id: "ai-create-project-blueprint",
+        label: "New Project with AI Blueprint",
+        description: "Launch guided multi-step project creation & task decomposition",
+        group: "AI Intelligence",
+        icon: <Sparkles className="w-4 h-4 text-amber-500" />,
+        keywords: [
+          "create project",
+          "new project",
+          "blueprint",
+          "decompose",
+          "initiative",
+        ],
+        onSelect: () => {
+          setOpen(false);
+          navigate(
+            "/agent?prompt=" + encodeURIComponent("Create a new project"),
+            { state: { loadingTitle: "Agent" } },
+          );
+        },
+      },
       // Actions
       {
         id: "action-create-issue",
